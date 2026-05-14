@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+
+# 数据文件
+data/
+*.db
+
+# 配置文件（含敏感信息）
+config/token.json
+config/settings.json
+config/member.json
+
+# ChromeDriver
+chromedriver-win64/
+
+# 测试文件夹
+test/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 日志
+*.log
+
+# 临时文件
+*.tmp
+*.bak

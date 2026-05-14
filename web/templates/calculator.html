@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>刷单计算器 - salsaAuto</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .dish-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+        }
+        .dish-checkbox:hover {
+            border-color: var(--accent);
+        }
+        .dish-checkbox.selected {
+            border-color: var(--accent);
+            background: var(--accent-bg);
+        }
+        .dish-checkbox input {
+            width: 18px;
+            height: 18px;
+        }
+        .dish-checkbox .dish-info {
+            flex: 1;
+        }
+        .dish-checkbox .dish-name {
+            font-weight: 500;
+        }
+        .dish-checkbox .dish-price {
+            font-size: 12px;
+            color: var(--muted);
+        }
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        .result-table th, .result-table td {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .result-table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+        }
+        .result-table .day-row {
+            background: var(--bg);
+        }
+        .result-table .total-row {
+            background: var(--accent-bg);
+            font-weight: 600;
+        }
+        .result-table .supplement-row {
+            background: #fff3cd;
+        }
+        .calculator-input {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="brand-logo">S</div>
+                    <div class="brand-text">
+                        <span class="brand-title">salsaAuto</span>
+                        <span class="brand-subtitle">v2.0</span>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+            </div>
+            <div class="nav-content">
+                <div class="nav-group">
+                    <div class="nav-group-header"><span class="nav-group-title">主菜单</span></div>
+                    <ul class="nav-items">
+                        <li><a href="/" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/></svg><span class="nav-label">概览</span></a></li>
+                        <li><a href="/stores" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="nav-label">门店</span></a></li>
+                        <li><a href="/dishes" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/></svg><span class="nav-label">菜品</span></a></li>
+                        <li><a href="/members" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="nav-label">会员</span></a></li>
+                        <li><a href="/orders" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><span class="nav-label">订单</span></a></li>
+                        <li><a href="/calculator" class="nav-item active"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg><span class="nav-label">计算器</span></a></li>
+                        <li><a href="/records" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg><span class="nav-label">记录</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="content-header">
+                <h1>刷单计算器</h1>
+            </header>
+
+            <div class="content-body">
+                <!-- 输入区域 -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-header"><span class="card-title">参数设置</span></div>
+                    
+                    <div class="calculator-input">
+                        <div class="form-group">
+                            <label class="form-label">门店</label>
+                            <select id="store-select" class="form-select" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">支付方式</label>
+                            <select id="pay-type-select" class="form-select">
+                                <option value="memberPay">会员支付</option>
+                                <option value="cash">现金支付</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">开始日期</label>
+                            <input type="date" id="start-date" class="form-input" value="2026-01-01">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">结束日期</label>
+                            <input type="date" id="end-date" class="form-input" value="2026-01-31">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">总金额</label>
+                            <input type="number" id="total-amount" class="form-input" step="0.01" value="10000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">每日浮动 (%)</label>
+                            <input type="number" id="float-percent" class="form-input" value="20" min="0" max="100">
+                            <p class="form-hint">每日金额在平均值上下浮动此百分比</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-top: 16px;">
+                        <label class="form-label">选择商品（可多选）</label>
+                        <div id="dish-list" style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px;">
+                            <!-- 动态加载 -->
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="calculate()" style="margin-top: 16px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/><path d="M12 4v16"/></svg>
+                        计算刷单方案
+                    </button>
+                    <button class="btn btn-secondary" id="save-task-btn" onclick="saveTask()" style="margin-top: 16px; margin-left: 12px; display: none;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 13 7 21"/></svg>
+                        保存为任务
+                    </button>
+                </div>
+
+                <!-- 结果区域 -->
+                <div class="card" id="result-card" style="display: none;">
+                    <div class="card-header">
+                        <span class="card-title">计算结果</span>
+                        <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 12px;" onclick="exportResult()">导出 CSV</button>
+                    </div>
+                    <div id="result-content" style="overflow-x: auto;">
+                        <!-- 动态生成表格 -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let dishes = {};
+        let stores = {};
+        let lastResult = null; // 保存最后一次计算结果
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const dishesData = await fetchAPI('/api/dishes');
+            dishes = dishesData.dishes || {};
+            renderDishList();
+            
+            const storesData = await fetchAPI('/api/stores');
+            stores = storesData.stores || {};
+            renderStoreList();
+        });
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        function renderStoreList() {
+            const select = document.getElementById('store-select');
+            select.innerHTML = Object.entries(stores).map(([id, store]) => 
+                `<option value="${id}">${store.name}</option>`
+            ).join('');
+        }
+
+        function renderDishList() {
+            const container = document.getElementById('dish-list');
+            container.innerHTML = Object.entries(dishes).map(([id, dish]) => `
+                <label class="dish-checkbox" data-id="${id}">
+                    <input type="checkbox" value="${id}" onchange="toggleDish(this)">
+                    <div class="dish-info">
+                        <div class="dish-name">${dish.name}</div>
+                        <div class="dish-price">Y${dish.price}</div>
+                    </div>
+                </label>
+            `).join('');
+        }
+
+        function toggleDish(checkbox) {
+            const label = checkbox.closest('.dish-checkbox');
+            if (checkbox.checked) {
+                label.classList.add('selected');
+            } else {
+                label.classList.remove('selected');
+            }
+        }
+
+        function getSelectedDishes() {
+            const checkboxes = document.querySelectorAll('#dish-list input:checked');
+            return Array.from(checkboxes).map(cb => ({
+                id: cb.value,
+                name: dishes[cb.value].name,
+                price: dishes[cb.value].price
+            }));
+        }
+
+        function calculate() {
+            const startDate = new Date(document.getElementById('start-date').value);
+            const endDate = new Date(document.getElementById('end-date').value);
+            const totalAmount = parseFloat(document.getElementById('total-amount').value);
+            const floatPercent = parseFloat(document.getElementById('float-percent').value) / 100;
+            const selectedDishes = getSelectedDishes();
+
+            // 验证
+            if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+                alert('请选择有效的日期区间');
+                return;
+            }
+            if (startDate > endDate) {
+                alert('开始日期不能晚于结束日期');
+                return;
+            }
+            if (totalAmount <= 0) {
+                alert('总金额必须大于0');
+                return;
+            }
+            if (selectedDishes.length === 0) {
+                alert('请至少选择一个商品');
+                return;
+            }
+
+            // 转换为分（整数），避免浮点数精度问题
+            const totalCents = Math.round(totalAmount * 100);
+            
+            // 按价格排序商品（从小到大），价格也转为分
+            selectedDishes.sort((a, b) => a.price - b.price);
+            const minPriceCents = Math.round(selectedDishes[0].price * 100);
+            
+            // 商品价格转为分
+            selectedDishes.forEach(d => d.priceCents = Math.round(d.price * 100));
+
+            // 分离高价商品(>=15元=1500分)和低价商品
+            const expensiveDishes = selectedDishes.filter(d => d.priceCents >= 1500);
+            const cheapDishes = selectedDishes.filter(d => d.priceCents < 1500);
+
+            // 计算天数
+            const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+            const avgDailyCents = totalCents / days;
+
+            // 生成每日目标金额（分）
+            let dailyTargets = [];
+            let assignedTotal = 0;
+            
+            for (let i = 0; i < days - 1; i++) {
+                const minCents = Math.floor(avgDailyCents * (1 - floatPercent));
+                const maxCents = Math.ceil(avgDailyCents * (1 + floatPercent));
+                const cents = Math.floor(minCents + Math.random() * (maxCents - minCents + 1));
+                dailyTargets.push(cents);
+                assignedTotal += cents;
+            }
+            // 最后一天用剩余金额
+            dailyTargets.push(totalCents - assignedTotal);
+
+            // 为每天分配商品数量
+            const results = [];
+            let totalCalculated = 0;
+
+            for (let i = 0; i < days; i++) {
+                const date = new Date(startDate);
+                date.setDate(date.getDate() + i);
+                const dateStr = date.toISOString().split('T')[0];
+                let targetCents = dailyTargets[i];
+                const isLastDay = (i === days - 1);
+                
+                const dayResult = {
+                    date: dateStr,
+                    dishes: {},
+                    totalCents: 0
+                };
+
+                // 先处理高价商品（数量相近，最多20%差距）
+                if (expensiveDishes.length > 0) {
+                    // 计算高价商品总预算（预留一部分给低价商品）
+                    const cheapReserve = cheapDishes.length > 0 ? minPriceCents * 3 : 0;
+                    let expensiveBudget = targetCents - cheapReserve;
+                    
+                    if (expensiveBudget > 0) {
+                        // 计算每个高价商品的平均数量
+                        const avgPrice = expensiveDishes.reduce((s, d) => s + d.priceCents, 0) / expensiveDishes.length;
+                        const avgQty = Math.floor(expensiveBudget / avgPrice / expensiveDishes.length);
+                        
+                        if (avgQty > 0) {
+                            // 分配数量，允许20%浮动
+                            expensiveDishes.forEach(dish => {
+                                const variation = 0.2;
+                                const minQty = Math.max(0, Math.floor(avgQty * (1 - variation)));
+                                const maxQty = Math.ceil(avgQty * (1 + variation));
+                                let qty = Math.floor(minQty + Math.random() * (maxQty - minQty + 1));
+                                
+                                const maxAffordable = Math.floor(targetCents / dish.priceCents);
+                                qty = Math.min(qty, maxAffordable);
+                                
+                                if (qty > 0) {
+                                    const costCents = qty * dish.priceCents;
+                                    dayResult.dishes[dish.id] = { name: dish.name, qty: qty, costCents: costCents };
+                                    dayResult.totalCents += costCents;
+                                    targetCents -= costCents;
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // 贪心算法：尽量填满目标金额
+                while (targetCents >= minPriceCents) {
+                    // 找到能买的商品中价格最大的
+                    let bestDish = null;
+                    for (let j = selectedDishes.length - 1; j >= 0; j--) {
+                        if (selectedDishes[j].priceCents <= targetCents) {
+                            bestDish = selectedDishes[j];
+                            break;
+                        }
+                    }
+                    
+                    if (!bestDish) break;
+                    
+                    // 计算能买多少个
+                    const maxQty = Math.floor(targetCents / bestDish.priceCents);
+                    if (maxQty <= 0) break;
+                    const qty = Math.min(maxQty, 6);
+                    const costCents = qty * bestDish.priceCents;
+                    
+                    if (!dayResult.dishes[bestDish.id]) {
+                        dayResult.dishes[bestDish.id] = { name: bestDish.name, qty: 0, costCents: 0 };
+                    }
+                    dayResult.dishes[bestDish.id].qty += qty;
+                    dayResult.dishes[bestDish.id].costCents += costCents;
+                    dayResult.totalCents += costCents;
+                    targetCents -= costCents;
+                }
+
+                // 最后一天：重新计算剩余金额，确保用完
+                if (isLastDay) {
+                    // 重新计算剩余金额 = 总金额 - 前面所有天已计算的金额
+                    const previousTotal = results.reduce((sum, r) => sum + r.totalCents, 0);
+                    let remainingCents = totalCents - previousTotal;
+                    
+                    // 清空当天已计算的数据，重新分配
+                    dayResult.dishes = {};
+                    dayResult.totalCents = 0;
+                    
+                    // 先处理高价商品（数量相近，最多20%差距）
+                    if (expensiveDishes.length > 0) {
+                        const cheapReserve = cheapDishes.length > 0 ? minPriceCents * 3 : 0;
+                        let expensiveBudget = remainingCents - cheapReserve;
+                        
+                        if (expensiveBudget > 0) {
+                            const avgPrice = expensiveDishes.reduce((s, d) => s + d.priceCents, 0) / expensiveDishes.length;
+                            const avgQty = Math.floor(expensiveBudget / avgPrice / expensiveDishes.length);
+                            
+                            if (avgQty > 0) {
+                                expensiveDishes.forEach(dish => {
+                                    const variation = 0.2;
+                                    const minQty = Math.max(0, Math.floor(avgQty * (1 - variation)));
+                                    const maxQty = Math.ceil(avgQty * (1 + variation));
+                                    let qty = Math.floor(minQty + Math.random() * (maxQty - minQty + 1));
+                                    
+                                    const maxAffordable = Math.floor(remainingCents / dish.priceCents);
+                                    qty = Math.min(qty, maxAffordable);
+                                    
+                                    if (qty > 0) {
+                                        const costCents = qty * dish.priceCents;
+                                        dayResult.dishes[dish.id] = { name: dish.name, qty: qty, costCents: costCents };
+                                        dayResult.totalCents += costCents;
+                                        remainingCents -= costCents;
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    
+                    // 再用贪心算法快速消耗
+                    while (remainingCents >= minPriceCents) {
+                        let bestDish = null;
+                        for (let j = selectedDishes.length - 1; j >= 0; j--) {
+                            if (selectedDishes[j].priceCents <= remainingCents) {
+                                bestDish = selectedDishes[j];
+                                break;
+                            }
+                        }
+                        if (!bestDish) break;
+                        
+                        const maxQty = Math.floor(remainingCents / bestDish.priceCents);
+                        if (maxQty <= 0) break;
+                        const qty = Math.min(maxQty, 6);
+                        const costCents = qty * bestDish.priceCents;
+                        
+                        if (!dayResult.dishes[bestDish.id]) {
+                            dayResult.dishes[bestDish.id] = { name: bestDish.name, qty: 0, costCents: 0 };
+                        }
+                        dayResult.dishes[bestDish.id].qty += qty;
+                        dayResult.dishes[bestDish.id].costCents += costCents;
+                        dayResult.totalCents += costCents;
+                        remainingCents -= costCents;
+                    }
+                    
+                    // 最后精细化用完零头
+                    while (remainingCents >= minPriceCents) {
+                        let bought = false;
+                        for (let j = 0; j < selectedDishes.length; j++) {
+                            const dish = selectedDishes[j];
+                            if (dish.priceCents <= remainingCents) {
+                                const qty = 1;
+                                const costCents = dish.priceCents;
+                                
+                                if (!dayResult.dishes[dish.id]) {
+                                    dayResult.dishes[dish.id] = { name: dish.name, qty: 0, costCents: 0 };
+                                }
+                                dayResult.dishes[dish.id].qty += qty;
+                                dayResult.dishes[dish.id].costCents += costCents;
+                                dayResult.totalCents += costCents;
+                                remainingCents -= costCents;
+                                bought = true;
+                                break;
+                            }
+                        }
+                        if (!bought) break;
+                    }
+                }
+
+                totalCalculated += dayResult.totalCents;
+                results.push(dayResult);
+            }
+
+            // 转回元
+            const calculatedAmount = totalCalculated / 100;
+            const supplement = (totalCents - totalCalculated) / 100;
+
+            // 渲染结果
+            renderResult(results, selectedDishes, totalAmount, calculatedAmount, supplement);
+        }
+
+        function renderResult(results, selectedDishes, targetAmount, calculatedAmount, supplement) {
+            const card = document.getElementById('result-card');
+            const content = document.getElementById('result-content');
+            
+            // 表头
+            let headerCells = selectedDishes.map(d => `<th>${d.name}<br><span style="font-weight:400">Y${d.price}</span></th>`).join('');
+            
+            // 表体
+            let bodyRows = results.map(r => {
+                let dishCells = selectedDishes.map(d => {
+                    const dishData = r.dishes[d.id];
+                    return `<td>${dishData ? dishData.qty : 0}</td>`;
+                }).join('');
+                return `<tr class="day-row">
+                    <td>${r.date}</td>
+                    ${dishCells}
+                    <td style="font-weight: 600;">Y${(r.totalCents / 100).toFixed(2)}</td>
+                </tr>`;
+            }).join('');
+
+            // 合计行
+            let totalCells = selectedDishes.map(d => {
+                const total = results.reduce((sum, r) => sum + (r.dishes[d.id]?.qty || 0), 0);
+                return `<td style="font-weight: 600;">${total}</td>`;
+            }).join('');
+
+            let supplementRow = '';
+            if (supplement > 0.01) {
+                supplementRow = `<tr class="supplement-row">
+                    <td colspan="${selectedDishes.length + 2}" style="text-align: right; color: #856404;">
+                        需要补刷金额: <strong>Y${supplement.toFixed(2)}</strong>
+                    </td>
+                </tr>`;
+            }
+
+            content.innerHTML = `
+                <div style="margin-bottom: 16px; display: flex; gap: 24px; flex-wrap: wrap;">
+                    <span>目标金额: <strong>Y${targetAmount.toFixed(2)}</strong></span>
+                    <span>计算金额: <strong>Y${calculatedAmount.toFixed(2)}</strong></span>
+                    ${supplement > 0.01 ? `<span style="color: #856404;">差额: Y${supplement.toFixed(2)}</span>` : '<span style="color: var(--ok);">✓ 完美匹配</span>'}
+                </div>
+                <table class="result-table">
+                    <thead>
+                        <tr>
+                            <th>日期</th>
+                            ${headerCells}
+                            <th>当日金额</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${bodyRows}
+                        <tr class="total-row">
+                            <td>合计</td>
+                            ${totalCells}
+                            <td>Y${calculatedAmount.toFixed(2)}</td>
+                        </tr>
+                        ${supplementRow}
+                    </tbody>
+                </table>
+            `;
+
+            card.style.display = 'block';
+            
+            // 显示保存任务按钮
+            document.getElementById('save-task-btn').style.display = 'inline-flex';
+            
+            // 保存计算结果供后续保存任务使用
+            lastResult = {
+                results: results,
+                selectedDishes: selectedDishes,
+                totalAmount: targetAmount,
+                calculatedAmount: calculatedAmount,
+                supplement: supplement
+            };
+        }
+
+        async function saveTask() {
+            if (!lastResult) {
+                alert('请先计算刷单方案');
+                return;
+            }
+            
+            const storeId = document.getElementById('store-select').value;
+            const storeName = stores[storeId]?.name || '未知门店';
+            const payType = document.getElementById('pay-type-select').value;
+            const payTypeName = payType === 'memberPay' ? '会员支付' : '现金支付';
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            
+            // 生成任务 ID 和名称
+            const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').split('.')[0];
+            const taskId = `task_${timestamp}`;
+            const taskName = `${storeName}_${payTypeName}_${startDate}-${endDate}_${timestamp}`;
+            
+            // 构建任务数据
+            const taskData = {
+                task_id: taskId,
+                task_name: taskName,
+                created_at: new Date().toISOString(),
+                store_id: storeId,
+                store_name: storeName,
+                pay_type: payType,
+                pay_type_name: payTypeName,
+                total_amount: lastResult.calculatedAmount,
+                date_range: {
+                    start: startDate,
+                    end: endDate
+                },
+                days: lastResult.results.map(r => {
+                    const dishes = Object.entries(r.dishes).map(([id, data]) => ({
+                        id: id,
+                        name: data.name,
+                        price: data.costCents / data.qty / 100,
+                        quantity: data.qty
+                    }));
+                    return {
+                        date: r.date,
+                        dishes: dishes,
+                        total_amount: r.totalCents / 100
+                    };
+                })
+            };
+            
+            // 调用后端 API 保存任务
+            try {
+                const response = await fetchAPI('/api/tasks/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(taskData)
+                });
+                
+                if (response.success) {
+                    alert(`任务已保存: ${taskName}\n文件: ${response.file_path}`);
+                } else {
+                    alert('保存失败: ' + response.message);
+                }
+            } catch (e) {
+                alert('保存失败: ' + e.message);
+            }
+        }
+
+        function exportResult() {
+            // 导出 CSV
+            const table = document.querySelector('.result-table');
+            if (!table) return;
+
+            let csv = [];
+            const rows = table.querySelectorAll('tr');
+            
+            rows.forEach(row => {
+                const cells = row.querySelectorAll('th, td');
+                const rowData = Array.from(cells).map(cell => {
+                    let text = cell.textContent.trim();
+                    if (text.includes('Y')) {
+                        text = text.replace('Y', '');
+                    }
+                    return `"${text}"`;
+                });
+                csv.push(rowData.join(','));
+            });
+
+            const blob = new Blob(['\uFEFF' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `刷单方案_${document.getElementById('start-date').value}_${document.getElementById('end-date').value}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>

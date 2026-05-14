@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订单管理 - salsaAuto</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .task-card {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .task-card:hover {
+            border-color: var(--accent);
+            background: var(--bg-secondary);
+        }
+        .task-card.selected {
+            border-color: var(--accent);
+            background: var(--accent-bg);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="brand-logo">S</div>
+                    <div class="brand-text">
+                        <span class="brand-title">salsaAuto</span>
+                        <span class="brand-subtitle">v2.0</span>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+            </div>
+            <div class="nav-content">
+                <div class="nav-group">
+                    <div class="nav-group-header"><span class="nav-group-title">主菜单</span></div>
+                    <ul class="nav-items">
+                        <li><a href="/" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span class="nav-label">概览</span></a></li>
+                        <li><a href="/stores" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="nav-label">门店</span></a></li>
+                        <li><a href="/dishes" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/></svg><span class="nav-label">菜品</span></a></li>
+                        <li><a href="/members" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="nav-label">会员</span></a></li>
+                        <li><a href="/orders" class="nav-item active"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><span class="nav-label">订单</span></a></li>
+                        <li><a href="/calculator" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg><span class="nav-label">计算器</span></a></li>
+                        <li><a href="/records" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg><span class="nav-label">记录</span></a></li>
+                        <li><a href="/records" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg><span class="nav-label">记录</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="content-header">
+                <h1>订单管理</h1>
+            </header>
+
+            <div class="content-body">
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('single')">单个订单</button>
+                    <button class="tab-btn" onclick="switchTab('amount')">按金额刷单</button>
+                    <button class="tab-btn" onclick="switchTab('quantity')">按数量刷单</button>
+                    <button class="tab-btn" onclick="switchTab('yizhiman')">一纸满刷单</button>
+                    <button class="tab-btn" onclick="switchTab('task')">任务刷单</button>
+                </div>
+
+                <!-- 单个订单 -->
+                <div class="tab-content active" id="tab-single">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">创建单个订单</span></div>
+                        <form id="single-order-form">
+                            <div class="form-group">
+                                <label class="form-label">门店</label>
+                                <select id="single-store" class="form-select" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">菜品</label>
+                                <select id="single-dish" class="form-select" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">数量</label>
+                                <input type="number" id="single-quantity" class="form-input" value="1" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">支付方式</label>
+                                <select id="single-pay-type" class="form-select">
+                                    <option value="memberPay">会员支付</option>
+                                    <option value="cash">现金支付</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">创建订单</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 按金额刷单 -->
+                <div class="tab-content" id="tab-amount">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">按金额批量刷单</span></div>
+                        <form id="amount-order-form">
+                            <div class="form-group">
+                                <label class="form-label">门店</label>
+                                <select id="amount-store" class="form-select" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">菜品</label>
+                                <select id="amount-dish" class="form-select" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">总金额</label>
+                                <input type="number" id="amount-total" class="form-input" step="0.01" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">支付方式</label>
+                                <select id="amount-pay-type" class="form-select">
+                                    <option value="memberPay">会员支付</option>
+                                    <option value="cash">现金支付</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">开始刷单</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 按数量刷单 -->
+                <div class="tab-content" id="tab-quantity">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">按数量批量刷单</span></div>
+                        <form id="quantity-order-form">
+                            <div class="form-group">
+                                <label class="form-label">门店</label>
+                                <select id="quantity-store" class="form-select" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">菜品</label>
+                                <select id="quantity-dish" class="form-select" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">总数量</label>
+                                <input type="number" id="quantity-total" class="form-input" min="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">支付方式</label>
+                                <select id="quantity-pay-type" class="form-select">
+                                    <option value="memberPay">会员支付</option>
+                                    <option value="cash">现金支付</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">开始刷单</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 一纸满刷单 -->
+                <div class="tab-content" id="tab-yizhiman">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">一纸满门店刷单</span>
+                            <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 8px;" onclick="saveYizhimanDefaults()">保存默认值</button>
+                        </div>
+                        <p class="form-hint" style="margin-bottom: 16px;">门店: 一纸满 (ID: 32)</p>
+                        <form id="yizhiman-order-form">
+                            <div class="form-group">
+                                <label class="form-label">菜品</label>
+                                <select id="yizhiman-dish" class="form-select" required></select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">总数量</label>
+                                <input type="number" id="yizhiman-quantity" class="form-input" min="1" value="1" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">支付方式</label>
+                                <select id="yizhiman-pay-type" class="form-select">
+                                    <option value="memberPay">会员支付</option>
+                                    <option value="cash">现金支付</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">订单时间</label>
+                                <input type="datetime-local" id="yizhiman-time" class="form-input" value="2026-01-01T10:00">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">备注</label>
+                                <input type="text" id="yizhiman-remark" class="form-input" value="111">
+                            </div>
+                            <button type="submit" class="btn btn-primary">开始刷单</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 任务刷单 -->
+                <div class="tab-content" id="tab-task">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">选择任务</span>
+                            <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 12px;" onclick="loadTasks()">刷新</button>
+                        </div>
+                        <div id="task-list">
+                            <p style="color: var(--muted);">加载中...</p>
+                        </div>
+                    </div>
+
+                    <div class="card" id="task-detail-card" style="display: none; margin-top: 16px;">
+                        <div class="card-header"><span class="card-title">任务详情</span></div>
+                        <div id="task-detail-content"></div>
+                    </div>
+
+                    <div class="card" id="task-execute-card" style="display: none; margin-top: 16px;">
+                        <div class="card-header"><span class="card-title">执行任务</span></div>
+                        <div class="form-group">
+                            <label class="form-label">会员类型（可选）</label>
+                            <select id="task-member-type" class="form-select">
+                                <option value="">通用会员</option>
+                                <option value="yizhiman">一纸满会员</option>
+                            </select>
+                            <p class="form-hint">仅对会员支付有效</p>
+                        </div>
+                        <button class="btn btn-primary" id="task-execute-btn" onclick="executeTask()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                            开始执行
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let tasks = [];
+        let selectedTask = null;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStores();
+            loadDishes();
+            loadYizhimanDefaults();
+        });
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        function saveYizhimanDefaults() {
+            const defaults = {
+                dish: document.getElementById('yizhiman-dish').value,
+                payType: document.getElementById('yizhiman-pay-type').value,
+                time: document.getElementById('yizhiman-time').value,
+                remark: document.getElementById('yizhiman-remark').value
+            };
+            localStorage.setItem('yizhiman_defaults', JSON.stringify(defaults));
+            alert('默认值已保存');
+        }
+
+        function loadYizhimanDefaults() {
+            const saved = localStorage.getItem('yizhiman_defaults');
+            if (saved) {
+                try {
+                    const defaults = JSON.parse(saved);
+                    if (defaults.dish) document.getElementById('yizhiman-dish').value = defaults.dish;
+                    if (defaults.payType) document.getElementById('yizhiman-pay-type').value = defaults.payType;
+                    if (defaults.time) document.getElementById('yizhiman-time').value = defaults.time;
+                    if (defaults.remark) document.getElementById('yizhiman-remark').value = defaults.remark;
+                } catch (e) {}
+            }
+        }
+
+        // === 任务刷单 ===
+        async function loadTasks() {
+            const data = await fetchAPI('/api/tasks/list');
+            tasks = data.tasks || [];
+            renderTaskList();
+        }
+
+        function renderTaskList() {
+            const container = document.getElementById('task-list');
+            
+            if (tasks.length === 0) {
+                container.innerHTML = '<p style="color: var(--muted);">暂无任务，请先在计算器中创建任务</p>';
+                return;
+            }
+
+            container.innerHTML = tasks.map(task => `
+                <div class="task-card" data-id="${task.task_id}" onclick="selectTask('${task.task_id}')">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div style="font-weight: 600;">${task.task_name}</div>
+                        <span class="tag">${task.pay_type_name}</span>
+                    </div>
+                    <div style="display: flex; gap: 16px; font-size: 13px; color: var(--muted);">
+                        <span>${task.store_name}</span>
+                        <span>${task.date_range?.start || '-'} ~ ${task.date_range?.end || '-'}</span>
+                        <span>Y${(task.total_amount || 0).toFixed(2)}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function selectTask(taskId) {
+            document.querySelectorAll('.task-card').forEach(el => el.classList.remove('selected'));
+            document.querySelector(`.task-card[data-id="${taskId}"]`)?.classList.add('selected');
+
+            const data = await fetchAPI(`/api/tasks/${taskId}`);
+            if (data.success) {
+                selectedTask = data.task;
+                renderTaskDetail();
+            } else {
+                alert('获取任务详情失败: ' + data.message);
+            }
+        }
+
+        function renderTaskDetail() {
+            if (!selectedTask) return;
+
+            const card = document.getElementById('task-detail-card');
+            const content = document.getElementById('task-detail-content');
+            const days = selectedTask.days || [];
+
+            content.innerHTML = `
+                <div style="margin-bottom: 16px;">
+                    <strong>门店：</strong>${selectedTask.store_name} (ID: ${selectedTask.store_id})<br>
+                    <strong>支付方式：</strong>${selectedTask.pay_type_name}<br>
+                    <strong>总金额：</strong>Y${(selectedTask.total_amount || 0).toFixed(2)}<br>
+                    <strong>创建时间：</strong>${selectedTask.created_at || '-'}
+                </div>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    ${days.map(day => `
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                            <div>
+                                <strong>${day.date}</strong>
+                                <div style="margin-top: 4px; font-size: 12px;">
+                                    ${(day.dishes || []).map(d => `${d.name} x${d.quantity}`).join(', ')}
+                                </div>
+                            </div>
+                            <div>Y${(day.total_amount || 0).toFixed(2)}</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            card.style.display = 'block';
+            document.getElementById('task-execute-card').style.display = 'block';
+        }
+
+        async function executeTask() {
+            if (!selectedTask) {
+                alert('请先选择任务');
+                return;
+            }
+
+            const btn = document.getElementById('task-execute-btn');
+            btn.disabled = true;
+            btn.innerHTML = '执行中...';
+
+            const memberType = document.getElementById('task-member-type').value;
+            const formData = new FormData();
+            formData.append('member_type', memberType);
+
+            try {
+                const result = await fetchAPI(`/api/tasks/${selectedTask.task_id}/execute`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (result.success) {
+                    alert(result.message);
+                } else {
+                    alert('执行失败: ' + result.message);
+                }
+            } catch (e) {
+                alert('执行失败: ' + e.message);
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> 开始执行';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>salsaAuto - 餐饮管理系统自动化工具</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="brand-logo">S</div>
+                    <div class="brand-text">
+                        <span class="brand-title">salsaAuto</span>
+                        <span class="brand-subtitle">v2.0</span>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+            </div>
+
+            <div class="nav-content">
+                <div class="nav-group">
+                    <div class="nav-group-header"><span class="nav-group-title">主菜单</span></div>
+                    <ul class="nav-items">
+                        <li><a href="/" class="nav-item active"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span class="nav-label">概览</span></a></li>
+                        <li><a href="/stores" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="nav-label">门店</span></a></li>
+                        <li><a href="/dishes" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/></svg><span class="nav-label">菜品</span></a></li>
+                        <li><a href="/members" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="nav-label">会员</span></a></li>
+                        <li><a href="/orders" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><span class="nav-label">订单</span></a></li>
+                        <li><a href="/calculator" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg><span class="nav-label">计算器</span></a></li>
+                        <li><a href="/records" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg><span class="nav-label">记录</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="content-header">
+                <h1>系统概览</h1>
+            </header>
+
+            <div class="content-body">
+                <!-- Chrome 驱动状态 -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-header">
+                        <span class="card-title">Chrome 驱动状态</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div>
+                            <div class="form-label">Chrome 浏览器版本</div>
+                            <div style="font-size: 18px; font-weight: 600; color: var(--text-strong); font-family: var(--mono);" id="chrome-version">检测中...</div>
+                        </div>
+                        <div>
+                            <div class="form-label">ChromeDriver 版本</div>
+                            <div style="font-size: 18px; font-weight: 600; color: var(--text-strong); font-family: var(--mono);" id="chromedriver-version">检测中...</div>
+                        </div>
+                        <div>
+                            <div class="form-label">版本状态</div>
+                            <div id="driver-status" style="display: flex; align-items: center; gap: 8px;">
+                                <span class="tag">检测中...</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <button class="btn btn-secondary" onclick="updateDriver()" id="update-driver-btn" disabled>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                                更新驱动
+                            </button>
+                            <span id="download-status" style="font-size: 13px; color: var(--muted);"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Token 状态 -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="card-header">
+                        <span class="card-title">认证状态</span>
+                    </div>
+
+                    <!-- 默认状态 -->
+                    <div id="token-default">
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <div id="token-status">
+                                <span class="tag">检测中...</span>
+                            </div>
+                            <button class="btn btn-primary" id="get-token-btn" onclick="startLogin()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+                                获取 Token
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 验证码输入区域 -->
+                    <div id="captcha-input-section" style="display: none;">
+                        <div style="display: flex; gap: 24px; align-items: flex-start;">
+                            <div>
+                                <p style="margin-bottom: 8px;">验证码:</p>
+                                <img id="captcha-image" src="" alt="验证码" style="height: 40px; border: 1px solid var(--border); border-radius: 4px;">
+                            </div>
+                            <div style="flex: 1;">
+                                <p style="margin-bottom: 8px;">请输入验证码:</p>
+                                <div style="display: flex; gap: 12px; align-items: center;">
+                                    <input type="text" id="captcha-code" class="form-input" placeholder="验证码" style="width: 120px;" maxlength="6">
+                                    <button class="btn btn-primary" id="submit-captcha-btn" onclick="submitCaptcha()">确认</button>
+                                    <button class="btn btn-secondary" onclick="cancelLogin()">取消</button>
+                                </div>
+                                <p id="captcha-error" style="color: var(--danger); font-size: 13px; margin-top: 8px; display: none;"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 今日刷单统计 -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">今日刷单统计</span>
+                        <span style="font-size: 13px; color: var(--muted);" id="today-date"></span>
+                    </div>
+                    <div id="today-orders" style="margin-bottom: 16px;">
+                        <p style="color: var(--muted);">暂无刷单记录</p>
+                    </div>
+                    <div style="padding-top: 16px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-weight: 600;">今日合计</span>
+                        <span style="font-size: 24px; font-weight: 700; color: var(--accent); font-family: var(--mono);" id="today-total">Y0.00</span>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <style>
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <script src="/static/app.js"></script>
+    <script>
+        // 配置
+        const config = {
+            api_base_url: 'https://shasha.tjxuechuang.com'
+        };
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDashboard();
+            document.getElementById('today-date').textContent = new Date().toLocaleDateString('zh-CN');
+        });
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+
+        async function loadDashboard() {
+            const data = await fetchAPI('/api/status');
+
+            // Chrome 版本
+            const chromeEl = document.getElementById('chrome-version');
+            chromeEl.textContent = data.chrome_version || '未检测到';
+
+            // ChromeDriver 版本
+            const driverEl = document.getElementById('chromedriver-version');
+            driverEl.textContent = data.chromedriver_version || '未检测到';
+
+            // 版本状态
+            const statusEl = document.getElementById('driver-status');
+            if (data.chrome_version && data.chromedriver_version) {
+                if (data.driver_match) {
+                    statusEl.innerHTML = '<span class="tag success">匹配</span>';
+                } else {
+                    statusEl.innerHTML = '<span class="tag danger">请更新</span>';
+                }
+            } else {
+                statusEl.innerHTML = '<span class="tag warning">无法检测</span>';
+            }
+
+            // 更新按钮状态
+            const updateBtn = document.getElementById('update-driver-btn');
+            const downloadStatus = document.getElementById('download-status');
+
+            if (data.driver_match) {
+                // 版本匹配,隐藏更新按钮
+                updateBtn.style.display = 'none';
+                downloadStatus.style.display = 'none';
+            } else if (data.driver_download_available) {
+                // 版本不匹配且下载可用
+                updateBtn.style.display = 'inline-flex';
+                updateBtn.disabled = false;
+                downloadStatus.style.display = 'inline';
+                downloadStatus.textContent = '下载可用';
+                downloadStatus.style.color = 'var(--ok)';
+            } else {
+                // 版本不匹配但下载不可用
+                updateBtn.style.display = 'inline-flex';
+                updateBtn.disabled = true;
+                downloadStatus.style.display = 'inline';
+                downloadStatus.textContent = '下载不可用';
+                downloadStatus.style.color = 'var(--muted)';
+            }
+
+            // Token 状态
+            const tokenEl = document.getElementById('token-status');
+            if (data.token_loaded) {
+                const updatedAt = data.token_updated_at || '未知';
+                tokenEl.innerHTML = `<span class="tag success">Token 已加载</span> <span style="font-size: 12px; color: var(--muted); margin-left: 8px;">更新于 ${updatedAt}</span>`;
+            } else {
+                tokenEl.innerHTML = '<span class="tag warning">Token 未加载</span>';
+            }
+
+            // 今日刷单
+            const ordersEl = document.getElementById('today-orders');
+            const orders = data.today_orders || {};
+            if (Object.keys(orders).length > 0) {
+                ordersEl.innerHTML = Object.entries(orders).map(([store, amount]) => `
+                    <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border);">
+                        <span>${store}</span>
+                        <span style="font-family: var(--mono); color: var(--text-strong);">Y${amount.toFixed(2)}</span>
+                    </div>
+                `).join('');
+            }
+
+            document.getElementById('today-total').textContent = 'Y' + (data.today_total || 0).toFixed(2);
+        }
+
+        async function startLogin() {
+            const btn = document.getElementById('get-token-btn');
+            btn.disabled = true;
+            btn.innerHTML = '启动浏览器...';
+            
+            const result = await fetchAPI('/api/token/start', { method: 'POST' });
+            
+            if (result.success) {
+                // 显示验证码输入区域
+                document.getElementById('token-default').style.display = 'none';
+                document.getElementById('captcha-input-section').style.display = 'block';
+                
+                // 显示验证码图片
+                const captchaImg = document.getElementById('captcha-image');
+                captchaImg.src = result.captcha_url;
+                
+                document.getElementById('captcha-code').focus();
+            } else {
+                alert(result.message);
+                btn.disabled = false;
+                btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> 获取 Token';
+            }
+        }
+
+        async function submitCaptcha() {
+            const code = document.getElementById('captcha-code').value.trim();
+            if (!code) {
+                document.getElementById('captcha-error').textContent = '请输入验证码';
+                document.getElementById('captcha-error').style.display = 'block';
+                return;
+            }
+
+            const btn = document.getElementById('submit-captcha-btn');
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+            document.getElementById('captcha-error').style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('code', code);
+
+            const result = await fetchAPI('/api/token/submit', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (result.success) {
+                alert(result.message);
+                // 回到默认状态
+                document.getElementById('captcha-input-section').style.display = 'none';
+                document.getElementById('token-default').style.display = 'block';
+                document.getElementById('captcha-code').value = '';
+                loadDashboard();
+            } else {
+                // 显示错误,让用户重新输入
+                document.getElementById('captcha-error').textContent = result.message;
+                document.getElementById('captcha-error').style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = '确认';
+            }
+        }
+
+        function cancelLogin() {
+            document.getElementById('captcha-input-section').style.display = 'none';
+            document.getElementById('token-default').style.display = 'block';
+            document.getElementById('captcha-code').value = '';
+            document.getElementById('captcha-error').style.display = 'none';
+            document.getElementById('get-token-btn').disabled = false;
+            document.getElementById('get-token-btn').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> 获取 Token';
+        }
+
+        async function updateDriver() {
+            const btn = document.getElementById('update-driver-btn');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite;"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> 更新中...';
+
+            const result = await fetchAPI('/api/chromedriver/update', { method: 'POST' });
+
+            if (result.success) {
+                alert(result.message + '\n新版本: ' + result.new_version);
+                // 重新加载页面数据
+                loadDashboard();
+            } else {
+                alert(result.message);
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+    </script>
+</body>
+</html>

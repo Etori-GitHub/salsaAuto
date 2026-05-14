@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>刷单记录 - salsaAuto</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            padding: 16px;
+            border-radius: var(--radius-md);
+            background: var(--bg-secondary);
+        }
+        .stat-card .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        .stat-card .stat-label {
+            font-size: 14px;
+            color: var(--muted);
+        }
+        .success-tag { color: var(--ok); }
+        .fail-tag { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <nav class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-brand">
+                    <div class="brand-logo">S</div>
+                    <div class="brand-text">
+                        <span class="brand-title">salsaAuto</span>
+                        <span class="brand-subtitle">v2.0</span>
+                    </div>
+                </div>
+                <button class="sidebar-toggle" onclick="toggleSidebar()">
+                    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+            </div>
+            <div class="nav-content">
+                <div class="nav-group">
+                    <div class="nav-group-header"><span class="nav-group-title">主菜单</span></div>
+                    <ul class="nav-items">
+                        <li><a href="/" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/></svg><span class="nav-label">概览</span></a></li>
+                        <li><a href="/stores" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="nav-label">门店</span></a></li>
+                        <li><a href="/dishes" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/></svg><span class="nav-label">菜品</span></a></li>
+                        <li><a href="/members" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="nav-label">会员</span></a></li>
+                        <li><a href="/orders" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><span class="nav-label">订单</span></a></li>
+                        <li><a href="/calculator" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg><span class="nav-label">计算器</span></a></li>
+                        <li><a href="/records" class="nav-item active"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg><span class="nav-label">记录</span></a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <header class="content-header">
+                <h1>刷单记录</h1>
+            </header>
+
+            <div class="content-body">
+                <!-- 统计卡片 -->
+                <div class="stats-grid" id="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total-orders">0</div>
+                        <div class="stat-label">总订单数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-success-orders">0</div>
+                        <div class="stat-label">成功订单</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total-amount">Y0</div>
+                        <div class="stat-label">总金额</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="stat-total-quantity">0</div>
+                        <div class="stat-label">总数量</div>
+                    </div>
+                </div>
+
+                <!-- 筛选 -->
+                <div class="card" style="margin-bottom: 24px;">
+                    <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap;">
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label">开始日期</label>
+                            <input type="date" id="start-date" class="form-input">
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label class="form-label">结束日期</label>
+                            <input type="date" id="end-date" class="form-input">
+                        </div>
+                        <button class="btn btn-primary" onclick="loadRecords()">查询</button>
+                        <button class="btn btn-secondary" onclick="exportRecords()">导出 CSV</button>
+                    </div>
+                </div>
+
+                <!-- 记录表格 -->
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>创建时间</th>
+                                <th>订单日期</th>
+                                <th>门店</th>
+                                <th>菜品</th>
+                                <th>单价</th>
+                                <th>数量</th>
+                                <th>金额</th>
+                                <th>支付方式</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="records-list">
+                            <tr><td colspan="9" class="loading">加载中...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/static/app.js"></script>
+    <script>
+        let records = [];
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            // 默认查询本月
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+            document.getElementById('start-date').value = firstDay.toISOString().split('T')[0];
+            document.getElementById('end-date').value = now.toISOString().split('T')[0];
+            loadRecords();
+        });
+        
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('collapsed');
+        }
+        
+        async function loadRecords() {
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+            
+            const data = await fetchAPI(`/api/orders/records?start_date=${startDate}&end_date=${endDate}&limit=500`);
+            records = data.records || [];
+            const stats = data.statistics || {};
+            
+            // 更新统计
+            document.getElementById('stat-total-orders').textContent = stats.total_orders || 0;
+            document.getElementById('stat-success-orders').textContent = stats.success_orders || 0;
+            document.getElementById('stat-total-amount').textContent = 'Y' + (stats.total_amount || 0).toFixed(2);
+            document.getElementById('stat-total-quantity').textContent = stats.total_quantity || 0;
+            
+            // 更新表格
+            const tbody = document.getElementById('records-list');
+            
+            if (records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="loading">暂无数据</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = records.map(r => `
+                <tr>
+                    <td>${r.created_at}</td>
+                    <td>${r.order_date}</td>
+                    <td>${r.store_name || r.store_id}</td>
+                    <td>${r.dish_name || r.dish_id}</td>
+                    <td>Y${r.dish_price}</td>
+                    <td>${r.quantity}</td>
+                    <td>Y${r.total_amount}</td>
+                    <td>${r.pay_type === 'cash' ? '现金' : '会员'}</td>
+                    <td class="${r.api_success ? 'success-tag' : 'fail-tag'}">${r.api_success ? '成功' : '失败'}</td>
+                </tr>
+            `).join('');
+        }
+        
+        function exportRecords() {
+            if (records.length === 0) {
+                alert('没有数据可导出');
+                return;
+            }
+            
+            const headers = ['创建时间', '订单日期', '门店', '菜品', '单价', '数量', '金额', '支付方式', '状态'];
+            const rows = records.map(r => [
+                r.created_at, r.order_date, r.store_name || r.store_id,
+                r.dish_name || r.dish_id, r.dish_price, r.quantity,
+                r.total_amount, r.pay_type === 'cash' ? '现金' : '会员',
+                r.api_success ? '成功' : '失败'
+            ]);
+            
+            const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+            const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `刷单记录_${document.getElementById('start-date').value}_${document.getElementById('end-date').value}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
