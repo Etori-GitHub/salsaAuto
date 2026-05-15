@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}商品库 - salsaAuto{% endblock %}
+{% block header %}商品库{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">平台商品库</span>
+        <div class="card-actions">
+            <button class="btn btn-primary" onclick="syncFromPlatform()">从平台同步</button>
+        </div>
+    </div>
+    <div class="filter-bar">
+        <input type="text" id="search-input" class="form-input" placeholder="搜索商品名称/编码..." style="width: 200px;">
+        <select id="category-filter" class="form-select">
+            <option value="">全部分类</option>
+        </select>
+        <button class="btn btn-secondary" onclick="loadGoods()">查询</button>
+    </div>
+    <div class="stats-row" id="stats-row">
+        <span class="stat-item">共 <strong id="total-count">0</strong> 条商品</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>商品编码</th>
+                <th>商品名称</th>
+                <th>分类</th>
+                <th>档口</th>
+                <th>单价</th>
+                <th>规格</th>
+                <th>单位</th>
+            </tr>
+        </thead>
+        <tbody id="goods-list">
+            <tr><td colspan="8" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+let allGoods = [];
+let currentPage = 1;
+const pageSize = 20;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadGoods();
+});
+
+async function loadGoods() {
+    // 先尝试从数据库读取
+    let result = await fetchAPI('/api/base/goods/local');
+    
+    if (result.success && result.records && result.records.length > 0) {
+        // 数据库有数据，直接使用
+        allGoods = result.records;
+        document.getElementById('total-count').textContent = allGoods.length;
+        
+        // 提取分类选项
+        const categories = [...new Set(allGoods.map(g => g.category_name).filter(Boolean))];
+        const categoryFilter = document.getElementById('category-filter');
+        categoryFilter.innerHTML = '<option value="">全部分类</option>' + 
+            categories.map(c => `<option value="${c}">${c}</option>`).join('');
+        
+        renderTable();
+        return;
+    }
+    
+    // 数据库为空，从 API 读取
+    result = await fetchAPI('/api/base/goods/all');
+    
+    if (!result.success) {
+        document.getElementById('goods-list').innerHTML = `<tr><td colspan="8" class="loading">加载失败: ${result.message}</td></tr>`;
+        return;
+    }
+    
+    allGoods = result.records || [];
+    document.getElementById('total-count').textContent = allGoods.length;
+    
+    // 提取分类选项
+    const categories = [...new Set(allGoods.map(g => g.categoryName).filter(Boolean))];
+    const categoryFilter = document.getElementById('category-filter');
+    categoryFilter.innerHTML = '<option value="">全部分类</option>' + 
+        categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    
+    renderTable();
+}
+
+function renderTable() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const categoryFilter = document.getElementById('category-filter').value;
+    
+    let filtered = allGoods.filter(g => {
+        // 兼容数据库字段和 API 字段
+        const name = g.product_name || g.productName || '';
+        const code = g.product_code || g.productCode || '';
+        const category = g.category_name || g.categoryName || '';
+        
+        const matchSearch = !searchTerm || 
+            name.toLowerCase().includes(searchTerm) ||
+            code.toLowerCase().includes(searchTerm);
+        const matchCategory = !categoryFilter || category === categoryFilter;
+        return matchSearch && matchCategory;
+    });
+    
+    const totalPages = Math.ceil(filtered.length / pageSize);
+    const start = (currentPage - 1) * pageSize;
+    const pageData = filtered.slice(start, start + pageSize);
+    
+    const tbody = document.getElementById('goods-list');
+    
+    if (pageData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = pageData.map(g => `
+        <tr>
+            <td>${g.id || '-'}</td>
+            <td>${g.product_code || g.productCode || '-'}</td>
+            <td>${g.product_name || g.productName || '-'}</td>
+            <td>${g.category_name || g.categoryName || '-'}</td>
+            <td>${g.cang_sub_category_name || g.cangSubCategoryName || '-'}</td>
+            <td>¥${((g.unit_price || g.unitPrice || g.true_price || g.truePrice || 0)).toFixed(2)}</td>
+            <td>${g.spec_name || g.specName || '-'}</td>
+            <td>${g.unit || '-'}</td>
+        </tr>
+    `).join('');
+    
+    // 分页
+    const pagination = document.getElementById('pagination');
+    if (totalPages > 1) {
+        pagination.innerHTML = `
+            <button class="btn btn-sm" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>
+            <span class="page-info">第 ${currentPage} / ${totalPages} 页</span>
+            <button class="btn btn-sm" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>
+        `;
+    } else {
+        pagination.innerHTML = '';
+    }
+}
+
+function changePage(page) {
+    currentPage = page;
+    renderTable();
+}
+
+document.getElementById('search-input').addEventListener('input', () => {
+    currentPage = 1;
+    renderTable();
+});
+
+document.getElementById('category-filter').addEventListener('change', () => {
+    currentPage = 1;
+    renderTable();
+});
+
+async function syncFromPlatform() {
+    showToast('正在从平台同步商品库...', 'warning');
+    
+    const result = await fetchAPI('/api/base/goods/update', { method: 'POST' });
+    
+    if (result.success) {
+        showToast(result.message, 'success');
+        loadGoods();
+    } else {
+        showToast('同步失败: ' + result.message, 'error');
+    }
+}
+{% endblock %}

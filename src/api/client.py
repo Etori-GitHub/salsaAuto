@@ -55,6 +55,40 @@ class APIClient:
     def get(self, endpoint: str, params: Optional[dict] = None) -> dict:
         return self._request("GET", endpoint, params=params)
     
+    def get_raw(self, endpoint: str, params: Optional[list] = None) -> dict:
+        """GET 请求，支持重复参数名（如 createTime）
+        
+        Args:
+            endpoint: 端点名称或完整路径
+            params: 参数列表，格式为 [(key, value), ...]
+        """
+        # 判断是端点名称还是完整路径
+        if endpoint.startswith("http"):
+            url = endpoint
+        elif "/" in endpoint:
+            # 已经是路径，直接拼接
+            url = f"{config.api_base_url}{endpoint}"
+        else:
+            # 端点名称，从配置获取
+            url = config.get_api_url(endpoint)
+        
+        try:
+            # 构建带参数的 URL
+            if params:
+                from urllib.parse import urlencode
+                param_str = "&".join(f"{k}={v}" for k, v in params if v is not None and v != "")
+                if param_str:
+                    url = f"{url}?{param_str}"
+            
+            response = self.session.request(
+                method="GET", url=url,
+                timeout=30, verify=False
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as e:
+            return {"error": True, "message": str(e)}
+    
     def post(self, endpoint: str, data: Optional[dict] = None, params: Optional[dict] = None) -> dict:
         return self._request("POST", endpoint, params=params, data=data)
 

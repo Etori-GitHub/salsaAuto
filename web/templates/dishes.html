@@ -1,241 +1,134 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>菜品管理 - salsaAuto</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <style>
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-        .modal.active {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .modal-content {
-            background: var(--bg);
-            padding: 24px;
-            border-radius: var(--radius-lg);
-            max-width: 400px;
-            width: 100%;
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        .modal-close {
-            cursor: pointer;
-            font-size: 24px;
-            color: var(--muted);
-        }
-        .action-btn {
-            padding: 4px 8px;
-            font-size: 12px;
-            border-radius: var(--radius-sm);
-        }
-    </style>
-</head>
-<body>
-    <div class="app-container">
-        <nav class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <div class="brand-logo">S</div>
-                    <div class="brand-text">
-                        <span class="brand-title">salsaAuto</span>
-                        <span class="brand-subtitle">v2.0</span>
-                    </div>
-                </div>
-                <button class="sidebar-toggle" onclick="toggleSidebar()">
-                    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
-                </button>
-            </div>
-            <div class="nav-content">
-                <div class="nav-group">
-                    <div class="nav-group-header"><span class="nav-group-title">主菜单</span></div>
-                    <ul class="nav-items">
-                        <li><a href="/" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/></svg><span class="nav-label">概览</span></a></li>
-                        <li><a href="/stores" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="nav-label">门店</span></a></li>
-                        <li><a href="/dishes" class="nav-item active"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/></svg><span class="nav-label">菜品</span></a></li>
-                        <li><a href="/members" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="nav-label">会员</span></a></li>
-                        <li><a href="/orders" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><span class="nav-label">订单</span></a></li>
-                        <li><a href="/calculator" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg><span class="nav-label">计算器</span></a></li>
-                        <li><a href="/records" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg><span class="nav-label">记录</span></a></li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
+{% extends "base.html" %}
 
-        <main class="main-content">
-            <header class="content-header">
-                <h1>菜品管理</h1>
-                <button class="btn btn-primary" onclick="showAddModal()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                    添加菜品
-                </button>
-            </header>
+{% block title %}菜品管理 - salsaAuto{% endblock %}
+{% block header %}菜品管理{% endblock %}
 
-            <div class="content-body">
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>ID</th><th>名称</th><th>价格</th><th>可用时间</th><th>操作</th></tr>
-                        </thead>
-                        <tbody id="dish-list">
-                            <tr><td colspan="5" class="loading">加载中...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </main>
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">菜品列表</span>
     </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>名称</th>
+                <th>价格</th>
+                <th>可用时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="dish-list">
+            <tr><td colspan="5" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
 
-    <!-- 添加/编辑模态框 -->
-    <div class="modal" id="dish-modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="modal-title">添加菜品</h3>
-                <span class="modal-close" onclick="closeModal()">&times;</span>
-            </div>
-            <form id="dish-form">
-                <div class="form-group">
-                    <label class="form-label">菜品 ID</label>
-                    <input type="text" id="dish-id" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">名称</label>
-                    <input type="text" id="dish-name" class="form-input" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">价格</label>
-                    <input type="number" id="dish-price" class="form-input" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">可用时间</label>
-                    <input type="text" id="dish-time-range" class="form-input" value="00:00-23:59" placeholder="如: 08:00-22:00">
-                    <p class="form-hint">格式: HH:MM-HH:MM，表示该菜品可刷单的时间区间</p>
-                </div>
-                <div style="display: flex; gap: 12px; margin-top: 16px;">
-                    <button type="submit" class="btn btn-primary">保存</button>
-                    <button type="button" class="btn btn-secondary" onclick="closeModal()">取消</button>
-                </div>
-            </form>
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <span class="card-title">添加菜品</span>
+    </div>
+    <form id="add-dish-form">
+        <div class="form-group">
+            <label class="form-label">菜品 ID</label>
+            <input type="text" id="dish-id" class="form-input" required>
         </div>
-    </div>
+        <div class="form-group">
+            <label class="form-label">名称</label>
+            <input type="text" id="dish-name" class="form-input" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">价格</label>
+            <input type="number" id="dish-price" class="form-input" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label class="form-label">可用时间</label>
+            <input type="text" id="dish-time-range" class="form-input" value="00:00-23:59" placeholder="11:00-20:00">
+            <p class="form-hint">格式：开始时间-结束时间，如 11:00-20:00</p>
+        </div>
+        <button type="submit" class="btn btn-primary">添加菜品</button>
+    </form>
+</div>
+{% endblock %}
 
-    <script src="/static/app.js"></script>
-    <script>
-        let dishes = {};
-        let editingId = null;
-        
-        document.addEventListener('DOMContentLoaded', loadDishesTable);
-        
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('collapsed');
-        }
-        
-        async function loadDishesTable() {
-            const data = await fetchAPI('/api/dishes');
-            dishes = data.dishes || {};
-            const tbody = document.getElementById('dish-list');
-            
-            if (Object.keys(dishes).length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="loading">暂无数据</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = Object.entries(dishes).map(([id, dish]) => `
-                <tr>
-                    <td>${id}</td>
-                    <td>${dish.name}</td>
-                    <td>Y${dish.price}</td>
-                    <td>${dish.time_range || '00:00-23:59'}</td>
-                    <td>
-                        <button class="btn btn-secondary action-btn" onclick="editDish('${id}')">编辑</button>
-                        <button class="btn btn-danger action-btn" onclick="deleteDish('${id}')">删除</button>
-                    </td>
-                </tr>
-            `).join('');
-        }
-        
-        function showAddModal() {
-            editingId = null;
-            document.getElementById('modal-title').textContent = '添加菜品';
-            document.getElementById('dish-id').value = '';
-            document.getElementById('dish-id').disabled = false;
-            document.getElementById('dish-name').value = '';
-            document.getElementById('dish-price').value = '';
-            document.getElementById('dish-time-range').value = '00:00-23:59';
-            document.getElementById('dish-modal').classList.add('active');
-        }
-        
-        function editDish(id) {
-            editingId = id;
-            const dish = dishes[id];
-            document.getElementById('modal-title').textContent = '编辑菜品';
-            document.getElementById('dish-id').value = id;
-            document.getElementById('dish-id').disabled = true;
-            document.getElementById('dish-name').value = dish.name;
-            document.getElementById('dish-price').value = dish.price;
-            document.getElementById('dish-time-range').value = dish.time_range || '00:00-23:59';
-            document.getElementById('dish-modal').classList.add('active');
-        }
-        
-        function closeModal() {
-            document.getElementById('dish-modal').classList.remove('active');
-        }
-        
-        async function deleteDish(id) {
-            if (!confirm(`确定删除菜品 "${dishes[id].name}"？`)) return;
-            
-            const formData = new FormData();
-            const result = await fetchAPI(`/api/dishes/${id}/delete`, { method: 'POST', body: formData });
-            
-            if (result.success) {
-                alert('删除成功');
-                loadDishesTable();
-            } else {
-                alert('删除失败: ' + result.message);
-            }
-        }
-        
-        document.getElementById('dish-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const formData = new FormData();
-            formData.append('name', document.getElementById('dish-name').value);
-            formData.append('price', document.getElementById('dish-price').value);
-            formData.append('time_range', document.getElementById('dish-time-range').value);
-            
-            let url, method;
-            if (editingId) {
-                url = `/api/dishes/${editingId}/update`;
-            } else {
-                formData.append('dish_id', document.getElementById('dish-id').value);
-                url = '/api/dishes/add';
-            }
-            
-            const result = await fetchAPI(url, { method: 'POST', body: formData });
-            
-            if (result.success) {
-                alert('保存成功');
-                closeModal();
-                loadDishesTable();
-            } else {
-                alert('保存失败: ' + result.message);
-            }
-        });
-    </script>
-</body>
-</html>
+{% block script %}
+document.addEventListener('DOMContentLoaded', () => {
+    loadDishesTable();
+});
+
+document.getElementById('add-dish-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    formData.append('dish_id', document.getElementById('dish-id').value);
+    formData.append('name', document.getElementById('dish-name').value);
+    formData.append('price', document.getElementById('dish-price').value);
+    formData.append('time_range', document.getElementById('dish-time-range').value);
+    
+    const result = await fetchAPI('/api/dishes/add', {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (result.success) {
+        showToast('添加成功', 'success');
+        loadDishesTable();
+        document.getElementById('dish-id').value = '';
+        document.getElementById('dish-name').value = '';
+        document.getElementById('dish-price').value = '';
+        document.getElementById('dish-time-range').value = '00:00-23:59';
+    } else {
+        showToast('添加失败: ' + result.message, 'error');
+    }
+});
+
+async function loadDishesTable() {
+    const data = await fetchAPI('/api/dishes');
+    const tbody = document.getElementById('dish-list');
+    
+    const dishes = data.dishes || {};
+    if (Object.keys(dishes).length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = Object.entries(dishes).map(([id, dish]) => `
+        <tr>
+            <td>${id}</td>
+            <td>${dish.name}</td>
+            <td>¥${dish.price}</td>
+            <td>${dish.time_range || '00:00-23:59'}</td>
+            <td>
+                <button class="btn btn-secondary" onclick="editDish('${id}', '${dish.name}', ${dish.price}, '${dish.time_range || '00:00-23:59'}')">编辑</button>
+                <button class="btn btn-danger" onclick="deleteDish('${id}')">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function editDish(id, name, price, timeRange) {
+    document.getElementById('dish-id').value = id;
+    document.getElementById('dish-name').value = name;
+    document.getElementById('dish-price').value = price;
+    document.getElementById('dish-time-range').value = timeRange;
+}
+
+async function deleteDish(id) {
+    if (!confirm('确定删除此菜品？')) return;
+    
+    const formData = new FormData();
+    formData.append('dish_id', id);
+    
+    const result = await fetchAPI(`/api/dishes/${id}/delete`, {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (result.success) {
+        showToast('删除成功', 'success');
+        loadDishesTable();
+    } else {
+        showToast('删除失败: ' + result.message, 'error');
+    }
+}
+{% endblock %}

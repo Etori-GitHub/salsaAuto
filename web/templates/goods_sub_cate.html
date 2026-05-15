@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}商品分类 - salsaAuto{% endblock %}
+{% block header %}商品分类{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">商品分类管理</span>
+        <div class="card-actions">
+            <button class="btn btn-primary" onclick="syncFromPlatform()">从平台同步</button>
+        </div>
+    </div>
+    <div class="stats-row">
+        <span class="stat-item">共 <strong id="total-count">0</strong> 条分类</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>分类编码</th>
+                <th>分类名称</th>
+                <th>类型</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="cate-list">
+            <tr><td colspan="5" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- 类型编辑模态框 -->
+<div class="modal-overlay" id="type-modal" style="display:none;">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">设置分类类型</span>
+            <button class="modal-close" onclick="closeTypeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p id="modal-cate-name" style="margin-bottom: 16px;"></p>
+            <div class="form-group">
+                <label class="form-label">类型</label>
+                <select id="type-select" class="form-select">
+                    <option value="">未设置</option>
+                    <option value="食品">食品</option>
+                    <option value="非食品">非食品</option>
+                    <option value="饮料">饮料</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeTypeModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveType()">保存</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+let currentCateId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadCategories();
+});
+
+async function loadCategories() {
+    // 先尝试从数据库读取
+    let result = await fetchAPI('/api/base/goods-sub-cate/local');
+    
+    if (result.success && result.records && result.records.length > 0) {
+        const records = result.records;
+        document.getElementById('total-count').textContent = records.length;
+        
+        const tbody = document.getElementById('cate-list');
+        tbody.innerHTML = records.map(c => `
+            <tr>
+                <td>${c.id || '-'}</td>
+                <td>${c.sub_category_code || '-'}</td>
+                <td>${c.sub_category_name || '-'}</td>
+                <td><span class="type-tag ${getTypeClass(c.type)}">${c.type || '未设置'}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" onclick="openTypeModal(${c.id}, '${c.sub_category_name}', '${c.type || ''}')">设置类型</button>
+                </td>
+            </tr>
+        `).join('');
+        return;
+    }
+    
+    // 数据库为空，从 API 读取
+    result = await fetchAPI('/api/base/goods-sub-cate');
+    
+    if (!result.success) {
+        document.getElementById('cate-list').innerHTML = `<tr><td colspan="5" class="loading">加载失败: ${result.message}</td></tr>`;
+        return;
+    }
+    
+    const records = result.records || [];
+    document.getElementById('total-count').textContent = records.length;
+    
+    const tbody = document.getElementById('cate-list');
+    
+    if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(c => `
+        <tr>
+            <td>${c.id || '-'}</td>
+            <td>${c.subCategoryCode || '-'}</td>
+            <td>${c.subCategoryName || '-'}</td>
+            <td><span class="type-tag empty">未设置</span></td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="openTypeModal(${c.id}, '${c.subCategoryName}', '')">设置类型</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function getTypeClass(type) {
+    if (!type) return 'empty';
+    if (type === '食品') return 'food';
+    if (type === '非食品') return 'non-food';
+    if (type === '饮料') return 'drink';
+    return '';
+}
+
+function openTypeModal(cateId, cateName, currentType) {
+    currentCateId = cateId;
+    document.getElementById('modal-cate-name').textContent = `分类：${cateName}`;
+    document.getElementById('type-select').value = currentType;
+    document.getElementById('type-modal').style.display = 'flex';
+}
+
+function closeTypeModal() {
+    document.getElementById('type-modal').style.display = 'none';
+    currentCateId = null;
+}
+
+async function saveType() {
+    const newType = document.getElementById('type-select').value;
+    
+    const formData = new FormData();
+    formData.append('cate_type', newType);
+    
+    const result = await fetchAPI(`/api/base/goods-sub-cate/${currentCateId}/type`, {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (result.success) {
+        showToast('类型已更新', 'success');
+        closeTypeModal();
+        loadCategories();
+    } else {
+        showToast('更新失败: ' + result.message, 'error');
+    }
+}
+
+async function syncFromPlatform() {
+    showToast('正在从平台同步商品分类...', 'warning');
+    
+    const result = await fetchAPI('/api/base/goods-sub-cate/update', { method: 'POST' });
+    
+    if (result.success) {
+        showToast(result.message, 'success');
+        loadCategories();
+    } else {
+        showToast('同步失败: ' + result.message, 'error');
+    }
+}
+{% endblock %}

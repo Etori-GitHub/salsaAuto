@@ -1,68 +1,160 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>门店管理 - salsaAuto</title>
-    <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-    <div class="app-container">
-        <nav class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <div class="sidebar-brand">
-                    <div class="brand-logo">S</div>
-                    <div class="brand-text">
-                        <span class="brand-title">salsaAuto</span>
-                        <span class="brand-subtitle">v2.0</span>
-                    </div>
-                </div>
-                <button class="sidebar-toggle" onclick="toggleSidebar()">
-                    <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
-                </button>
-            </div>
-            <div class="nav-content">
-                <div class="nav-group">
-                    <div class="nav-group-header"><span class="nav-group-title">主菜单</span></div>
-                    <ul class="nav-items">
-                        <li><a href="/" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span class="nav-label">概览</span></a></li>
-                        <li><a href="/stores" class="nav-item active"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="nav-label">门店</span></a></li>
-                        <li><a href="/dishes" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/></svg><span class="nav-label">菜品</span></a></li>
-                        <li><a href="/members" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><span class="nav-label">会员</span></a></li>
-                        <li><a href="/orders" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg><span class="nav-label">订单</span></a></li>
-                        <li><a href="/calculator" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg><span class="nav-label">计算器</span></a></li>
-                        <li><a href="/records" class="nav-item"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg><span class="nav-label">记录</span></a></li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
+{% extends "base.html" %}
 
-        <main class="main-content">
-            <header class="content-header">
-                <h1>门店管理</h1>
-            </header>
+{% block title %}门店管理 - salsaAuto{% endblock %}
+{% block header %}门店管理{% endblock %}
 
-            <div class="content-body">
-                <div class="table-container">
-                    <table class="data-table">
-                        <thead>
-                            <tr><th>ID</th><th>名称</th></tr>
-                        </thead>
-                        <tbody id="store-list">
-                            <tr><td colspan="2" class="loading">加载中...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </main>
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">门店列表</span>
+        <button class="btn btn-primary" onclick="syncStores()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 11-6.219-8.56"/><polyline points="21 3 21 9 15 9"/></svg>
+            从平台同步
+        </button>
     </div>
+    <div id="sync-status" style="margin-bottom: 16px; padding: 12px; background: var(--bg-accent); border-radius: var(--radius-sm); display: none;">
+        <span id="sync-message"></span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>门店编码</th>
+                <th>名称</th>
+                <th>显示</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="store-list">
+            <tr><td colspan="5" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
 
-    <script src="/static/app.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', loadStoresTable);
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('collapsed');
-        }
-    </script>
-</body>
-</html>
+<!-- 平台门店列表（同步预览） -->
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <span class="card-title">平台门店列表</span>
+        <button class="btn btn-secondary" onclick="previewStores()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            查询平台数据
+        </button>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>门店编码</th>
+                <th>名称</th>
+                <th>加盟商</th>
+                <th>电话</th>
+            </tr>
+        </thead>
+        <tbody id="platform-store-list">
+            <tr><td colspan="5" class="loading">点击上方按钮查询平台数据</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block script %}
+document.addEventListener('DOMContentLoaded', () => {
+    loadStoresTable();
+});
+
+async function loadStoresTable() {
+    const data = await fetchAPI('/api/stores');
+    const tbody = document.getElementById('store-list');
+    
+    const stores = data.stores || {};
+    if (Object.keys(stores).length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">暂无数据，请从平台同步</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = Object.entries(stores).map(([id, store]) => `
+        <tr>
+            <td style="font-family: var(--mono);">${id}</td>
+            <td style="font-family: var(--mono);">${store.code || '-'}</td>
+            <td>${store.name}</td>
+            <td>
+                <span class="tag ${store.visible !== false ? 'success' : 'warning'}">${store.visible !== false ? '显示' : '隐藏'}</span>
+            </td>
+            <td>
+                <button class="btn btn-sm ${store.visible !== false ? 'btn-secondary' : 'btn-primary'}" onclick="toggleStoreVisible('${id}', ${store.visible !== false})">
+                    ${store.visible !== false ? '隐藏' : '显示'}
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function toggleStoreVisible(storeId, currentVisible) {
+    const newVisible = !currentVisible;
+    const result = await fetchAPI('/api/stores/visibility', {
+        method: 'POST',
+        body: JSON.stringify({ store_id: storeId, visible: newVisible })
+    });
+    
+    if (result.success) {
+        showToast(result.message, 'success');
+        loadStoresTable();
+    } else {
+        showToast('操作失败: ' + result.message, 'error');
+    }
+}
+
+async function previewStores() {
+    const tbody = document.getElementById('platform-store-list');
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">查询中...</td></tr>';
+    
+    const result = await fetchAPI('/api/stores/query');
+    
+    if (!result.success) {
+        tbody.innerHTML = `<tr><td colspan="5" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
+        return;
+    }
+    
+    const records = result.records || [];
+    if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(r => `
+        <tr>
+            <td style="font-family: var(--mono);">${r.id}</td>
+            <td style="font-family: var(--mono);">${r.storeCode || '-'}</td>
+            <td>${r.storeName || '-'}</td>
+            <td>${r.franchiseeName || '-'}</td>
+            <td style="font-family: var(--mono);">${r.phone || '-'}</td>
+        </tr>
+    `).join('');
+    
+    showToast(`查询到 ${records.length} 个门店`, 'success');
+}
+
+async function syncStores() {
+    const statusDiv = document.getElementById('sync-status');
+    const messageSpan = document.getElementById('sync-message');
+    
+    statusDiv.style.display = 'block';
+    statusDiv.style.background = 'var(--warn-subtle)';
+    messageSpan.textContent = '正在同步门店数据...';
+    
+    const result = await fetchAPI('/api/stores/update', { method: 'POST' });
+    
+    if (result.success) {
+        statusDiv.style.background = 'var(--ok-subtle)';
+        messageSpan.textContent = result.message;
+        showToast(result.message, 'success');
+        
+        // 重新加载本地列表
+        loadStoresTable();
+    } else {
+        statusDiv.style.background = 'var(--danger-subtle)';
+        messageSpan.textContent = '同步失败: ' + result.message;
+        showToast('同步失败: ' + result.message, 'error');
+    }
+}
+{% endblock %}

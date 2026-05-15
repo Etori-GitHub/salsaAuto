@@ -186,10 +186,10 @@ async function syncMembers() {
     btn.textContent = '同步余额';
     
     if (result.success) {
-        alert('同步成功');
+        showToast('同步成功', 'success');
         loadMembers();
     } else {
-        alert('同步失败: ' + result.message);
+        showToast('同步失败: ' + result.message, 'error');
     }
 }
 
@@ -211,7 +211,7 @@ async function changeMemberType(memberId, currentType) {
     if (result.success) {
         loadMembers();
     } else {
-        alert('修改失败');
+        showToast('修改失败', 'error');
     }
 }
 
@@ -248,7 +248,7 @@ document.getElementById('single-order-form')?.addEventListener('submit', async (
         body: formData
     });
     
-    alert(result.success ? '创建成功' : '创建失败: ' + result.message);
+    showToast(result.success ? '创建成功' : '创建失败: ' + result.message, result.success ? 'success' : 'error');
 });
 
 // 按金额刷单
@@ -274,7 +274,7 @@ document.getElementById('amount-order-form')?.addEventListener('submit', async (
         body: formData
     });
     
-    alert(result.success ? `刷单完成，共 ${result.order_count} 个订单` : '刷单失败');
+    showToast(result.success ? `刷单完成，共 ${result.order_count} 个订单` : '刷单失败', result.success ? 'success' : 'error');
 });
 
 // 按数量刷单
@@ -300,7 +300,7 @@ document.getElementById('quantity-order-form')?.addEventListener('submit', async
         body: formData
     });
     
-    alert(result.success ? `刷单完成，共 ${result.order_count} 个订单` : '刷单失败');
+    showToast(result.success ? `刷单完成，共 ${result.order_count} 个订单` : '刷单失败', result.success ? 'success' : 'error');
 });
 
 // 一纸满刷单
@@ -329,7 +329,7 @@ document.getElementById('yizhiman-order-form')?.addEventListener('submit', async
         body: formData
     });
     
-    alert(result.success ? `刷单完成，共 ${result.order_count} 个订单` : '刷单失败: ' + (result.message || '未知错误'));
+    showToast(result.success ? `刷单完成，共 ${result.order_count} 个订单` : '刷单失败: ' + (result.message || '未知错误'), result.success ? 'success' : 'error');
 });
 
 // === 初始化 ===

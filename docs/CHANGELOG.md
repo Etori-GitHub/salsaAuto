@@ -1,5 +1,208 @@
 # salsaAuto 更新日志
 
+## v2.3.0 (2026-05-15)
+
+### 新功能
+
+#### 1. 基础库管理页面
+
+**商品库** (`/goods`)
+- 从平台 API 同步商品库数据
+- 数据存储到本地 SQLite 数据库
+- 支持搜索（商品名称/编码）
+- 支持分类筛选
+- 分页浏览
+
+**商品分类** (`/goods-sub-cate`)
+- 从平台 API 同步商品分类
+- 数据存储到本地 SQLite 数据库
+- **类型设置**：支持设置分类类型（食品/非食品/饮料）
+- 同步时保留已设定的类型，不会被覆盖
+
+**档口分类** (`/cang-sub-cate`)
+- 从平台 API 同步档口分类
+- 数据存储到本地 SQLite 数据库
+
+#### 2. 要货查询增强
+
+- 新增**档口分类**筛选（下拉选择，从本地数据库加载）
+- 新增**商品分类**筛选（下拉选择，从本地数据库加载）
+- 新增**时间区间**筛选（开始时间、结束时间）
+- 新增快捷时间按钮：今日、昨日、近7天、本月
+- 修复门店筛选参数问题
+
+#### 3. 数据库扩展
+
+新增数据表：
+- `goods` - 商品库表
+- `goods_sub_cate` - 商品分类表（含 type 字段）
+- `cang_sub_cate` - 档口分类表
+
+#### 4. 其他优化
+
+- "商品分析"页面更名为"菜品分析"
+- 基础库页面移至"档案"分组
+- 同步数据时同时保存到数据库和 JSON 文件
+
+### API 新增
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/base/goods/local` | 从数据库查询商品 |
+| GET | `/api/base/goods-sub-cate/local` | 从数据库查询商品分类 |
+| GET | `/api/base/cang-sub-cate/local` | 从数据库查询档口分类 |
+| POST | `/api/base/goods-sub-cate/{id}/type` | 更新商品分类类型 |
+
+### 导航结构
+
+```
+概览
+  └── 概览
+
+档案
+  ├── 门店管理
+  ├── 菜品管理
+  ├── 会员管理
+  ├── 商品库
+  ├── 商品分类
+  └── 档口分类
+
+刷单
+  ├── 发布任务
+  ├── 刷单
+  └── 刷单记录
+
+数据分析
+  ├── 订单查询
+  ├── 菜品分析
+  ├── 档口分析
+  └── 要货查询
+```
+
+---
+
+## v2.2.0 (2026-05-15)
+
+### 新功能
+
+#### 1. 数据分析模块
+
+**商品分析** (`/product-analysis`)
+- 快速时间选择：今日、昨日、近7日、本月、上月、自定义
+- 门店筛选（单选或全部）
+- 汇总字段：商品名称、分类、销量、退款数量、单价、总销售额、退款金额、占比
+- 统计卡片：总销售额、总销量、退款金额、退款数量、商品种类、订单数
+- 支持导出 Excel
+
+**档口分析** (`/category-analysis`)
+- 按档口汇总数据
+- 显示商品数、销量、退款统计
+- 支持导出 Excel
+
+**订单查询** (`/order-query`)
+- 从平台 API 实时查询订单
+- 筛选条件：门店、时间范围、订单号、菜品名称
+- 分页浏览
+- 支持导出 Excel
+
+**要货查询** (`/supply-query`)
+- 查询门店要货记录
+- 筛选条件：门店、商品分类、商品名称、配送单号
+- 显示：配送单号、门店、商品、分类、订货数量、已配送、单价、总价、状态
+- 支持导出 Excel
+
+#### 2. 门店管理增强
+
+- 从平台 API 同步门店列表
+- 预览平台门店数据
+- 一键更新本地配置
+
+#### 3. 基础库管理
+
+**商品库** (`/api/base/goods`)
+- 查询平台商品库（2560 条）
+- 更新本地配置 `config/goods.json`
+
+**商品分类** (`/api/base/goods-sub-cate`)
+- 查询平台商品分类（16 条）
+- 更新本地配置 `config/goods_sub_cate.json`
+
+**档口分类** (`/api/base/cang-sub-cate`)
+- 查询平台档口分类（21 条）
+- 更新本地配置 `config/cang_sub_cate.json`
+
+#### 4. Toast 通知系统
+
+- 替换所有 `alert()` 为右上角 Toast 通知
+- 支持成功/错误/警告三种类型
+- 10 秒自动消失
+
+### API 新增
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/orders/query` | 查询平台订单 |
+| GET | `/api/orders/query-all` | 查询所有订单 |
+| GET | `/api/orders/export` | 导出订单 Excel |
+| GET | `/api/analysis/products` | 商品分析 |
+| GET | `/api/analysis/products/export` | 导出商品分析 Excel |
+| GET | `/api/analysis/categories` | 档口分析 |
+| GET | `/api/analysis/categories/export` | 导出档口分析 Excel |
+| GET | `/api/stores/query` | 查询平台门店 |
+| POST | `/api/stores/update` | 更新本地门店配置 |
+| GET | `/api/supply/query` | 查询要货记录 |
+| GET | `/api/supply/query-all` | 查询所有要货记录 |
+| GET | `/api/supply/export` | 导出要货记录 Excel |
+| GET | `/api/base/goods` | 查询商品库 |
+| GET | `/api/base/goods/all` | 查询所有商品 |
+| POST | `/api/base/goods/update` | 更新商品库配置 |
+| GET | `/api/base/goods-sub-cate` | 查询商品分类 |
+| POST | `/api/base/goods-sub-cate/update` | 更新商品分类配置 |
+| GET | `/api/base/cang-sub-cate` | 查询档口分类 |
+| POST | `/api/base/cang-sub-cate/update` | 更新档口分类配置 |
+
+### 导航结构
+
+```
+概览
+  └── 概览
+
+档案
+  ├── 门店管理
+  ├── 菜品管理
+  └── 会员管理
+
+刷单
+  ├── 发布任务
+  ├── 刷单
+  └── 刷单记录
+
+数据分析
+  ├── 订单查询
+  ├── 商品分析
+  ├── 档口分析
+  └── 要货查询
+```
+
+### 配置文件
+
+| 文件 | 说明 |
+|------|------|
+| `config/settings.json` | 主配置（门店、菜品、API端点） |
+| `config/token.json` | 登录 Token |
+| `config/goods.json` | 商品库 |
+| `config/goods_sub_cate.json` | 商品分类 |
+| `config/cang_sub_cate.json` | 档口分类 |
+
+### 技术要点
+
+1. **订单数据计算**：`实际销售额 = (下单数量 - 退单数量) × 单价`
+2. **分页查询优化**：先查一次获取总数，再根据总数计算页数拉取全部数据
+3. **Toast 通知**：右上角弹出，支持动画，10秒自动消失
+4. **基础库同步**：从平台 API 拉取数据，保存为本地 JSON 配置
+
+---
+
 ## v2.1.0 (2026-05-14)
 
 ### 新功能

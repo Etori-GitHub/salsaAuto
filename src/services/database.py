@@ -40,6 +40,51 @@ class Database:
             )
         """)
         
+        # 商品库表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS goods (
+                id INTEGER PRIMARY KEY,
+                product_code TEXT,
+                product_name TEXT,
+                category_id INTEGER,
+                category_name TEXT,
+                sub_category_id INTEGER,
+                sub_category_name TEXT,
+                cang_sub_category_id INTEGER,
+                cang_sub_category_name TEXT,
+                unit_price REAL,
+                true_price REAL,
+                unit TEXT,
+                spec_name TEXT,
+                updated_at TEXT
+            )
+        """)
+        
+        # 商品分类表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS goods_sub_cate (
+                id INTEGER PRIMARY KEY,
+                sub_category_code TEXT,
+                sub_category_name TEXT,
+                category_id INTEGER,
+                category_name TEXT,
+                type TEXT,
+                updated_at TEXT
+            )
+        """)
+        
+        # 档口分类表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cang_sub_cate (
+                id INTEGER PRIMARY KEY,
+                sub_category_code TEXT,
+                sub_category_name TEXT,
+                category_id INTEGER,
+                category_name TEXT,
+                updated_at TEXT
+            )
+        """)
+        
         conn.commit()
         conn.close()
     
@@ -75,7 +120,7 @@ class Database:
     
     def get_order_records(
         self, start_date: Optional[str] = None, end_date: Optional[str] = None,
-        store_id: Optional[int] = None, limit: int = 100
+        store_id: Optional[int] = None, pay_type: Optional[str] = None, limit: int = 100
     ) -> List[Dict]:
         """查询刷单记录"""
         conn = sqlite3.connect(self.db_path)
@@ -94,6 +139,9 @@ class Database:
         if store_id:
             sql += " AND store_id = ?"
             params.append(store_id)
+        if pay_type:
+            sql += " AND pay_type = ?"
+            params.append(pay_type)
         
         sql += " ORDER BY created_at DESC LIMIT ?"
         params.append(limit)
@@ -104,7 +152,7 @@ class Database:
         
         return [dict(row) for row in rows]
     
-    def get_statistics(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> Dict:
+    def get_statistics(self, start_date: Optional[str] = None, end_date: Optional[str] = None, store_id: Optional[int] = None) -> Dict:
         """获取统计数据"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -125,6 +173,9 @@ class Database:
         if end_date:
             sql += " AND order_date <= ?"
             params.append(end_date)
+        if store_id:
+            sql += " AND store_id = ?"
+            params.append(store_id)
         
         cursor.execute(sql, params)
         row = cursor.fetchone()
@@ -146,6 +197,165 @@ class Database:
         conn.commit()
         conn.close()
         return affected > 0
+    
+    # ==================== 商品库操作 ====================
+    
+    def sync_goods(self, goods_list: List[Dict]) -> int:
+        """同步商品库"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 清空旧数据
+        cursor.execute("DELETE FROM goods")
+        
+        # 插入新数据
+        for g in goods_list:
+            cursor.execute("""
+                INSERT INTO goods (id, product_code, product_name, category_id, category_name,
+                    sub_category_id, sub_category_name, cang_sub_category_id, cang_sub_category_name,
+                    unit_price, true_price, unit, spec_name, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                g.get("id"),
+                g.get("productCode"),
+                g.get("productName"),
+                g.get("categoryId"),
+                g.get("categoryName"),
+                g.get("subCategoryId"),
+                g.get("subCategoryName"),
+                g.get("cangSubCategoryId"),
+                g.get("cangSubCategoryName"),
+                g.get("unitPrice"),
+                g.get("truePrice"),
+                g.get("unit"),
+                g.get("specName"),
+                now
+            ))
+        
+        
+        conn.commit()
+        count = cursor.execute("SELECT COUNT(*) FROM goods").fetchone()[0]
+        conn.close()
+        return count
+    
+    def get_goods(self, search: str = None, category: str = None) -> List[Dict]:
+        """查询商品库"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        sql = "SELECT * FROM goods WHERE 1=1"
+        params = []
+        
+        if search:
+            sql += " AND (product_name LIKE ? OR product_code LIKE ?)"
+            params.extend([f"%{search}%", f"%{search}%"])
+        if category:
+            sql += " AND category_name = ?"
+            params.append(category)
+        
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    # ==================== 商品分类操作 ====================
+    
+    def sync_goods_sub_cate(self, cate_list: List[Dict]) -> int:
+        """同步商品分类（保留已设定的类型）"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 先获取现有的类型设置
+        cursor.execute("SELECT id, type FROM goods_sub_cate WHERE type IS NOT NULL AND type != ''")
+        existing_types = {row[0]: row[1] for row in cursor.fetchall()}
+        
+        cursor.execute("DELETE FROM goods_sub_cate")
+        
+        for c in cate_list:
+            cate_id = c.get("id")
+            # 如果之前有设定类型，保留
+            preserved_type = existing_types.get(cate_id)
+            
+            cursor.execute("""
+                INSERT INTO goods_sub_cate (id, sub_category_code, sub_category_name, category_id, category_name, type, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                cate_id,
+                c.get("subCategoryCode"),
+                c.get("subCategoryName"),
+                c.get("categoryId"),
+                c.get("categoryName"),
+                preserved_type,
+                now
+            ))
+        
+        
+        conn.commit()
+        count = cursor.execute("SELECT COUNT(*) FROM goods_sub_cate").fetchone()[0]
+        conn.close()
+        return count
+    
+    def get_goods_sub_cate(self) -> List[Dict]:
+        """查询商品分类"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, sub_category_code, sub_category_name, type FROM goods_sub_cate")
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def update_goods_sub_cate_type(self, cate_id: int, cate_type: str) -> bool:
+        """更新商品分类类型"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE goods_sub_cate SET type = ? WHERE id = ?", (cate_type, cate_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+    
+    # ==================== 档口分类操作 ====================
+    
+    def sync_cang_sub_cate(self, cate_list: List[Dict]) -> int:
+        """同步档口分类"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        cursor.execute("DELETE FROM cang_sub_cate")
+        
+        for c in cate_list:
+            cursor.execute("""
+                INSERT INTO cang_sub_cate (id, sub_category_code, sub_category_name, category_id, category_name, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                c.get("id"),
+                c.get("subCategoryCode"),
+                c.get("subCategoryName"),
+                c.get("categoryId"),
+                c.get("categoryName"),
+                now
+            ))
+        
+        
+        conn.commit()
+        count = cursor.execute("SELECT COUNT(*) FROM cang_sub_cate").fetchone()[0]
+        conn.close()
+        return count
+    
+    def get_cang_sub_cate(self) -> List[Dict]:
+        """查询档口分类"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM cang_sub_cate")
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
 
 
 db = Database()

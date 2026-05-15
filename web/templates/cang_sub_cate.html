@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}档口分类 - salsaAuto{% endblock %}
+{% block header %}档口分类{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">档口分类管理</span>
+        <div class="card-actions">
+            <button class="btn btn-primary" onclick="syncFromPlatform()">从平台同步</button>
+        </div>
+    </div>
+    <div class="stats-row">
+        <span class="stat-item">共 <strong id="total-count">0</strong> 条分类</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>分类编码</th>
+                <th>分类名称</th>
+            </tr>
+        </thead>
+        <tbody id="cate-list">
+            <tr><td colspan="3" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+
+{% block script %}
+document.addEventListener('DOMContentLoaded', () => {
+    loadCategories();
+});
+
+async function loadCategories() {
+    // 先尝试从数据库读取
+    let result = await fetchAPI('/api/base/cang-sub-cate/local');
+    
+    if (result.success && result.records && result.records.length > 0) {
+        const records = result.records;
+        document.getElementById('total-count').textContent = records.length;
+        
+        const tbody = document.getElementById('cate-list');
+        tbody.innerHTML = records.map(c => `
+            <tr>
+                <td>${c.id || '-'}</td>
+                <td>${c.sub_category_code || '-'}</td>
+                <td>${c.sub_category_name || '-'}</td>
+            </tr>
+        `).join('');
+        return;
+    }
+    
+    // 数据库为空，从 API 读取
+    result = await fetchAPI('/api/base/cang-sub-cate');
+    
+    if (!result.success) {
+        document.getElementById('cate-list').innerHTML = `<tr><td colspan="3" class="loading">加载失败: ${result.message}</td></tr>`;
+        return;
+    }
+    
+    const records = result.records || [];
+    document.getElementById('total-count').textContent = records.length;
+    
+    const tbody = document.getElementById('cate-list');
+    
+    if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="3" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(c => `
+        <tr>
+            <td>${c.id || '-'}</td>
+            <td>${c.subCategoryCode || '-'}</td>
+            <td>${c.subCategoryName || '-'}</td>
+        </tr>
+    `).join('');
+}
+
+async function syncFromPlatform() {
+    showToast('正在从平台同步档口分类...', 'warning');
+    
+    const result = await fetchAPI('/api/base/cang-sub-cate/update', { method: 'POST' });
+    
+    if (result.success) {
+        showToast(result.message, 'success');
+        loadCategories();
+    } else {
+        showToast('同步失败: ' + result.message, 'error');
+    }
+}
+{% endblock %}

@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block title %}菜品分析 - salsaAuto{% endblock %}
+{% block header %}菜品分析{% endblock %}
+
+{% block content %}
+<!-- 筛选条件 -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">筛选条件</span>
+    </div>
+    <div style="margin-bottom: 16px;">
+        <!-- 快速选择时间 -->
+        <div style="display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;">
+            <button class="btn btn-secondary" onclick="setDateRange('today')">今日</button>
+            <button class="btn btn-secondary" onclick="setDateRange('yesterday')">昨日</button>
+            <button class="btn btn-secondary" onclick="setDateRange('week')">近7日</button>
+            <button class="btn btn-secondary" onclick="setDateRange('month')">本月</button>
+            <button class="btn btn-secondary" onclick="setDateRange('lastMonth')">上月</button>
+            <button class="btn btn-ghost" onclick="setDateRange('custom')">自定义</button>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div class="form-group">
+                <label class="form-label">开始时间</label>
+                <input type="datetime-local" id="start-time" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">结束时间</label>
+                <input type="datetime-local" id="end-time" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">门店</label>
+                <select id="query-store" class="form-select">
+                    <option value="">全部门店</option>
+                </select>
+            </div>
+            <div class="form-group" style="display: flex; align-items: flex-end; gap: 8px;">
+                <button class="btn btn-primary" onclick="analyzeProducts()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    分析
+                </button>
+                <button class="btn btn-secondary" id="export-btn" onclick="exportToExcel()" style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    导出 Excel
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 统计卡片 -->
+<div class="stats-grid" id="stats-cards" style="display: none;">
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-value" id="stat-total-sales">0</div>
+            <div class="stat-label">总销售额</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-value" id="stat-total-quantity">0</div>
+            <div class="stat-label">总销量</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-value" id="stat-refund-sales">0</div>
+            <div class="stat-label">退款金额</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-value" id="stat-refund-quantity">0</div>
+            <div class="stat-label">退款数量</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-value" id="stat-dish-count">0</div>
+            <div class="stat-label">商品种类</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-info">
+            <div class="stat-value" id="stat-order-count">0</div>
+            <div class="stat-label">订单数</div>
+        </div>
+    </div>
+</div>
+
+<!-- 分析结果 -->
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <span class="card-title">菜品分析结果</span>
+        <span id="result-info" style="color: var(--muted); font-size: 13px;"></span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>排名</th>
+                    <th>商品名称</th>
+                    <th>分类</th>
+                    <th>销量</th>
+                    <th>退款数量</th>
+                    <th>单价</th>
+                    <th>总销售额</th>
+                    <th>退款金额</th>
+                    <th>占比</th>
+                </tr>
+            </thead>
+            <tbody id="result-list">
+                <tr><td colspan="7" class="loading">请选择条件后点击分析</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+document.addEventListener('DOMContentLoaded', () => {
+    loadStores();
+    setDateRange('today');
+});
+
+async function loadStores() {
+    const data = await fetchAPI('/api/stores');
+    const stores = data.stores || {};
+    const select = document.getElementById('query-store');
+    
+    Object.entries(stores).forEach(([id, store]) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = store.name;
+        select.appendChild(option);
+    });
+}
+
+function setDateRange(type) {
+    const now = new Date();
+    let start, end;
+    
+    switch (type) {
+        case 'today':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            break;
+        case 'yesterday':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+            break;
+        case 'week':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            break;
+        case 'month':
+            start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            break;
+        case 'lastMonth':
+            start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+            break;
+        case 'custom':
+            return; // 不改变当前值
+    }
+    
+    document.getElementById('start-time').value = formatDateTimeLocal(start);
+    document.getElementById('end-time').value = formatDateTimeLocal(end);
+}
+
+function formatDateTimeLocal(date) {
+    const pad = n => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function formatDateTime(date) {
+    const pad = n => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+
+async function analyzeProducts() {
+    const storeId = document.getElementById('query-store').value || null;
+    const startTimeVal = document.getElementById('start-time').value;
+    const endTimeVal = document.getElementById('end-time').value;
+    
+    if (!startTimeVal || !endTimeVal) {
+        showToast('请选择时间范围', 'warning');
+        return;
+    }
+    
+    const startTime = startTimeVal.replace('T', ' ') + ':00';
+    const endTime = endTimeVal.replace('T', ' ') + ':59';
+    
+    // 保存当前查询参数
+    currentTimeRange = { start: startTime, end: endTime, storeId: storeId };
+    
+    const tbody = document.getElementById('result-list');
+    tbody.innerHTML = '<tr><td colspan="7" class="loading">正在查询数据...</td></tr>';
+    document.getElementById('stats-cards').style.display = 'none';
+    
+    // 调用分析 API
+    const params = new URLSearchParams();
+    params.append('start_time', startTime);
+    params.append('end_time', endTime);
+    if (storeId) params.append('store_id', storeId);
+    
+    const result = await fetchAPI('/api/analysis/products?' + params.toString());
+    
+    if (!result.success) {
+        tbody.innerHTML = `<tr><td colspan="7" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
+        return;
+    }
+    
+    const products = result.products || [];
+    const stats = result.stats || {};
+    
+    // 保存数据供导出使用
+    currentProducts = products;
+    currentStats = stats;
+    
+    // 更新统计卡片
+    document.getElementById('stat-total-sales').textContent = '¥' + stats.total_sales?.toFixed(2) || '0';
+    document.getElementById('stat-total-quantity').textContent = stats.total_quantity?.toLocaleString() || '0';
+    document.getElementById('stat-refund-sales').textContent = '¥' + stats.total_refund_sales?.toFixed(2) || '0';
+    document.getElementById('stat-refund-quantity').textContent = stats.total_refund_quantity?.toLocaleString() || '0';
+    document.getElementById('stat-dish-count').textContent = products.length;
+    document.getElementById('stat-order-count').textContent = stats.order_count?.toLocaleString() || '0';
+    document.getElementById('stats-cards').style.display = 'grid';
+    
+    document.getElementById('result-info').textContent = 
+        `时间: ${startTime.split(' ')[0]} ~ ${endTime.split(' ')[0]}，共 ${products.length} 种商品`;
+    
+    if (products.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = products.map((p, i) => `
+        <tr>
+            <td style="text-align: center; font-weight: ${i < 3 ? 'bold' : 'normal'}; color: ${i < 3 ? 'var(--accent)' : 'var(--text)'};">${i + 1}</td>
+            <td>${p.name}</td>
+            <td>${p.category || '-'}</td>
+            <td style="font-family: var(--mono);">${p.quantity}</td>
+            <td style="font-family: var(--mono); color: var(--danger);">${p.refund_quantity || 0}</td>
+            <td style="font-family: var(--mono);">¥${p.price?.toFixed(2) || '-'}</td>
+            <td style="font-family: var(--mono); font-weight: 600;">¥${p.total_sales?.toFixed(2)}</td>
+            <td style="font-family: var(--mono); color: var(--danger);">¥${(p.refund_sales || 0).toFixed(2)}</td>
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <div style="flex: 1; height: 6px; background: var(--bg-muted); border-radius: 3px; overflow: hidden;">
+                        <div style="width: ${p.percentage || 0}%; height: 100%; background: var(--accent); border-radius: 3px;"></div>
+                    </div>
+                    <span style="font-size: 12px; color: var(--muted); min-width: 45px;">${p.percentage?.toFixed(1)}%</span>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+    
+    // 显示导出按钮
+    document.getElementById('export-btn').style.display = 'inline-flex';
+}
+
+let currentProducts = [];
+let currentStats = {};
+let currentTimeRange = {};
+
+function exportToExcel() {
+    if (!currentProducts.length) {
+        showToast('暂无数据可导出', 'warning');
+        return;
+    }
+    
+    const params = new URLSearchParams();
+    params.append('start_time', currentTimeRange.start);
+    params.append('end_time', currentTimeRange.end);
+    if (currentTimeRange.storeId) params.append('store_id', currentTimeRange.storeId);
+    
+    // 直接下载
+    window.location.href = '/api/analysis/products/export?' + params.toString();
+}
+{% endblock %}

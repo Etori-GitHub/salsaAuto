@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+
+{% block title %}要货查询 - salsaAuto{% endblock %}
+{% block header %}要货查询{% endblock %}
+
+{% block content %}
+<!-- 筛选条件 -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">筛选条件</span>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">门店</label>
+            <select id="query-store" class="form-select">
+                <option value="">全部门店</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">档口分类</label>
+            <select id="query-cang-cate" class="form-select">
+                <option value="">全部档口</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">商品分类</label>
+            <select id="query-goods-cate" class="form-select">
+                <option value="">全部分类</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">商品名称</label>
+            <input type="text" id="query-product" class="form-input" placeholder="模糊匹配">
+        </div>
+        <div class="form-group">
+            <label class="form-label">配送单号</label>
+            <input type="text" id="query-delivery" class="form-input" placeholder="精确匹配">
+        </div>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">开始时间</label>
+            <input type="date" id="query-start-time" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">结束时间</label>
+            <input type="date" id="query-end-time" class="form-input">
+        </div>
+        <div class="form-group" style="display: flex; align-items: flex-end; gap: 8px;">
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('today')">今日</button>
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('yesterday')">昨日</button>
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('week')">近7天</button>
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('month')">本月</button>
+        </div>
+    </div>
+    <div style="display: flex; gap: 12px;">
+        <button class="btn btn-primary" onclick="querySupplyOrders()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            查询
+        </button>
+        <button class="btn btn-secondary" id="export-btn" onclick="exportToExcel()" style="display: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            导出 Excel
+        </button>
+    </div>
+</div>
+
+<!-- 查询结果 -->
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <span class="card-title">查询结果</span>
+        <span id="result-count" style="color: var(--muted); font-size: 13px;"></span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>配送单号</th>
+                    <th>门店</th>
+                    <th>商品名称</th>
+                    <th>分类</th>
+                    <th>子分类</th>
+                    <th>订货数量</th>
+                    <th>已配送</th>
+                    <th>单价</th>
+                    <th>总价</th>
+                    <th>创建时间</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody id="supply-list">
+                <tr><td colspan="11" class="loading">请输入查询条件</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <!-- 分页 -->
+    <div id="pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+let currentPage = 1;
+let totalPages = 1;
+let pageSize = 50;
+let currentQueryParams = {};
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadStores();
+    loadCangCates();
+    loadGoodsCates();
+    setDefaultTime();
+});
+
+async function loadStores() {
+    const data = await fetchAPI('/api/stores');
+    const stores = data.stores || {};
+    const select = document.getElementById('query-store');
+    
+    Object.entries(stores).forEach(([id, store]) => {
+        const option = document.createElement('option');
+        option.value = id;  // 用门店 ID 作为 store_code
+        option.textContent = store.name;
+        select.appendChild(option);
+    });
+}
+
+async function loadCangCates() {
+    const result = await fetchAPI('/api/base/cang-sub-cate/local');
+    const select = document.getElementById('query-cang-cate');
+    
+    if (result.success && result.records) {
+        result.records.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.sub_category_name || '';
+            option.textContent = c.sub_category_name || '';
+            select.appendChild(option);
+        });
+    }
+}
+
+async function loadGoodsCates() {
+    const result = await fetchAPI('/api/base/goods-sub-cate/local');
+    const select = document.getElementById('query-goods-cate');
+    
+    if (result.success && result.records) {
+        result.records.forEach(c => {
+            const option = document.createElement('option');
+            option.value = c.sub_category_name || '';
+            option.textContent = c.sub_category_name || '';
+            select.appendChild(option);
+        });
+    }
+}
+
+function setDefaultTime() {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    document.getElementById('query-start-time').value = formatDate(startOfMonth);
+    document.getElementById('query-end-time').value = formatDate(today);
+}
+
+function formatDate(date) {
+    return date.toISOString().split('T')[0];
+}
+
+function setQuickTime(type) {
+    const today = new Date();
+    let start, end;
+    
+    switch (type) {
+        case 'today':
+            start = end = today;
+            break;
+        case 'yesterday':
+            start = end = new Date(today.getTime() - 86400000);
+            break;
+        case 'week':
+            end = today;
+            start = new Date(today.getTime() - 7 * 86400000);
+            break;
+        case 'month':
+            end = today;
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            break;
+    }
+    
+    document.getElementById('query-start-time').value = formatDate(start);
+    document.getElementById('query-end-time').value = formatDate(end);
+}
+
+async function querySupplyOrders(page = 1) {
+    currentPage = page;
+    
+    const storeSelect = document.getElementById('query-store');
+    const storeCode = storeSelect.value || null;
+    const cangCate = document.getElementById('query-cang-cate').value || null;
+    const goodsCate = document.getElementById('query-goods-cate').value || null;
+    const productName = document.getElementById('query-product').value || null;
+    const deliveryCode = document.getElementById('query-delivery').value || null;
+    const startTime = document.getElementById('query-start-time').value || null;
+    const endTime = document.getElementById('query-end-time').value || null;
+    
+    currentQueryParams = { storeCode, cangCate, goodsCate, productName, deliveryCode, startTime, endTime };
+    
+    const tbody = document.getElementById('supply-list');
+    tbody.innerHTML = '<tr><td colspan="11" class="loading">查询中...</td></tr>';
+    
+    const params = new URLSearchParams();
+    if (storeCode) params.append('store_code', storeCode);
+    if (cangCate) params.append('cang_sub_category_name', cangCate);
+    if (goodsCate) params.append('category_name', goodsCate);
+    if (productName) params.append('product_name', productName);
+    if (deliveryCode) params.append('delivery_code', deliveryCode);
+    if (startTime) params.append('start_time', startTime);
+    if (endTime) params.append('end_time', endTime);
+    params.append('page', page);
+    params.append('page_size', pageSize);
+    
+    const result = await fetchAPI('/api/supply/query?' + params.toString());
+    
+    if (!result.success) {
+        tbody.innerHTML = `<tr><td colspan="11" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
+        return;
+    }
+    
+    const records = result.records || [];
+    totalPages = result.pages || 1;
+    
+    document.getElementById('result-count').textContent = 
+        `共 ${result.total} 条，第 ${page}/${totalPages} 页`;
+    
+    if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map(r => `
+        <tr>
+            <td style="font-family: var(--mono); font-size: 12px;">${r.deliveryCode || '-'}</td>
+            <td>${r.storeName || '-'}</td>
+            <td>${r.productName || '-'}</td>
+            <td>${r.productCategoryName || '-'}</td>
+            <td>${r.productSubcategoryName || '-'}</td>
+            <td style="font-family: var(--mono);">${r.orderQuantity || 0} ${r.unit || ''}</td>
+            <td style="font-family: var(--mono);">${r.deliveredQuantity || 0}</td>
+            <td style="font-family: var(--mono);">¥${r.truePrice?.toFixed(2) || r.unitPrice?.toFixed(2) || '-'}</td>
+            <td style="font-family: var(--mono); font-weight: 600;">¥${r.totalPriceD?.toFixed(2) || '-'}</td>
+            <td style="font-size: 12px;">${r.createTime || '-'}</td>
+            <td>${getStatusTag(r)}</td>
+        </tr>
+    `).join('');
+    
+    document.getElementById('export-btn').style.display = 'inline-flex';
+    renderPagination();
+}
+
+function getStatusTag(r) {
+    if (r.receiveStatus === 1) {
+        return '<span class="tag success">已收货</span>';
+    } else if (r.deliveredQuantity > 0) {
+        return '<span class="tag warning">配送中</span>';
+    } else {
+        return '<span class="tag">待配送</span>';
+    }
+}
+
+function renderPagination() {
+    const container = document.getElementById('pagination');
+    container.innerHTML = '';
+    
+    if (totalPages <= 1) return;
+    
+    if (currentPage > 1) {
+        container.innerHTML += `<button class="btn btn-secondary" onclick="querySupplyOrders(${currentPage - 1})">上一页</button>`;
+    }
+    
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+    
+    for (let i = start; i <= end; i++) {
+        const active = i === currentPage ? 'btn-primary' : 'btn-secondary';
+        container.innerHTML += `<button class="btn ${active}" onclick="querySupplyOrders(${i})">${i}</button>`;
+    }
+    
+    if (currentPage < totalPages) {
+        container.innerHTML += `<button class="btn btn-secondary" onclick="querySupplyOrders(${currentPage + 1})">下一页</button>`;
+    }
+}
+
+function exportToExcel() {
+    const params = new URLSearchParams();
+    if (currentQueryParams.storeCode) params.append('store_code', currentQueryParams.storeCode);
+    if (currentQueryParams.cangCate) params.append('cang_sub_category_name', currentQueryParams.cangCate);
+    if (currentQueryParams.goodsCate) params.append('category_name', currentQueryParams.goodsCate);
+    if (currentQueryParams.productName) params.append('product_name', currentQueryParams.productName);
+    if (currentQueryParams.deliveryCode) params.append('delivery_code', currentQueryParams.deliveryCode);
+    if (currentQueryParams.startTime) params.append('start_time', currentQueryParams.startTime);
+    if (currentQueryParams.endTime) params.append('end_time', currentQueryParams.endTime);
+    
+    window.location.href = '/api/supply/export?' + params.toString();
+}
+{% endblock %}

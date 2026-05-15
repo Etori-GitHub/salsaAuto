@@ -35,6 +35,7 @@ class AuthService:
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
         options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-direct-composition")
         
         driver_path = Path(__file__).parent.parent.parent / "chromedriver-win64" / "chromedriver.exe"
         driver = webdriver.Chrome(service=Service(str(driver_path)), options=options)
