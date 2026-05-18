@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}要货任务 - salsaAuto{% endblock %}
+{% block header %}要货任务{% endblock %}
+
+{% block head %}
+<style>
+    .calculator-input {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+    .result-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .result-table th, .result-table td {
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        text-align: center;
+    }
+    .result-table th {
+        background: var(--bg-secondary);
+        font-weight: 600;
+    }
+    .result-table .total-row {
+        background: var(--accent-bg);
+        font-weight: 600;
+    }
+    .stat-card {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--bg-secondary);
+        border-radius: var(--radius-sm);
+        margin-right: 12px;
+        margin-bottom: 8px;
+    }
+    .stat-card .stat-value {
+        font-weight: 600;
+        color: var(--accent);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 输入区域 -->
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-header"><span class="card-title">参数设置</span></div>
+    
+    <div class="calculator-input">
+        <div class="form-group">
+            <label class="form-label">门店</label>
+            <select id="store-select" class="form-select" required></select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">开始日期</label>
+            <input type="date" id="start-date" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">结束日期</label>
+            <input type="date" id="end-date" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">总要货金额</label>
+            <input type="number" id="total-amount" class="form-input" step="0.01" value="10000" min="0">
+        </div>
+        <div class="form-group">
+            <label class="form-label">每日浮动 (%)</label>
+            <input type="number" id="float-percent" class="form-input" value="20" min="0" max="100">
+            <p class="form-hint">每日金额在平均值上下浮动此百分比</p>
+        </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="calculate()" style="margin-top: 16px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/><path d="M12 4v16"/></svg>
+        计算要货方案
+    </button>
+    <button class="btn btn-secondary" id="save-task-btn" onclick="saveTask()" style="margin-top: 16px; margin-left: 12px; display: none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 13 7 21"/></svg>
+        保存为任务
+    </button>
+</div>
+
+<!-- 结果区域 -->
+<div class="card" id="result-card" style="display: none;">
+    <div class="card-header">
+        <span class="card-title">计算结果</span>
+        <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 12px;" onclick="exportResult()">导出 CSV</button>
+    </div>
+    <div id="result-stats" style="margin-bottom: 16px;"></div>
+    <div id="result-content" style="overflow-x: auto;"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+let stores = {};
+let lastResult = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // 设置默认日期（下个月）
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const nextMonthEnd = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+    
+    document.getElementById('start-date').value = nextMonth.toISOString().split('T')[0];
+    document.getElementById('end-date').value = nextMonthEnd.toISOString().split('T')[0];
+    
+    // 加载门店列表
+    const storesData = await fetchAPI('/api/stores');
+    stores = storesData.stores || {};
+    renderStoreList();
+});
+
+function renderStoreList() {
+    const select = document.getElementById('store-select');
+    select.innerHTML = Object.entries(stores).map(([id, store]) => 
+        `<option value="${id}">${store.name}</option>`
+    ).join('');
+}
+
+function calculate() {
+    const storeId = document.getElementById('store-select').value;
+    const startDateStr = document.getElementById('start-date').value;
+    const endDateStr = document.getElementById('end-date').value;
+    const totalAmount = parseFloat(document.getElementById('total-amount').value);
+    const floatPercent = parseFloat(document.getElementById('float-percent').value) / 100;
+    
+    // 验证
+    if (!startDateStr || !endDateStr) {
+        showToast('请选择日期区间', 'warning');
+        return;
+    }
+    
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+    
+    if (startDate > endDate) {
+        showToast('开始日期不能晚于结束日期', 'warning');
+        return;
+    }
+    if (totalAmount <= 0) {
+        showToast('总要货金额必须大于0', 'warning');
+        return;
+    }
+    
+    // 计算天数
+    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    const avgDaily = totalAmount / days;
+    
+    // 最大偏差值 = 平均值 × 浮动比例 / 2
+    const maxDeviation = avgDaily * floatPercent / 2;
+    
+    // 生成每日金额（用整数分计算，避免浮点精度问题）
+    const results = [];
+    const resultsCents = [];  // 存储整数分
+    
+    for (let i = 0; i < days; i++) {
+        // 随机偏差：正或负
+        const deviation = (Math.random() - 0.5) * 2 * maxDeviation;
+        const amount = avgDaily + deviation;
+        const amountCents = Math.round(amount * 100);  // 直接取整到分
+        
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        
+        resultsCents.push(amountCents);
+        results.push({
+            date: date.toISOString().split('T')[0],
+            amount: amountCents / 100
+        });
+    }
+    
+    // 计算差额（整数分）
+    const totalCents = Math.round(totalAmount * 100);
+    const assignedCents = resultsCents.reduce((sum, c) => sum + c, 0);
+    const diffCents = totalCents - assignedCents;
+    
+    // 把差额随机分配到若干天
+    if (diffCents !== 0) {
+        const remaining = Math.abs(diffCents);
+        const sign = diffCents > 0 ? 1 : -1;
+        
+        for (let j = 0; j < remaining; j++) {
+            // 随机选择一天
+            const randomIdx = Math.floor(Math.random() * days);
+            resultsCents[randomIdx] += sign;
+            results[randomIdx].amount = resultsCents[randomIdx] / 100;
+        }
+    }
+    
+    // 计算统计
+    const calculatedTotal = results.reduce((sum, r) => sum + r.amount, 0);
+    const minAmount = Math.min(...results.map(r => r.amount));
+    const maxAmount = Math.max(...results.map(r => r.amount));
+    
+    // 渲染结果
+    renderResult(results, {
+        totalAmount,
+        calculatedTotal,
+        days,
+        avgDaily,
+        minAmount,
+        maxAmount
+    });
+    
+    // 保存结果用于导出和保存任务
+    lastResult = {
+        storeId,
+        storeName: stores[storeId]?.name || '未知门店',
+        startDate: startDateStr,
+        endDate: endDateStr,
+        totalAmount,
+        floatPercent,
+        results
+    };
+    
+    document.getElementById('save-task-btn').style.display = 'inline-flex';
+}
+
+function renderResult(results, stats) {
+    const card = document.getElementById('result-card');
+    
+    // 统计信息
+    document.getElementById('result-stats').innerHTML = `
+        <div class="stat-card">
+            <span>天数:</span>
+            <span class="stat-value">${stats.days}</span>
+        </div>
+        <div class="stat-card">
+            <span>目标金额:</span>
+            <span class="stat-value">¥${stats.totalAmount.toFixed(2)}</span>
+        </div>
+        <div class="stat-card">
+            <span>计算金额:</span>
+            <span class="stat-value">¥${stats.calculatedTotal.toFixed(2)}</span>
+        </div>
+        <div class="stat-card">
+            <span>日均:</span>
+            <span class="stat-value">¥${stats.avgDaily.toFixed(2)}</span>
+        </div>
+        <div class="stat-card">
+            <span>最小:</span>
+            <span class="stat-value">¥${stats.minAmount.toFixed(2)}</span>
+        </div>
+        <div class="stat-card">
+            <span>最大:</span>
+            <span class="stat-value">¥${stats.maxAmount.toFixed(2)}</span>
+        </div>
+    `;
+    
+    // 表格
+    document.getElementById('result-content').innerHTML = `
+        <table class="result-table">
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>日期</th>
+                    <th>要货金额</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${results.map((r, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${r.date}</td>
+                        <td>¥${r.amount.toFixed(2)}</td>
+                    </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td colspan="2">合计</td>
+                    <td>¥${stats.calculatedTotal.toFixed(2)}</td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+    
+    card.style.display = 'block';
+}
+
+async function saveTask() {
+    if (!lastResult) {
+        showToast('请先计算要货方案', 'warning');
+        return;
+    }
+    
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').split('.')[0];
+    const taskId = `supply_${timestamp}`;
+    const taskName = `${lastResult.storeName}_要货_${lastResult.startDate}-${lastResult.endDate}_${timestamp}`;
+    
+    const taskData = {
+        task_id: taskId,
+        task_name: taskName,
+        task_type: 'supply',
+        created_at: new Date().toISOString(),
+        store_id: lastResult.storeId,
+        store_name: lastResult.storeName,
+        total_amount: lastResult.totalAmount,
+        float_percent: lastResult.floatPercent,
+        date_range: {
+            start: lastResult.startDate,
+            end: lastResult.endDate
+        },
+        days: lastResult.results.map(r => ({
+            date: r.date,
+            amount: r.amount
+        }))
+    };
+    
+    try {
+        const response = await fetchAPI('/api/supply-tasks/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(taskData)
+        });
+        
+        if (response.success) {
+            showToast(`任务已保存: ${taskName}`, 'success');
+        } else {
+            showToast('保存失败: ' + response.message, 'error');
+        }
+    } catch (e) {
+        showToast('保存失败: ' + e.message, 'error');
+    }
+}
+
+function exportResult() {
+    if (!lastResult) return;
+    
+    let csv = [];
+    csv.push('"序号","日期","要货金额"');
+    
+    lastResult.results.forEach((r, i) => {
+        csv.push(`"${i + 1}","${r.date}","${r.amount.toFixed(2)}"`);
+    });
+    
+    const total = lastResult.results.reduce((sum, r) => sum + r.amount, 0);
+    csv.push(`"","合计","${total.toFixed(2)}"`);
+    
+    const blob = new Blob(['\uFEFF' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `要货方案_${lastResult.storeName}_${lastResult.startDate}-${lastResult.endDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+{% endblock %}

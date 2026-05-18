@@ -269,6 +269,10 @@ async def cang_sub_cate_page(request: Request):
 async def monthly_order_page(request: Request):
     return render_template("monthly_order.html", {"request": request, "page": "monthly-order"})
 
+@app.get("/supply-calculator", response_class=HTMLResponse)
+async def supply_calculator_page(request: Request):
+    return render_template("supply_calculator.html", {"request": request, "page": "supply-calculator"})
+
 
 # === API 路由 ===
 
@@ -647,6 +651,66 @@ async def batch_by_quantity(
     return {"success": True, "order_count": count}
 
 
+@app.post("/api/supply-tasks/save")
+async def save_supply_task(request: Request):
+    """保存要货任务到 JSON 文件"""
+    try:
+        task_data = await request.json()
+
+        # 确保任务目录存在
+        tasks_dir = Path(__file__).parent.parent / "data" / "supply-tasks"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+
+        # 生成文件名
+        task_id = task_data.get("task_id", f"supply_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
+        file_path = tasks_dir / f"{task_id}.json"
+
+        # 保存 JSON 文件
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(task_data, f, ensure_ascii=False, indent=2)
+
+        return {
+            "success": True,
+            "message": "要货任务保存成功",
+            "file_path": str(file_path),
+            "task_id": task_id
+        }
+
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+@app.get("/api/supply-tasks/list")
+async def list_supply_tasks():
+    """获取所有要货任务列表"""
+    tasks_dir = Path(__file__).parent.parent / "data" / "supply-tasks"
+
+    if not tasks_dir.exists():
+        return {"tasks": []}
+
+    tasks = []
+    for file in tasks_dir.glob("*.json"):
+        try:
+            with open(file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                tasks.append({
+                    "task_id": data.get("task_id"),
+                    "task_name": data.get("task_name"),
+                    "store_name": data.get("store_name"),
+                    "total_amount": data.get("total_amount"),
+                    "date_range": data.get("date_range"),
+                    "created_at": data.get("created_at"),
+                    "file_path": str(file)
+                })
+        except:
+            continue
+
+    # 按创建时间倒序排列
+    tasks.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
+    return {"tasks": tasks}
+
+
 @app.post("/api/tasks/save")
 async def save_task(request: Request):
     """保存刷单任务到 JSON 文件"""
@@ -947,6 +1011,30 @@ async def query_all_supply_orders(
         end_time=end_time
     )
     return result
+
+
+@app.post("/api/supply/update-can-show")
+async def update_supply_can_show(id: int, value: int):
+    """更新要货明细的 canShow 字段"""
+    try:
+        # 调用平台 API 更新
+        url = f"{config.api_base_url}/restful/shasha/supply/sordersDetail/updateField"
+        params = {
+            "field": "can_show",
+            "value": value,
+            "id": id
+        }
+        
+        response = api_client.session.post(url, params=params, timeout=10, verify=False)
+        result = response.json()
+        
+        if result.get("code") == 1:
+            return {"success": True, "message": "更新成功"}
+        else:
+            return {"success": False, "message": result.get("msg", "更新失败")}
+    
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 
 @app.get("/api/supply/export")

@@ -17,6 +17,16 @@
             </select>
         </div>
         <div class="form-group">
+            <label class="form-label">订单号</label>
+            <input type="text" id="query-order-code" class="form-input" placeholder="精确匹配">
+        </div>
+        <div class="form-group">
+            <label class="form-label">菜品名称</label>
+            <input type="text" id="query-dish-name" class="form-input" placeholder="模糊匹配">
+        </div>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
             <label class="form-label">开始时间</label>
             <input type="datetime-local" id="query-start-time" class="form-input">
         </div>
@@ -24,13 +34,11 @@
             <label class="form-label">结束时间</label>
             <input type="datetime-local" id="query-end-time" class="form-input">
         </div>
-        <div class="form-group">
-            <label class="form-label">订单号</label>
-            <input type="text" id="query-order-code" class="form-input" placeholder="精确匹配">
-        </div>
-        <div class="form-group">
-            <label class="form-label">菜品名称</label>
-            <input type="text" id="query-dish-name" class="form-input" placeholder="模糊匹配">
+        <div class="form-group" style="display: flex; align-items: flex-end; gap: 8px;">
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('today')">今日</button>
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('yesterday')">昨日</button>
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('week')">近7天</button>
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('month')">本月</button>
         </div>
     </div>
     <div style="display: flex; gap: 12px;">
@@ -100,6 +108,41 @@ async function loadStores() {
         option.textContent = store.name;
         select.appendChild(option);
     });
+}
+
+function setQuickTime(range) {
+    const now = new Date();
+    let start, end;
+    
+    switch (range) {
+        case 'today':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            break;
+        case 'yesterday':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
+            break;
+        case 'week':
+            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            break;
+        case 'month':
+            start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            break;
+    }
+    
+    const formatDateTime = (d) => {
+        return d.getFullYear() + '-' + 
+            String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+            String(d.getDate()).padStart(2, '0') + 'T' + 
+            String(d.getHours()).padStart(2, '0') + ':' + 
+            String(d.getMinutes()).padStart(2, '0');
+    }; 
+    
+    document.getElementById('query-start-time').value = formatDateTime(start);
+    document.getElementById('query-end-time').value = formatDateTime(end);
 }
 
 async function queryOrders(page = 1) {

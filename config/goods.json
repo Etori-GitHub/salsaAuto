@@ -1,4 +1,54 @@
 {
+  "8899": {
+    "name": "指天阔烧烤料（五香味）",
+    "price": 202.5,
+    "unit": "桶",
+    "spec": "12.5kg",
+    "code": "D001Z015C889",
+    "category": "贸易品",
+    "sub_category": "调料",
+    "cang_sub_category": "烤肉区"
+  },
+  "8898": {
+    "name": "指天阔烧烤料（香辣味）",
+    "price": 202.5,
+    "unit": "桶",
+    "spec": "12.5kg",
+    "code": "D001Z015C889",
+    "category": "贸易品",
+    "sub_category": "调料",
+    "cang_sub_category": "烤肉区"
+  },
+  "8897": {
+    "name": "指天阔烧烤料（麻辣）",
+    "price": 216.0,
+    "unit": "桶",
+    "spec": "12.5kg",
+    "code": "D001Z015C889",
+    "category": "贸易品",
+    "sub_category": "调料",
+    "cang_sub_category": "烤肉区"
+  },
+  "8896": {
+    "name": "指天阔烧烤料（藤椒味）",
+    "price": 216.0,
+    "unit": "桶",
+    "spec": "12.5kg",
+    "code": "D001Z015C889",
+    "category": "贸易品",
+    "sub_category": "调料",
+    "cang_sub_category": "烤肉区"
+  },
+  "8895": {
+    "name": "3000ml圆",
+    "price": 80.0,
+    "unit": "箱",
+    "spec": "90套",
+    "code": "D001Z001C889",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "外卖易耗"
+  },
   "8894": {
     "name": "18*21双口牛皮袋",
     "price": 20.26,
@@ -3541,7 +3591,7 @@
   },
   "8537": {
     "name": "香菇",
-    "price": 6.0,
+    "price": 5.5,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C853",
@@ -5311,7 +5361,7 @@
   },
   "8356": {
     "name": "尖椒",
-    "price": 3.0,
+    "price": 2.5,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C835",
@@ -5391,7 +5441,7 @@
   },
   "8348": {
     "name": "芹菜",
-    "price": 1.0,
+    "price": 1.4,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C834",
@@ -5401,7 +5451,7 @@
   },
   "8347": {
     "name": "大葱",
-    "price": 0.9,
+    "price": 1.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C834",
@@ -5411,7 +5461,7 @@
   },
   "8346": {
     "name": "西红柿",
-    "price": 2.6,
+    "price": 2.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C834",

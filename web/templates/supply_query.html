@@ -78,14 +78,14 @@
                     <th>配送单号</th>
                     <th>门店</th>
                     <th>商品名称</th>
-                    <th>分类</th>
                     <th>子分类</th>
                     <th>订货数量</th>
+                    <th>单位</th>
                     <th>已配送</th>
                     <th>单价</th>
                     <th>总价</th>
                     <th>创建时间</th>
-                    <th>状态</th>
+                    <th>显示</th>
                 </tr>
             </thead>
             <tbody id="supply-list">
@@ -203,7 +203,7 @@ async function querySupplyOrders(page = 1) {
     currentQueryParams = { storeCode, cangCate, goodsCate, productName, deliveryCode, startTime, endTime };
     
     const tbody = document.getElementById('supply-list');
-    tbody.innerHTML = '<tr><td colspan="11" class="loading">查询中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="loading">查询中...</td></tr>';
     
     const params = new URLSearchParams();
     if (storeCode) params.append('store_code', storeCode);
@@ -219,7 +219,7 @@ async function querySupplyOrders(page = 1) {
     const result = await fetchAPI('/api/supply/query?' + params.toString());
     
     if (!result.success) {
-        tbody.innerHTML = `<tr><td colspan="11" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="12" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
         return;
     }
     
@@ -230,7 +230,7 @@ async function querySupplyOrders(page = 1) {
         `共 ${result.total} 条，第 ${page}/${totalPages} 页`;
     
     if (records.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="loading">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" class="loading">暂无数据</td></tr>';
         return;
     }
     
@@ -239,14 +239,14 @@ async function querySupplyOrders(page = 1) {
             <td style="font-family: var(--mono); font-size: 12px;">${r.deliveryCode || '-'}</td>
             <td>${r.storeName || '-'}</td>
             <td>${r.productName || '-'}</td>
-            <td>${r.productCategoryName || '-'}</td>
             <td>${r.productSubcategoryName || '-'}</td>
-            <td style="font-family: var(--mono);">${r.orderQuantity || 0} ${r.unit || ''}</td>
+            <td style="font-family: var(--mono);">${r.orderQuantity || 0}</td>
+            <td>${r.unit || '-'}</td>
             <td style="font-family: var(--mono);">${r.deliveredQuantity || 0}</td>
             <td style="font-family: var(--mono);">¥${r.truePrice?.toFixed(2) || r.unitPrice?.toFixed(2) || '-'}</td>
             <td style="font-family: var(--mono); font-weight: 600;">¥${r.totalPriceD?.toFixed(2) || '-'}</td>
             <td style="font-size: 12px;">${r.createTime || '-'}</td>
-            <td>${getStatusTag(r)}</td>
+            <td>${getCanShowToggle(r)}</td>
         </tr>
     `).join('');
     
@@ -254,13 +254,36 @@ async function querySupplyOrders(page = 1) {
     renderPagination();
 }
 
-function getStatusTag(r) {
-    if (r.receiveStatus === 1) {
-        return '<span class="tag success">已收货</span>';
-    } else if (r.deliveredQuantity > 0) {
-        return '<span class="tag warning">配送中</span>';
+function getCanShowToggle(r) {
+    const canShow = r.canShow === 1;
+    const id = r.id;
+    if (canShow) {
+        return `<button class="btn btn-sm" style="padding: 2px 8px; background: var(--ok); color: white; border: none;" onclick="updateCanShow(${id}, 0, this)">显示</button>`;
     } else {
-        return '<span class="tag">待配送</span>';
+        return `<button class="btn btn-sm btn-secondary" style="padding: 2px 8px; opacity: 0.5;" onclick="updateCanShow(${id}, 1, this)">隐藏</button>`;
+    }
+}
+
+async function updateCanShow(id, value, btn) {
+    const result = await fetchAPI('/api/supply/update-can-show?id=' + id + '&value=' + value, {
+        method: 'POST'
+    });
+    
+    if (result.success) {
+        if (value === 1) {
+            btn.className = 'btn btn-sm';
+            btn.style = 'padding: 2px 8px; background: var(--ok); color: white; border: none;';
+            btn.textContent = '显示';
+            btn.onclick = () => updateCanShow(id, 0, btn);
+        } else {
+            btn.className = 'btn btn-sm btn-secondary';
+            btn.style = 'padding: 2px 8px; opacity: 0.5;';
+            btn.textContent = '隐藏';
+            btn.onclick = () => updateCanShow(id, 1, btn);
+        }
+        showToast('已更新', 'success');
+    } else {
+        showToast('更新失败: ' + result.message, 'error');
     }
 }
 
