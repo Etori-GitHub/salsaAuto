@@ -28,6 +28,7 @@ from src.auth.service import auth_service
 from src.api.client import api_client
 from src.services.order import order_service
 from src.services.member import member_service
+from src.services.supply_adjust import supply_adjust_service
 from src.services.order_query import order_query_service
 from src.services.store_query import store_query_service
 from src.services.supply_query import supply_query_service
@@ -272,6 +273,10 @@ async def monthly_order_page(request: Request):
 @app.get("/supply-calculator", response_class=HTMLResponse)
 async def supply_calculator_page(request: Request):
     return render_template("supply_calculator.html", {"request": request, "page": "supply-calculator"})
+
+@app.get("/supply-adjust", response_class=HTMLResponse)
+async def supply_adjust_page(request: Request):
+    return render_template("supply_adjust.html", {"request": request, "page": "supply-adjust"})
 
 
 # === API 路由 ===
@@ -649,6 +654,29 @@ async def batch_by_quantity(
         today_orders[store_name] = estimated_amount
 
     return {"success": True, "order_count": count}
+
+
+@app.get("/api/supply-tasks/list")
+async def list_supply_tasks():
+    """获取所有要货任务列表"""
+    tasks = supply_adjust_service.get_task_list()
+    return {"tasks": tasks}
+
+
+@app.get("/api/supply-tasks/{task_id}")
+async def get_supply_task(task_id: str):
+    """获取要货任务详情"""
+    task = supply_adjust_service.get_task_detail(task_id)
+    if not task:
+        return {"success": False, "message": "任务不存在"}
+    return {"success": True, "task": task}
+
+
+@app.post("/api/supply-tasks/{task_id}/execute")
+async def execute_supply_task(task_id: str):
+    """执行补要货任务"""
+    result = supply_adjust_service.execute_task(task_id)
+    return result
 
 
 @app.post("/api/supply-tasks/save")

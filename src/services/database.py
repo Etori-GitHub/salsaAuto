@@ -56,9 +56,16 @@ class Database:
                 true_price REAL,
                 unit TEXT,
                 spec_name TEXT,
+                status INTEGER DEFAULT 1,
                 updated_at TEXT
             )
         """)
+        
+        # 检查并添加 status 字段
+        cursor.execute("PRAGMA table_info(goods)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'status' not in columns:
+            cursor.execute("ALTER TABLE goods ADD COLUMN status INTEGER DEFAULT 1")
         
         # 商品分类表
         cursor.execute("""
@@ -214,8 +221,8 @@ class Database:
             cursor.execute("""
                 INSERT INTO goods (id, product_code, product_name, category_id, category_name,
                     sub_category_id, sub_category_name, cang_sub_category_id, cang_sub_category_name,
-                    unit_price, true_price, unit, spec_name, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    unit_price, true_price, unit, spec_name, status, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 g.get("id"),
                 g.get("productCode"),
@@ -230,6 +237,7 @@ class Database:
                 g.get("truePrice"),
                 g.get("unit"),
                 g.get("specName"),
+                g.get("status", 1),  # 默认上架
                 now
             ))
         

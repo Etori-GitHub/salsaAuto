@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+
+{% block title %}补要货 - salsaAuto{% endblock %}
+{% block header %}补要货{% endblock %}
+
+{% block head %}
+<style>
+    .task-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .task-card:hover {
+        border-color: var(--accent);
+        background: var(--bg-secondary);
+    }
+    .task-card.selected {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+    }
+    .task-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .task-name {
+        font-weight: 600;
+    }
+    .task-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 13px;
+        color: var(--muted);
+    }
+    .day-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .day-table th, .day-table td {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        text-align: center;
+    }
+    .day-table th {
+        background: var(--bg-secondary);
+        font-weight: 600;
+    }
+    .day-table .success {
+        color: var(--ok);
+    }
+    .day-table .fail {
+        color: var(--danger);
+    }
+    .action-log {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-sm);
+        padding: 12px;
+        margin-top: 8px;
+        font-size: 13px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .action-log .action-item {
+        padding: 4px 0;
+        border-bottom: 1px dashed var(--border);
+    }
+    .action-log .action-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 300px 1fr; gap: 24px;">
+    <!-- 左侧任务列表 -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">要货任务</span>
+        </div>
+        <div id="task-list" style="max-height: 600px; overflow-y: auto;">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+    
+    <!-- 右侧详情和执行 -->
+    <div>
+        <div class="card" id="detail-card" style="display: none;">
+            <div class="card-header">
+                <span class="card-title">任务详情</span>
+                <button class="btn btn-primary" id="execute-btn" onclick="executeTask()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    执行补要货
+                </button>
+            </div>
+            <div id="task-detail"></div>
+        </div>
+        
+        <div class="card" id="result-card" style="display: none; margin-top: 24px;">
+            <div class="card-header">
+                <span class="card-title">执行结果</span>
+            </div>
+            <div id="result-content"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+let tasks = [];
+let selectedTaskId = null;
+let selectedTask = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadTasks();
+});
+
+async function loadTasks() {
+    const result = await fetchAPI('/api/supply-tasks/list');
+    tasks = result.tasks || [];
+    
+    const container = document.getElementById('task-list');
+    
+    if (tasks.length === 0) {
+        container.innerHTML = '<div class="loading">暂无任务</div>';
+        return;
+    }
+    
+    container.innerHTML = tasks.map(t => `
+        <div class="task-card" data-id="${t.task_id}" onclick="selectTask('${t.task_id}')">
+            <div class="task-header">
+                <span class="task-name">${t.store_name}</span>
+                <span style="color: var(--accent); font-weight: 600;">¥${t.total_amount?.toFixed(2)}</span>
+            </div>
+            <div class="task-meta">
+                <span>${t.date_range?.start} ~ ${t.date_range?.end}</span>
+                <span>${t.days_count} 天</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function selectTask(taskId) {
+    selectedTaskId = taskId;
+    
+    // 更新选中状态
+    document.querySelectorAll('.task-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.id === taskId);
+    });
+    
+    // 加载详情
+    const result = await fetchAPI('/api/supply-tasks/' + taskId);
+    
+    if (!result.success) {
+        showToast('加载任务详情失败', 'error');
+        return;
+    }
+    
+    selectedTask = result.task;
+    renderTaskDetail(selectedTask);
+}
+
+function renderTaskDetail(task) {
+    const card = document.getElementById('detail-card');
+    const container = document.getElementById('task-detail');
+    
+    const days = task.days || [];
+    
+    container.innerHTML = `
+        <div style="margin-bottom: 16px;">
+            <div style="display: flex; gap: 24px; margin-bottom: 8px;">
+                <span><strong>门店：</strong>${task.store_name}</span>
+                <span><strong>总金额：</strong>¥${task.total_amount?.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; gap: 24px;">
+                <span><strong>日期范围：</strong>${task.date_range?.start} ~ ${task.date_range?.end}</span>
+                <span><strong>天数：</strong>${days.length} 天</span>
+            </div>
+        </div>
+        <table class="day-table">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>目标金额</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${days.map(d => `
+                    <tr>
+                        <td>${d.date}</td>
+                        <td>¥${d.amount?.toFixed(2)}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    
+    card.style.display = 'block';
+    document.getElementById('result-card').style.display = 'none';
+}
+
+async function executeTask() {
+    if (!selectedTaskId || !selectedTask) {
+        showToast('请先选择任务', 'warning');
+        return;
+    }
+    
+    const btn = document.getElementById('execute-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="loading"></span> 执行中...';
+    
+    try {
+        const result = await fetchAPI('/api/supply-tasks/' + selectedTaskId + '/execute', {
+            method: 'POST'
+        });
+        
+        renderResult(result);
+        
+        if (result.success) {
+            showToast('补要货执行成功', 'success');
+        } else {
+            showToast('部分执行失败: ' + result.message, 'warning');
+        }
+    } catch (e) {
+        showToast('执行失败: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> 执行补要货';
+    }
+}
+
+function renderResult(result) {
+    const card = document.getElementById('result-card');
+    const container = document.getElementById('result-content');
+    
+    const days = result.results || [];
+    
+    container.innerHTML = `
+        <div style="margin-bottom: 16px; padding: 12px; background: var(--bg-secondary); border-radius: var(--radius-sm);">
+            <strong>执行统计：</strong>
+            成功 <span style="color: var(--ok);">${result.success_days}</span> / 
+            总计 ${result.total_days} 天
+        </div>
+        <table class="day-table">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>门店</th>
+                    <th>目标金额</th>
+                    <th>原始金额</th>
+                    <th>最终金额</th>
+                    <th>差额</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${days.map(d => `
+                    <tr>
+                        <td>${d.date}</td>
+                        <td>${d.store}</td>
+                        <td>¥${d.target?.toFixed(2)}</td>
+                        <td>¥${d.original_amount?.toFixed(2) || '-'}</td>
+                        <td>¥${d.final_amount?.toFixed(2) || '-'}</td>
+                        <td>¥${d.final_diff?.toFixed(2) || '-'}</td>
+                        <td class="${d.success ? 'success' : 'fail'}">${d.success ? '成功' : '失败'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        ${days.some(d => d.actions && d.actions.length > 0) ? `
+            <div style="margin-top: 16px;">
+                <strong>操作日志：</strong>
+                ${days.filter(d => d.actions && d.actions.length > 0).map(d => `
+                    <div style="margin-top: 8px;">
+                        <div style="font-weight: 500;">${d.date}</div>
+                        <div class="action-log">
+                            ${d.actions.map(a => `<div class="action-item">${a}</div>`).join('')}
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        ` : ''}
+    `;
+    
+    card.style.display = 'block';
+}
+{% endblock %}

@@ -29,12 +29,17 @@ class SupplyQueryService:
         page_size: int = 100
     ) -> Dict:
         """查询要货记录"""
+        # API 返回的 storeCode 格式是 M00011，需要转换
+        api_store_code = None
+        if store_code:
+            api_store_code = f"M{store_code.zfill(5)}" if not store_code.startswith("M") else store_code
+        
         params = [
             ("page", page),
             ("pageSize", page_size),
             ("deliveryCode", delivery_code or ""),
             ("detailCode", ""),
-            ("storeCode", store_code or ""),
+            ("storeCode", api_store_code or ""),
             ("storeName", store_name or ""),
             ("categoryCode", category_code or ""),
             ("categoryName", category_name or ""),
@@ -44,9 +49,13 @@ class SupplyQueryService:
             ("productCode", product_code or ""),
             ("productName", product_name or ""),
             ("deliveryId", ""),
-            ("startTime", start_time or ""),
-            ("endTime", end_time or ""),
         ]
+        
+        # 时间参数用 createTime（同名参数传两次）
+        if start_time:
+            params.append(("createTime", f"{start_time} 00:00:00"))
+        if end_time:
+            params.append(("createTime", f"{end_time} 23:59:59"))
         
         try:
             result = api_client.get_raw("supplyorders", params=params)

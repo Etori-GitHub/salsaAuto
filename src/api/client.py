@@ -62,6 +62,8 @@ class APIClient:
             endpoint: 端点名称或完整路径
             params: 参数列表，格式为 [(key, value), ...]
         """
+        from urllib.parse import quote
+        
         # 判断是端点名称还是完整路径
         if endpoint.startswith("http"):
             url = endpoint
@@ -73,12 +75,16 @@ class APIClient:
             url = config.get_api_url(endpoint)
         
         try:
-            # 构建带参数的 URL
+            # 构建带参数的 URL（对参数值进行 URL 编码）
             if params:
-                from urllib.parse import urlencode
-                param_str = "&".join(f"{k}={v}" for k, v in params if v is not None and v != "")
-                if param_str:
-                    url = f"{url}?{param_str}"
+                param_parts = []
+                for k, v in params:
+                    if v is not None and v != "":
+                        # 对参数值进行 URL 编码
+                        encoded_v = quote(str(v), safe='')
+                        param_parts.append(f"{k}={encoded_v}")
+                if param_parts:
+                    url = f"{url}?{'&'.join(param_parts)}"
             
             response = self.session.request(
                 method="GET", url=url,
