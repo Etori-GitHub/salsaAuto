@@ -401,7 +401,15 @@ async def get_order_statistics(start_date: str = None, end_date: str = None, sto
 
 @app.get("/api/members")
 async def get_members():
-    return {"members": member_service.get_all_members(), "count": len(member_service.get_all_members())}
+    members = member_service.get_all_members()
+    # 转换为字典格式（以 id 为 key）
+    members_dict = {str(m["id"]): {
+        "phone": m.get("phone", ""),
+        "username": m.get("username", ""),
+        "balance": m.get("balance", 0),
+        "type": m.get("member_type", "None")
+    } for m in members}
+    return {"members": members_dict, "count": len(members)}
 
 
 @app.post("/api/members/sync")

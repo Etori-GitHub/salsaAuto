@@ -1,41 +1,17 @@
 """会员服务"""
 
-import json
 import random
-from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, List
 
 from src.api.client import api_client
+from src.services.database import db
 
 
 class MemberService:
-    """会员服务"""
-    
-    def __init__(self) -> None:
-        self._member_file = Path(__file__).parent.parent.parent / "config" / "member.json"
-        self._members: dict = {}
-        self._load_members()
-    
-    def _load_members(self) -> bool:
-        if not self._member_file.exists():
-            print(f"会员文件不存在: {self._member_file}")
-            return False
-        try:
-            with open(self._member_file, "r", encoding="utf-8") as f:
-                self._members = json.load(f)
-            print(f"已加载 {len(self._members)} 个会员")
-            return True
-        except (json.JSONDecodeError, KeyError) as e:
-            print(f"会员文件解析失败: {e}")
-            return False
-    
-    def _save_members(self) -> None:
-        self._member_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self._member_file, "w", encoding="utf-8") as f:
-            json.dump(self._members, f, indent=4, ensure_ascii=False)
-        print(f"会员信息已保存")
+    """会员服务（使用数据库）"""
     
     def sync_from_api(self, page: int = 1, page_size: int = 100) -> dict:
+        """从 API 同步会员数据"""
         params = {
             "page": page, "pageSize": page_size,
             "storeCode": "", "storeName": "",
@@ -45,82 +21,89 @@ class MemberService:
         
         if response.get("code") == 1:
             records = response.get("data", {}).get("records", [])
-            updated = 0
+            # 转换为数据库格式
+            member_list = []
             for record in records:
-                member_id = str(record["id"])
-                if member_id in self._members:
-                    self._members[member_id]["balance"] = record.get("balance", 0)
-                    self._members[member_id]["phone"] = record.get("phone", "")
-                    self._members[member_id]["username"] = record.get("username", "")
-                    updated += 1
-                else:
-                    self._members[member_id] = {
-                        "phone": record.get("phone", ""),
-                        "username": record.get("username", ""),
-                        "balance": record.get("balance", 0),
-                        "type": "None",
-                    }
-                    updated += 1
-            self._save_members()
-            print(f"同步完成: 更新 {updated} 个会员")
+                member_list.append({
+                    "id": record.get("id"),
+                    "phone": record.get("phone", ""),
+                    "username": record.get("username", ""),
+                    "balance": record.get("balance", 0),
+                    "type": record.get("type", "None"),
+                })
+            
+            count = db.sync_members(member_list)
+            print(f"同步完成: 更新 {count} 个会员")
         return response
     
-    def get_member(self, member_id: str) -> Optional[dict]:
-        return self._members.get(member_id)
+    def get_member(self, member_id: int) -> Optional[dict]:
+        """获取单个会员"""
+        return db.get_member(member_id)
     
-    def get_all_members(self) -> dict:
-        return self._members
+    def get_all_members(self) -> List[dict]:
+        """获取所有会员"""
+        return db.get_members()
     
-    def get_members_by_type(self, member_type: str) -> dict:
+    def get_members_by_type(self, member_type: str) -> List[dict]:
+        """按类型获取会员"""
+        all_members = db.get_members()
         if member_type == "" or member_type == "None":
-            return {k: v for k, v in self._members.items() if v.get("type", "None") in ["None", ""]}
-        return {k: v for k, v in self._members.items() if v.get("type", "") == member_type}
+            return [m for m in all_members if m.get("member_type", "None") in ["None", ""]]
+        return [m for m in all_members if m.get("member_type", "") == member_type]
     
-    def random_member(self, min_balance: float, member_type: str = "") -> Optional[str]:
+    def random_member(self, min_balance: float, member_type: str = "") -> Optional[int]:
+        """随机选择一个余额足够的会员"""
+        members = db.get_members()
         candidates = []
-        for member_id, member_info in self._members.items():
-            balance = member_info.get("balance", 0)
-            m_type = member_info.get("type", "None")
+        
+        for member in members:
+            balance = member.get("balance", 0)
+            m_type = member.get("member_type", "None")
+            
             if balance < min_balance:
                 continue
+            
             if member_type == "" or member_type == "None":
                 if m_type not in ["None", ""]:
                     continue
             else:
                 if m_type != member_type:
                     continue
-            candidates.append(member_id)
+            
+            candidates.append(member.get("id"))
         
         if not candidates:
             type_name = "通用" if member_type in ["", "None"] else member_type
             print(f"没有可用的会员 (类型: {type_name}, 最小余额: {min_balance})")
             return None
+        
         return random.choice(candidates)
     
-    def update_balance(self, member_id: str, amount: float) -> bool:
-        member = self._members.get(member_id)
+    def update_balance(self, member_id: int, amount: float) -> bool:
+        """更新会员余额"""
+        member = db.get_member(member_id)
         if not member:
             print(f"会员不存在: {member_id}")
             return False
+        
         old_balance = member.get("balance", 0)
         new_balance = round(old_balance - amount, 2)
-        member["balance"] = new_balance
-        self._save_members()
-        print(f"会员 {member_id} 支付 {amount}，余额: {old_balance} -> {new_balance}")
-        return True
+        
+        if db.update_member_balance(member_id, new_balance):
+            print(f"会员 {member_id} 支付 {amount}，余额: {old_balance} -> {new_balance}")
+            return True
+        return False
     
-    def set_member_type(self, member_id: str, member_type: str) -> bool:
-        member = self._members.get(member_id)
-        if not member:
-            print(f"会员不存在: {member_id}")
-            return False
-        member["type"] = member_type
-        self._save_members()
-        print(f"会员 {member_id} 类型已设置为: {member_type}")
-        return True
+    def set_member_type(self, member_id: int, member_type: str) -> bool:
+        """设置会员类型"""
+        if db.update_member_type(member_id, member_type):
+            print(f"会员 {member_id} 类型已设置为: {member_type}")
+            return True
+        return False
     
     def reload(self) -> bool:
-        return self._load_members()
+        """重新加载（数据库不需要）"""
+        return True
 
 
 member_service = MemberService()

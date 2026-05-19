@@ -92,6 +92,18 @@ class Database:
             )
         """)
         
+        # 会员表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS members (
+                id INTEGER PRIMARY KEY,
+                phone TEXT,
+                username TEXT,
+                balance REAL,
+                member_type TEXT,
+                updated_at TEXT
+            )
+        """)
+        
         conn.commit()
         conn.close()
     
@@ -159,7 +171,7 @@ class Database:
         
         return [dict(row) for row in rows]
     
-    def get_statistics(self, start_date: Optional[str] = None, end_date: Optional[str] = None, store_id: Optional[int] = None) -> Dict:
+    def get_statistics(self, start_date: Optional[str] = None, end_date: Optional[str] = None, store_id: Optional[int] = None, pay_type: Optional[str] = None) -> Dict:
         """获取统计数据"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -183,6 +195,9 @@ class Database:
         if store_id:
             sql += " AND store_id = ?"
             params.append(store_id)
+        if pay_type:
+            sql += " AND pay_type = ?"
+            params.append(pay_type)
         
         cursor.execute(sql, params)
         row = cursor.fetchone()
@@ -364,6 +379,81 @@ class Database:
         rows = cursor.fetchall()
         conn.close()
         return [dict(row) for row in rows]
+    
+    # ==================== 会员操作 ====================
+    
+    def sync_members(self, member_list: List[Dict]) -> int:
+        """同步会员数据"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 获取现有的会员类型设置
+        cursor.execute("SELECT id, member_type FROM members WHERE member_type IS NOT NULL AND member_type != ''")
+        existing_types = {row[0]: row[1] for row in cursor.fetchall()}
+        
+        cursor.execute("DELETE FROM members")
+        
+        for m in member_list:
+            member_id = m.get("id")
+            preserved_type = existing_types.get(member_id)
+            
+            cursor.execute("""
+                INSERT INTO members (id, phone, username, balance, member_type, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                member_id,
+                m.get("phone"),
+                m.get("username"),
+                m.get("balance", 0),
+                preserved_type or m.get("type"),
+                now
+            ))
+        
+        conn.commit()
+        count = cursor.execute("SELECT COUNT(*) FROM members").fetchone()[0]
+        conn.close()
+        return count
+    
+    def get_members(self) -> List[Dict]:
+        """查询所有会员"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM members")
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def get_member(self, member_id: int) -> Optional[Dict]:
+        """查询单个会员"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM members WHERE id = ?", (member_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+    
+    def update_member_balance(self, member_id: int, new_balance: float) -> bool:
+        """更新会员余额"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE members SET balance = ? WHERE id = ?", (new_balance, member_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+    
+    def update_member_type(self, member_id: int, member_type: str) -> bool:
+        """更新会员类型"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE members SET member_type = ? WHERE id = ?", (member_type, member_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
 
 
 db = Database()

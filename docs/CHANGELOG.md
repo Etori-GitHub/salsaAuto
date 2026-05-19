@@ -1,5 +1,106 @@
 # salsaAuto 更新日志
 
+## v2.4.0 (2026-05-19)
+
+### 新功能
+
+#### 1. 数据校准模块
+
+**要货任务计算器** (`/supply-calculator`)
+- 根据总金额和日期范围，计算每日要货金额
+- 支持浮动百分比设置
+- 简洁算法：平均值 ± 随机偏差，差额随机分配
+- 任务保存到 `data/supply-tasks/` 目录
+
+**补要货** (`/supply-adjust`)
+- 选择门店、日期、目标金额
+- 自动查询现有要货明细
+- 计算差额并添加补差价商品
+- 补差价商品：8919(1元)、8917(1角)、8918(1分)
+- 自动修改新添加明细的创建时间（20:00-23:00随机）
+- 验算确认金额匹配
+
+#### 2. 数据库优化
+
+**会员数据迁移**
+- 会员数据从 `config/member.json` 迁移到数据库 `members` 表
+- 同步时保留会员类型设置
+- 新增数据库方法：
+  - `sync_members()` - 同步会员数据
+  - `get_members()` - 查询所有会员
+  - `get_member()` - 查询单个会员
+  - `update_member_balance()` - 更新余额
+  - `update_member_type()` - 更新类型
+
+**可删除的 JSON 文件**
+- `config/goods.json` → 数据库 `goods` 表
+- `config/goods_sub_cate.json` → 数据库 `goods_sub_cate` 表
+- `config/cang_sub_cate.json` → 数据库 `cang_sub_cate` 表
+- `config/member.json` → 数据库 `members` 表
+
+#### 3. 导航折叠功能
+
+- 点击分类标题可折叠/展开
+- 折叠状态保存到 localStorage
+- 新增折叠图标动画
+
+#### 4. 要货查询增强
+
+- 去掉"分类"列
+- 拆分"订货数量"和"单位"
+- "状态"改为"显示"（可切换 canShow）
+- 新增 API：`POST /api/supply/update-can-show`
+
+### API 新增
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| POST | `/api/supply-tasks/save` | 保存要货任务 |
+| GET | `/api/supply-tasks/list` | 获取要货任务列表 |
+| GET | `/api/supply-tasks/{task_id}` | 获取要货任务详情 |
+| POST | `/api/supply-tasks/{task_id}/execute` | 执行要货任务 |
+| POST | `/api/supply/update-can-show` | 更新要货明细显示状态 |
+
+### Bug 修复
+
+- 修复 `get_statistics()` 方法缺少 `pay_type` 参数
+- 修复会员 API 返回格式（列表转字典）
+- 修复 `add_order_item` 参数名错误
+- 修复补要货时新添加明细的创建时间未修改问题
+
+### 导航结构
+
+```
+概览
+  └── 概览
+
+档案
+  ├── 门店管理
+  ├── 菜品管理
+  ├── 会员管理
+  ├── 商品库
+  ├── 商品分类
+  └── 档口分类
+
+刷单
+  ├── 发布任务
+  ├── 刷单
+  └── 刷单记录
+
+数据校准
+  ├── 要货任务
+  └── 补要货
+
+数据分析
+  ├── 订单查询
+  ├── 菜品分析
+  ├── 档口分析
+  ├── 要货查询
+  └── 月订货统计
+```
+
+---
+
 ## v2.3.0 (2026-05-15)
 
 ### 新功能

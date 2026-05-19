@@ -7,11 +7,13 @@
 - **Web UI 界面**：现代化的 Web 管理界面
 - **Chrome 驱动管理**：自动检测版本、一键更新驱动
 - **Token 管理**：自动保存/加载认证 Token
-- **会员管理**：本地存储会员信息，支持类型分类
+- **会员管理**：会员数据存储在数据库，支持类型分类
 - **订单管理**：支持单个订单、按金额刷单、按数量刷单、一纸满刷单
 - **刷单计算器**：根据总金额自动计算每日商品配比
 - **任务系统**：保存计算结果，一键执行刷单任务
 - **基础库管理**：商品库、商品分类、档口分类同步与管理
+- **数据校准**：要货任务计算器、补要货功能
+- **数据分析**：订单查询、菜品分析、档口分析、要货查询
 
 ## 快速开始
 
@@ -62,7 +64,7 @@ python -m src
 - 查看会员列表
 - 同步会员余额（从 API）
 - 设置会员类型（通用/一纸满）
-- 会员数据保存在 `config/member.json`
+- 会员数据存储在数据库 `members` 表
 
 ### 订单管理
 
@@ -109,6 +111,38 @@ python -m src
 - 支持会员类型选择（通用/一纸满）
 - 执行时自动拼接日期 + 商品时间上界作为交易时间
 
+### 数据校准
+
+**要货任务计算器** (`/supply-calculator`)
+- 根据总金额和日期范围，计算每日要货金额
+- 支持浮动百分比设置
+- 任务保存到 `data/supply-tasks/` 目录
+
+**补要货** (`/supply-adjust`)
+- 选择门店、日期、目标金额
+- 自动查询现有要货明细
+- 计算差额并添加补差价商品
+- 补差价商品：8919(1元)、8917(1角)、8918(1分)
+- 自动修改新添加明细的创建时间
+
+### 数据分析
+
+**订单查询** (`/order-query`)
+- 从平台 API 实时查询订单
+- 筛选条件：门店、时间范围、订单号、菜品名称
+
+**菜品分析** (`/product-analysis`)
+- 按菜品汇总销量数据
+- 支持导出 Excel
+
+**档口分析** (`/category-analysis`)
+- 按档口汇总数据
+- 支持导出 Excel
+
+**要货查询** (`/supply-query`)
+- 查询门店要货记录
+- 支持切换 canShow 状态
+
 ## 配置文件
 
 ### config/settings.json
@@ -146,14 +180,6 @@ python -m src
 }
 ```
 
-### config/member.json
-
-会员数据，包含：
-- `phone`: 手机号
-- `username`: 用户名
-- `balance`: 余额
-- `type`: 类型（None=通用, yizhiman=一纸满）
-
 ### config/token.json
 
 Token 缓存，包含：
@@ -164,9 +190,18 @@ Token 缓存，包含：
 
 任务文件夹，存储计算器生成的刷单任务
 
+### data/supply-tasks/
+
+要货任务文件夹，存储要货任务
+
 ### data/orders.db
 
-SQLite 数据库，存储刷单记录
+SQLite 数据库，包含以下表：
+- `order_records` - 刷单记录
+- `goods` - 商品库
+- `goods_sub_cate` - 商品分类
+- `cang_sub_cate` - 档口分类
+- `members` - 会员数据
 
 ## 项目结构
 
@@ -177,8 +212,10 @@ salsaAuto/
 │   ├── auth/              # 认证服务
 │   ├── cli/               # CLI 界面
 │   ├── services/          # 业务服务
-│   │   ├── member.py      # 会员服务
-│   │   ├── order.py       # 订单服务（含 execute_task）
+│   │   ├── member.py      # 会员服务（数据库）
+│   │   ├── order.py       # 订单服务
+│   │   ├── supply_adjust.py  # 补要货服务
+│   │   ├── supply_query.py   # 要货查询服务
 │   │   └── database.py    # 数据库服务
 │   ├── config.py          # 配置管理
 │   └── __main__.py        # 入口
@@ -188,11 +225,11 @@ salsaAuto/
 │   └── templates/         # HTML 模板
 ├── config/
 │   ├── settings.json      # 配置
-│   ├── member.json        # 会员数据
 │   └── token.json         # Token 缓存
 ├── data/
-│   ├── orders.db          # 刷单记录数据库
-│   └── tasks/             # 任务文件夹
+│   ├── orders.db          # 数据库
+│   ├── tasks/             # 刷单任务
+│   └── supply-tasks/      # 要货任务
 ├── chromedriver-win64/     # ChromeDriver
 ├── docs/
 │   └── CHANGELOG.md       # 更新日志
@@ -207,7 +244,7 @@ salsaAuto/
 - **前端**: 原生 HTML/CSS/JS
 - **样式**: OpenClaw Design System
 - **浏览器自动化**: Selenium
-- **数据库**: SQLite + JSON 文件
+- **数据库**: SQLite
 
 ## API 接口
 
@@ -231,6 +268,9 @@ salsaAuto/
 | GET | `/api/tasks/list` | 获取任务列表 |
 | GET | `/api/tasks/{id}` | 获取任务详情 |
 | POST | `/api/tasks/{id}/execute` | 执行任务刷单 |
+| POST | `/api/supply-tasks/save` | 保存要货任务 |
+| GET | `/api/supply-tasks/list` | 获取要货任务列表 |
+| POST | `/api/supply/update-can-show` | 更新要货明细显示状态 |
 | POST | `/api/token/start` | 启动登录流程 |
 | POST | `/api/token/submit` | 提交验证码 |
 | POST | `/api/chromedriver/update` | 更新 ChromeDriver |
@@ -241,23 +281,8 @@ salsaAuto/
 2. **Token 获取**：需要先启动 Chrome 调试模式（端口 9222）
 3. **会员类型**：会员类型是本地手动划分的，不会从 API 同步
 4. **商品时间**：任务刷单时会使用商品配置的 `time_range` 字段拼接交易时间
+5. **数据库**：商品库、会员数据已迁移到数据库，可删除旧的 JSON 文件
 
 ## 更新日志
 
-### v2.1.0 (2026-05-14)
-
-- 新增刷单计算器（自动计算每日商品配比）
-- 新增任务系统（保存计算结果，一键执行）
-- 新增商品时间配置（`time_range` 字段）
-- 优化计算器算法（浮点数精度、高价商品平衡）
-- Token 自动加载（服务启动时）
-- 任务刷单功能（订单页面新增 Tab）
-
-### v2.0.0 (2026-05-14)
-
-- 完全重构项目结构
-- 新增 Web UI 界面
-- 新增 Chrome 驱动自动检测和更新
-- 新增今日刷单统计
-- 优化会员管理，支持本地类型划分
-- 统一 OpenClaw 设计风格
+详见 `docs/CHANGELOG.md`
