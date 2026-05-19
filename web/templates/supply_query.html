@@ -72,6 +72,21 @@
         <span id="result-count" style="color: var(--muted); font-size: 13px;"></span>
     </div>
     <div style="overflow-x: auto;">
+        <!-- 汇总行 -->
+        <div id="summary-row" style="display: none; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 12px; display: flex; gap: 24px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: var(--muted); font-size: 13px;">全部金额：</span>
+                <span id="total-amount-all" style="font-size: 18px; font-weight: 700; color: var(--text);">¥0.00</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: var(--muted); font-size: 13px;">显示部分金额：</span>
+                <span id="total-amount-show" style="font-size: 18px; font-weight: 700; color: var(--ok);">¥0.00</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="color: var(--muted); font-size: 13px;">隐藏部分金额：</span>
+                <span id="total-amount-hide" style="font-size: 18px; font-weight: 700; color: var(--danger);">¥0.00</span>
+            </div>
+        </div>
         <table class="data-table">
             <thead>
                 <tr>
@@ -205,6 +220,9 @@ async function querySupplyOrders(page = 1) {
     const tbody = document.getElementById('supply-list');
     tbody.innerHTML = '<tr><td colspan="12" class="loading">查询中...</td></tr>';
     
+    // 隐藏汇总行
+    document.getElementById('summary-row').style.display = 'none';
+    
     const params = new URLSearchParams();
     if (storeCode) params.append('store_code', storeCode);
     if (cangCate) params.append('cang_sub_category_name', cangCate);
@@ -251,6 +269,10 @@ async function querySupplyOrders(page = 1) {
     `).join('');
     
     document.getElementById('export-btn').style.display = 'inline-flex';
+    
+    // 异步加载汇总数据
+    loadSummary();
+    
     renderPagination();
 }
 
@@ -262,6 +284,47 @@ function getCanShowToggle(r) {
     } else {
         return `<button class="btn btn-sm btn-secondary" style="padding: 2px 8px; opacity: 0.5;" onclick="updateCanShow(${id}, 1, this)">隐藏</button>`;
     }
+}
+
+async function loadSummary() {
+    // 调用 query-all 接口获取全部数据计算汇总
+    const params = new URLSearchParams();
+    if (currentQueryParams.storeCode) params.append('store_code', currentQueryParams.storeCode);
+    if (currentQueryParams.cangCate) params.append('cang_sub_category_name', currentQueryParams.cangCate);
+    if (currentQueryParams.goodsCate) params.append('category_name', currentQueryParams.goodsCate);
+    if (currentQueryParams.productName) params.append('product_name', currentQueryParams.productName);
+    if (currentQueryParams.deliveryCode) params.append('delivery_code', currentQueryParams.deliveryCode);
+    if (currentQueryParams.startTime) params.append('start_time', currentQueryParams.startTime);
+    if (currentQueryParams.endTime) params.append('end_time', currentQueryParams.endTime);
+    
+    const result = await fetchAPI('/api/supply/query-all?' + params.toString());
+    
+    if (!result.success || !result.records) {
+        return;
+    }
+    
+    const records = result.records;
+    
+    // 计算汇总
+    let totalAll = 0;
+    let totalShow = 0;
+    let totalHide = 0;
+    
+    records.forEach(r => {
+        const price = r.totalPriceD || 0;
+        totalAll += price;
+        if (r.canShow === 1) {
+            totalShow += price;
+        } else {
+            totalHide += price;
+        }
+    });
+    
+    // 更新显示
+    document.getElementById('total-amount-all').textContent = '¥' + totalAll.toFixed(2);
+    document.getElementById('total-amount-show').textContent = '¥' + totalShow.toFixed(2);
+    document.getElementById('total-amount-hide').textContent = '¥' + totalHide.toFixed(2);
+    document.getElementById('summary-row').style.display = 'flex';
 }
 
 async function updateCanShow(id, value, btn) {

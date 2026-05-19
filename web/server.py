@@ -1117,6 +1117,7 @@ async def export_supply_orders(
             "单价": r.get("truePrice") or r.get("unitPrice", 0),
             "总价": r.get("totalPriceD", 0),
             "创建时间": r.get("createTime", ""),
+            "显示": "是" if r.get("canShow") == 1 else "否",
             "状态": "已收货" if r.get("receiveStatus") else ("配送中" if r.get("deliveredQuantity") else "待配送")
         })
 
