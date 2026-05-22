@@ -116,19 +116,14 @@ diff_amount = target_amount - current_amount
 
 ## 使用方式
 
-### 前置条件
+### 自动同步
 
-1. 同步供应商信息
-2. 同步商品库
-3. 同步采购明细到本地库
+补采购执行时会**自动同步**采购明细到本地库，无需手动调用同步 API。
 
 ### 执行步骤
 
 ```bash
-# 1. 同步采购明细
-POST /api/purchase/sync-details
-
-# 2. 执行补采购任务
+# 执行补采购任务（自动同步 + 计算差额 + 调整）
 POST /api/purchase/adjust-day
 {
     "date": "2026-04-01",
@@ -137,10 +132,16 @@ POST /api/purchase/adjust-day
     "purchase_time": "2026-04-01 12:00:00",
     "purchaser": "system"
 }
-
-# 3. 完成后校对
-POST /api/purchase/sync-details
 ```
+
+### 完整流程
+
+1. **自动同步**：拉取全部采购明细到本地库
+2. **计算差额**：从本地库查询目标日期已有明细，计算差额
+3. **执行调整**：
+   - 差额 < 0：关闭明细
+   - 差额 > 0：创建明细 + 入库
+4. **返回结果**：最终金额、差额、操作日志
 
 ## 注意事项
 

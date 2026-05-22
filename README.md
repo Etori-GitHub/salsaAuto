@@ -11,9 +11,9 @@
 - **订单管理**：支持单个订单、按金额刷单、按数量刷单、一纸满刷单
 - **刷单计算器**：根据总金额自动计算每日商品配比
 - **任务系统**：保存计算结果，一键执行刷单任务
-- **基础库管理**：商品库、商品分类、档口分类同步与管理
-- **数据校准**：要货任务计算器、补要货功能
-- **数据分析**：订单查询、菜品分析、档口分析、要货查询
+- **基础库管理**：商品库、商品分类、档口分类、供应商管理
+- **数据校准**：要货任务计算器、补要货、采购任务计算器、补采购
+- **数据分析**：订单查询、菜品分析、档口分析、要货查询、采购查询、月订货统计
 
 ## 快速开始
 
@@ -194,6 +194,10 @@ Token 缓存，包含：
 
 要货任务文件夹，存储要货任务
 
+### data/purchase-tasks/
+
+采购任务文件夹，存储采购任务
+
 ### data/orders.db
 
 SQLite 数据库，包含以下表：
@@ -202,6 +206,8 @@ SQLite 数据库，包含以下表：
 - `goods_sub_cate` - 商品分类
 - `cang_sub_cate` - 档口分类
 - `members` - 会员数据
+- `suppliers` - 供应商数据
+- `purchase_details` - 采购明细缓存
 
 ## 项目结构
 
@@ -229,7 +235,8 @@ salsaAuto/
 ├── data/
 │   ├── orders.db          # 数据库
 │   ├── tasks/             # 刷单任务
-│   └── supply-tasks/      # 要货任务
+│   ├── supply-tasks/      # 要货任务
+│   └── purchase-tasks/    # 采购任务
 ├── chromedriver-win64/     # ChromeDriver
 ├── docs/
 │   └── CHANGELOG.md       # 更新日志
@@ -271,6 +278,21 @@ salsaAuto/
 | POST | `/api/supply-tasks/save` | 保存要货任务 |
 | GET | `/api/supply-tasks/list` | 获取要货任务列表 |
 | POST | `/api/supply/update-can-show` | 更新要货明细显示状态 |
+| GET | `/api/base/suppliers` | 查询供应商列表 |
+| GET | `/api/base/suppliers/local` | 从数据库查询供应商 |
+| POST | `/api/base/suppliers/update` | 同步供应商到本地库 |
+| GET | `/api/summary-entities` | 获取汇总主体列表 |
+| GET | `/api/purchase/orders` | 查询采购明细 |
+| POST | `/api/purchase/detail/update-can-show` | 更新采购明细显示状态 |
+| GET | `/api/purchase/order-list` | 查询采购订单列表 |
+| POST | `/api/purchase/detail/add` | 添加采购明细 |
+| POST | `/api/purchase/inbound/add` | 添加采购明细并入库 |
+| POST | `/api/purchase/order/create` | 创建采购订单 |
+| POST | `/api/purchase/task/save` | 保存采购任务 |
+| GET | `/api/purchase/task/list` | 获取采购任务列表 |
+| GET | `/api/purchase/task/{filename}` | 获取采购任务详情 |
+| POST | `/api/purchase/sync-details` | 同步采购明细到本地库 |
+| POST | `/api/purchase/adjust-day` | 执行单日补采购 |
 | POST | `/api/token/start` | 启动登录流程 |
 | POST | `/api/token/submit` | 提交验证码 |
 | POST | `/api/chromedriver/update` | 更新 ChromeDriver |
@@ -282,6 +304,7 @@ salsaAuto/
 3. **会员类型**：会员类型是本地手动划分的，不会从 API 同步
 4. **商品时间**：任务刷单时会使用商品配置的 `time_range` 字段拼接交易时间
 5. **数据库**：商品库、会员数据已迁移到数据库，可删除旧的 JSON 文件
+6. **补采购**：只使用贸易品（排除现采和加工品），按汇总主体分组选择商品
 
 ## 更新日志
 
