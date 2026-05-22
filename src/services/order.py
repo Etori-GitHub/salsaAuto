@@ -30,7 +30,7 @@ class OrderService:
         # 完整的订单数据模板
         order_data = {
             "source": "前台",
-            "remark": remark,
+            "remark": "111",
             "storeId": int(store_id),
             "memberId": "",
             "discountPrice": total_price,
