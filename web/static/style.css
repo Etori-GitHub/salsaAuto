@@ -826,9 +826,21 @@ body {
 }
 
 .modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
   background: var(--bg);
   border-radius: var(--radius-lg);
-  width: 400px;
   max-width: 90vw;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
@@ -897,6 +909,62 @@ body {
 }
 
 .empty-state-desc {
+  font-size: 14px;
+}
+
+/* Entity Tag (clickable) */
+.entity-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: var(--bg-secondary);
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.entity-tag:hover {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+/* Entity List in Modal */
+.entity-list {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+}
+
+.entity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+}
+
+.entity-name {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.entity-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.entity-add {
+  display: flex;
+  gap: 8px;
+}
+
+.empty-tip {
+  text-align: center;
+  padding: 20px;
+  color: var(--muted);
   font-size: 14px;
 }
 

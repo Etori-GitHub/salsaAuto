@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+
+{% block title %}采购任务 - salsaAuto{% endblock %}
+{% block header %}采购任务{% endblock %}
+
+{% block head %}
+<style>
+    .calculator-input {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+    }
+    .result-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .result-table th, .result-table td {
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        text-align: center;
+    }
+    .result-table th {
+        background: var(--bg-secondary);
+        font-weight: 600;
+    }
+    .result-table .total-row {
+        background: var(--accent-bg);
+        font-weight: 600;
+    }
+    .stat-card {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--bg-secondary);
+        border-radius: var(--radius-sm);
+        margin-right: 12px;
+        margin-bottom: 8px;
+    }
+    .stat-card .stat-value {
+        font-weight: 600;
+        color: var(--accent);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 输入区域 -->
+<div class="card" style="margin-bottom: 24px;">
+    <div class="card-header"><span class="card-title">参数设置</span></div>
+    
+    <div class="calculator-input">
+        <div class="form-group">
+            <label class="form-label">汇总主体</label>
+            <select id="summary-entity" class="form-select" required>
+                <option value="">请选择</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">开始日期</label>
+            <input type="date" id="start-date" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">结束日期</label>
+            <input type="date" id="end-date" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">总采购金额</label>
+            <input type="number" id="total-amount" class="form-input" step="0.01" value="10000" min="0">
+        </div>
+        <div class="form-group">
+            <label class="form-label">每日浮动 (%)</label>
+            <input type="number" id="float-percent" class="form-input" value="10" min="0" max="100">
+            <p class="form-hint">每日金额在平均值上下浮动此百分比</p>
+        </div>
+        <div class="form-group">
+            <label class="form-label">采购人</label>
+            <input type="text" id="purchaser" class="form-input" value="system">
+            <p class="form-hint">采购订单的采购人</p>
+        </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="calculate()" style="margin-top: 16px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M4 12h16"/><path d="M12 4v16"/></svg>
+        计算采购方案
+    </button>
+    <button class="btn btn-secondary" id="save-task-btn" onclick="saveTask()" style="margin-top: 16px; margin-left: 12px; display: none;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 13 7 21"/></svg>
+        保存为任务
+    </button>
+</div>
+
+<!-- 结果区域 -->
+<div class="card" id="result-card" style="display: none;">
+    <div class="card-header">
+        <span class="card-title">计算结果</span>
+        <button class="btn btn-secondary" style="font-size: 12px; padding: 4px 12px;" onclick="exportResult()">导出 CSV</button>
+    </div>
+    <div id="result-stats" style="margin-bottom: 16px;"></div>
+    <div id="result-content" style="overflow-x: auto;"></div>
+</div>
+{% endblock %}
+
+{% block script %}
+let lastResult = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    // 设置默认日期（本月）
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    document.getElementById('start-date').value = firstDay.toISOString().split('T')[0];
+    document.getElementById('end-date').value = lastDay.toISOString().split('T')[0];
+    
+    // 加载汇总主体列表
+    const result = await fetchAPI('/api/summary-entities');
+    const select = document.getElementById('summary-entity');
+    
+    if (result.success && result.records) {
+        result.records.forEach(e => {
+            const option = document.createElement('option');
+            option.value = e.name;
+            option.textContent = e.name;
+            select.appendChild(option);
+        });
+    }
+});
+
+function randomTime() {
+    // 生成随机时间 08:00 - 20:00
+    const hour = Math.floor(Math.random() * 12) + 8;
+    const minute = Math.floor(Math.random() * 60);
+    const second = Math.floor(Math.random() * 60);
+    return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:${second.toString().padStart(2, '0')}`;
+}
+
+function calculate() {
+    const summaryEntity = document.getElementById('summary-entity').value;
+    const startDateStr = document.getElementById('start-date').value;
+    const endDateStr = document.getElementById('end-date').value;
+    const totalAmount = parseFloat(document.getElementById('total-amount').value);
+    const floatPercent = parseFloat(document.getElementById('float-percent').value) / 100;
+    const purchaser = document.getElementById('purchaser').value;
+    
+    // 验证
+    if (!summaryEntity) {
+        showToast('请选择汇总主体', 'warning');
+        return;
+    }
+    if (!startDateStr || !endDateStr) {
+        showToast('请选择日期区间', 'warning');
+        return;
+    }
+    
+    const startDate = new Date(startDateStr);
+    const endDate = new Date(endDateStr);
+    
+    if (startDate > endDate) {
+        showToast('开始日期不能晚于结束日期', 'warning');
+        return;
+    }
+    if (totalAmount <= 0) {
+        showToast('总采购金额必须大于0', 'warning');
+        return;
+    }
+    
+    // 计算天数
+    const days = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+    const avgDaily = totalAmount / days;
+    
+    // 最大偏差值 = 平均值 × 浮动比例 / 2
+    const maxDeviation = avgDaily * floatPercent / 2;
+    
+    // 生成每日金额（用整数分计算，避免浮点精度问题）
+    const results = [];
+    const resultsCents = [];  // 存储整数分
+    
+    for (let i = 0; i < days; i++) {
+        // 随机偏差：正或负
+        const deviation = (Math.random() - 0.5) * 2 * maxDeviation;
+        const amount = avgDaily + deviation;
+        const amountCents = Math.round(amount * 100);  // 直接取整到分
+        
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        resultsCents.push(amountCents);
+        results.push({
+            date: dateStr,
+            purchase_time: `${dateStr} ${randomTime()}`,
+            target_amount: amountCents / 100
+        });
+    }
+    
+    // 计算差额（整数分）
+    const totalCents = Math.round(totalAmount * 100);
+    const assignedCents = resultsCents.reduce((sum, c) => sum + c, 0);
+    const diffCents = totalCents - assignedCents;
+    
+    // 把差额随机分配到若干天
+    if (diffCents !== 0) {
+        const remaining = Math.abs(diffCents);
+        const sign = diffCents > 0 ? 1 : -1;
+        
+        for (let j = 0; j < remaining; j++) {
+            // 随机选择一天
+            const randomIdx = Math.floor(Math.random() * days);
+            resultsCents[randomIdx] += sign;
+            results[randomIdx].target_amount = resultsCents[randomIdx] / 100;
+        }
+    }
+    
+    // 计算统计
+    const calculatedTotal = results.reduce((sum, r) => sum + r.target_amount, 0);
+    const minAmount = Math.min(...results.map(r => r.target_amount));
+    const maxAmount = Math.max(...results.map(r => r.target_amount));
+    
+    // 渲染结果
+    renderResult(results, {
+        totalAmount,
+        calculatedTotal,
+        days,
+        avgDaily,
+        minAmount,
+        maxAmount
+    });
+    
+    // 保存结果用于导出和保存任务
+    lastResult = {
+        summaryEntity,
+        startDate: startDateStr,
+        endDate: endDateStr,
+        totalAmount,
+        floatPercent,
+        purchaser,
+        results
+    };
+    
+    document.getElementById('save-task-btn').style.display = 'inline-flex';
+}
+
+function renderResult(results, stats) {
+    const card = document.getElementById('result-card');
+    
+    // 统计信息
+    document.getElementById('result-stats').innerHTML = `
+        <div class="stat-card">
+            <span>天数:</span>
+            <span class="stat-value">${stats.days}</span>
+        </div>
+        <div class="stat-card">
+            <span>目标金额:</span>
+            <span class="stat-value">¥${stats.totalAmount.toFixed(2)}</span>
+        </div>
+        <div class="stat-card">
+            <span>计算金额:</span>
+            <span class="stat-value">¥${stats.calculatedTotal.toFixed(2)}</span>
+        </div>
+        <div class="stat-card">
+            <span>日均:</span>
+            <span class="stat-value">¥${stats.avgDaily.toFixed(2)}</span>
+        </div>
+        <div class="stat-card">
+            <span>最小:</span>
+            <span class="stat-value">¥${stats.minAmount.toFixed(2)}</span>
+        </div>
+        <div class="stat-card">
+            <span>最大:</span>
+            <span class="stat-value">¥${stats.maxAmount.toFixed(2)}</span>
+        </div>
+    `;
+    
+    // 表格
+    document.getElementById('result-content').innerHTML = `
+        <table class="result-table">
+            <thead>
+                <tr>
+                    <th>序号</th>
+                    <th>日期</th>
+                    <th>采购时间</th>
+                    <th>目标金额</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${results.map((r, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${r.date}</td>
+                        <td>${r.purchase_time}</td>
+                        <td>¥${r.target_amount.toFixed(2)}</td>
+                    </tr>
+                `).join('')}
+                <tr class="total-row">
+                    <td colspan="3">合计</td>
+                    <td>¥${stats.calculatedTotal.toFixed(2)}</td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+    
+    card.style.display = 'block';
+}
+
+async function saveTask() {
+    if (!lastResult) {
+        showToast('请先计算采购方案', 'warning');
+        return;
+    }
+    
+    const timestamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '_').split('.')[0];
+    const taskId = `purchase_${timestamp}`;
+    const taskName = `${lastResult.summaryEntity}_采购_${lastResult.startDate}-${lastResult.endDate}_${timestamp}`;
+    
+    const taskData = {
+        task_id: taskId,
+        task_name: taskName,
+        task_type: 'purchase',
+        created_at: new Date().toISOString(),
+        summary_entity: lastResult.summaryEntity,
+        total_amount: lastResult.totalAmount,
+        float_percent: lastResult.floatPercent,
+        purchaser: lastResult.purchaser,
+        date_range: {
+            start: lastResult.startDate,
+            end: lastResult.endDate
+        },
+        days: lastResult.results
+    };
+    
+    try {
+        const response = await fetchAPI('/api/purchase/task/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(taskData)
+        });
+        
+        if (response.success) {
+            showToast(`任务已保存: ${taskName}`, 'success');
+        } else {
+            showToast('保存失败: ' + response.message, 'error');
+        }
+    } catch (e) {
+        showToast('保存失败: ' + e.message, 'error');
+    }
+}
+
+function exportResult() {
+    if (!lastResult) return;
+    
+    let csv = [];
+    csv.push('"序号","日期","采购时间","目标金额"');
+    
+    lastResult.results.forEach((r, i) => {
+        csv.push(`"${i + 1}","${r.date}","${r.purchase_time}","${r.target_amount.toFixed(2)}"`);
+    });
+    
+    const total = lastResult.results.reduce((sum, r) => sum + r.target_amount, 0);
+    csv.push(`"","合计","","${total.toFixed(2)}"`);
+    
+    const blob = new Blob(['\uFEFF' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `采购方案_${lastResult.summaryEntity}_${lastResult.startDate}-${lastResult.endDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+{% endblock %}

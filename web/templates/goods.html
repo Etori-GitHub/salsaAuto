@@ -16,6 +16,9 @@
         <select id="category-filter" class="form-select">
             <option value="">全部分类</option>
         </select>
+        <select id="supplier-filter" class="form-select">
+            <option value="">全部供应商</option>
+        </select>
         <button class="btn btn-secondary" onclick="loadGoods()">查询</button>
     </div>
     <div class="stats-row" id="stats-row">
@@ -29,13 +32,14 @@
                 <th>商品名称</th>
                 <th>分类</th>
                 <th>档口</th>
+                <th>供应商</th>
                 <th>单价</th>
                 <th>规格</th>
                 <th>单位</th>
             </tr>
         </thead>
         <tbody id="goods-list">
-            <tr><td colspan="8" class="loading">加载中...</td></tr>
+            <tr><td colspan="9" class="loading">加载中...</td></tr>
         </tbody>
     </table>
     <div class="pagination" id="pagination"></div>
@@ -66,6 +70,12 @@ async function loadGoods() {
         categoryFilter.innerHTML = '<option value="">全部分类</option>' + 
             categories.map(c => `<option value="${c}">${c}</option>`).join('');
         
+        // 提取供应商选项
+        const suppliers = [...new Set(allGoods.map(g => g.supplier_name).filter(Boolean))];
+        const supplierFilter = document.getElementById('supplier-filter');
+        supplierFilter.innerHTML = '<option value="">全部供应商</option>' + 
+            suppliers.map(s => `<option value="${s}">${s}</option>`).join('');
+        
         renderTable();
         return;
     }
@@ -74,7 +84,7 @@ async function loadGoods() {
     result = await fetchAPI('/api/base/goods/all');
     
     if (!result.success) {
-        document.getElementById('goods-list').innerHTML = `<tr><td colspan="8" class="loading">加载失败: ${result.message}</td></tr>`;
+        document.getElementById('goods-list').innerHTML = `<tr><td colspan="9" class="loading">加载失败: ${result.message}</td></tr>`;
         return;
     }
     
@@ -87,24 +97,33 @@ async function loadGoods() {
     categoryFilter.innerHTML = '<option value="">全部分类</option>' + 
         categories.map(c => `<option value="${c}">${c}</option>`).join('');
     
+    // 提取供应商选项
+    const suppliers = [...new Set(allGoods.map(g => g.supplierName).filter(Boolean))];
+    const supplierFilter = document.getElementById('supplier-filter');
+    supplierFilter.innerHTML = '<option value="">全部供应商</option>' + 
+        suppliers.map(s => `<option value="${s}">${s}</option>`).join('');
+    
     renderTable();
 }
 
 function renderTable() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
     const categoryFilter = document.getElementById('category-filter').value;
+    const supplierFilter = document.getElementById('supplier-filter').value;
     
     let filtered = allGoods.filter(g => {
         // 兼容数据库字段和 API 字段
         const name = g.product_name || g.productName || '';
         const code = g.product_code || g.productCode || '';
         const category = g.category_name || g.categoryName || '';
+        const supplier = g.supplier_name || g.supplierName || '';
         
         const matchSearch = !searchTerm || 
             name.toLowerCase().includes(searchTerm) ||
             code.toLowerCase().includes(searchTerm);
         const matchCategory = !categoryFilter || category === categoryFilter;
-        return matchSearch && matchCategory;
+        const matchSupplier = !supplierFilter || supplier === supplierFilter;
+        return matchSearch && matchCategory && matchSupplier;
     });
     
     const totalPages = Math.ceil(filtered.length / pageSize);
@@ -114,7 +133,7 @@ function renderTable() {
     const tbody = document.getElementById('goods-list');
     
     if (pageData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="loading">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="loading">暂无数据</td></tr>';
         return;
     }
     
@@ -125,6 +144,7 @@ function renderTable() {
             <td>${g.product_name || g.productName || '-'}</td>
             <td>${g.category_name || g.categoryName || '-'}</td>
             <td>${g.cang_sub_category_name || g.cangSubCategoryName || '-'}</td>
+            <td>${g.supplier_name || g.supplierName || '-'}</td>
             <td>¥${((g.unit_price || g.unitPrice || g.true_price || g.truePrice || 0)).toFixed(2)}</td>
             <td>${g.spec_name || g.specName || '-'}</td>
             <td>${g.unit || '-'}</td>
@@ -155,6 +175,11 @@ document.getElementById('search-input').addEventListener('input', () => {
 });
 
 document.getElementById('category-filter').addEventListener('change', () => {
+    currentPage = 1;
+    renderTable();
+});
+
+document.getElementById('supplier-filter').addEventListener('change', () => {
     currentPage = 1;
     renderTable();
 });

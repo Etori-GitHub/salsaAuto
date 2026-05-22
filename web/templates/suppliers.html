@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}供应商管理 - salsaAuto{% endblock %}
+{% block header %}供应商管理{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">供应商列表</span>
+        <div class="card-actions">
+            <button class="btn btn-secondary" onclick="batchSetEntity()">批量设置空缺</button>
+            <button class="btn btn-secondary" onclick="openEntityModal()">管理汇总主体</button>
+            <button class="btn btn-primary" onclick="syncFromPlatform()">从平台同步</button>
+        </div>
+    </div>
+    <div class="filter-bar">
+        <input type="text" id="search-input" class="form-input" placeholder="搜索供应商名称/编码/电话..." style="width: 200px;">
+        <button class="btn btn-secondary" onclick="loadSuppliers()">查询</button>
+    </div>
+    <div class="stats-row" id="stats-row">
+        <span class="stat-item">共 <strong id="total-count">0</strong> 条供应商</span>
+    </div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>供应商编码</th>
+                <th>供应商名称</th>
+                <th>联系电话</th>
+                <th>联系人</th>
+                <th>地址</th>
+                <th>汇总主体</th>
+            </tr>
+        </thead>
+        <tbody id="suppliers-list">
+            <tr><td colspan="7" class="loading">加载中...</td></tr>
+        </tbody>
+    </table>
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<!-- 汇总主体管理弹窗 -->
+<div id="entity-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="width: 400px;">
+        <div class="modal-header">
+            <span class="modal-title">汇总主体管理</span>
+            <button class="modal-close" onclick="closeEntityModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="entity-list" id="entity-list">
+                <!-- 动态加载 -->
+            </div>
+            <div class="entity-add">
+                <input type="text" id="new-entity-name" class="form-input" placeholder="输入新主体名称..." style="width: 200px;">
+                <button class="btn btn-primary btn-sm" onclick="addEntity()">添加</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 汇总主体选择弹窗 -->
+<div id="select-entity-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="width: 300px;">
+        <div class="modal-header">
+            <span class="modal-title">选择汇总主体</span>
+            <button class="modal-close" onclick="closeSelectEntityModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <select id="entity-select" class="form-select" style="width: 100%;">
+                <option value="">不设置</option>
+            </select>
+            <div style="margin-top: 16px; text-align: right;">
+                <button class="btn btn-secondary btn-sm" onclick="closeSelectEntityModal()">取消</button>
+                <button class="btn btn-primary btn-sm" onclick="confirmSelectEntity()">确认</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+let allSuppliers = [];
+let allEntities = [];
+let currentPage = 1;
+const pageSize = 20;
+let currentSupplierId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadSuppliers();
+    loadEntities();
+});
+
+async function loadSuppliers() {
+    const search = document.getElementById('search-input').value;
+    
+    // 先从数据库读取
+    let result = await fetchAPI(`/api/base/suppliers/local?search=${encodeURIComponent(search)}`);
+    
+    if (result.success && result.records && result.records.length > 0) {
+        allSuppliers = result.records;
+        document.getElementById('total-count').textContent = allSuppliers.length;
+        renderTable();
+        return;
+    }
+    
+    // 数据库为空，提示同步
+    document.getElementById('suppliers-list').innerHTML = '<tr><td colspan="7" class="loading">暂无数据，请点击"从平台同步"</td></tr>';
+}
+
+async function loadEntities() {
+    const result = await fetchAPI('/api/summary-entities');
+    if (result.success) {
+        allEntities = result.records || [];
+    }
+}
+
+function renderTable() {
+    const totalPages = Math.ceil(allSuppliers.length / pageSize);
+    const start = (currentPage - 1) * pageSize;
+    const pageData = allSuppliers.slice(start, start + pageSize);
+    
+    const tbody = document.getElementById('suppliers-list');
+    
+    if (pageData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = pageData.map(s => `
+        <tr>
+            <td>${s.id || '-'}</td>
+            <td>${s.supplier_code || '-'}</td>
+            <td>${s.supplier_name || '-'}</td>
+            <td>${s.phone || '-'}</td>
+            <td>${s.contact || '-'}</td>
+            <td>${s.address || '-'}</td>
+            <td>
+                <span class="entity-tag" onclick="openSelectEntityModal(${s.id}, '${s.summary_entity || ''}')">${s.summary_entity || '未设置'}</span>
+            </td>
+        </tr>
+    `).join('');
+    
+    // 分页
+    const pagination = document.getElementById('pagination');
+    if (totalPages > 1) {
+        pagination.innerHTML = `
+            <button class="btn btn-sm" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>
+            <span class="page-info">第 ${currentPage} / ${totalPages} 页</span>
+            <button class="btn btn-sm" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>
+        `;
+    } else {
+        pagination.innerHTML = '';
+    }
+}
+
+function changePage(page) {
+    currentPage = page;
+    renderTable();
+}
+
+document.getElementById('search-input').addEventListener('input', () => {
+    currentPage = 1;
+    loadSuppliers();
+});
+
+async function syncFromPlatform() {
+    showToast('正在从平台同步供应商...', 'warning');
+    
+    const result = await fetchAPI('/api/base/suppliers/update', { method: 'POST' });
+    
+    if (result.success) {
+        showToast(result.message, 'success');
+        loadSuppliers();
+    } else {
+        showToast('同步失败: ' + result.message, 'error');
+    }
+}
+
+// === 汇总主体管理弹窗 ===
+
+function openEntityModal() {
+    renderEntityList();
+    document.getElementById('entity-modal').style.display = 'flex';
+}
+
+function closeEntityModal() {
+    document.getElementById('entity-modal').style.display = 'none';
+}
+
+function renderEntityList() {
+    const listEl = document.getElementById('entity-list');
+    
+    if (allEntities.length === 0) {
+        listEl.innerHTML = '<div class="empty-tip">暂无汇总主体，请添加</div>';
+        return;
+    }
+    
+    listEl.innerHTML = allEntities.map(e => `
+        <div class="entity-item">
+            <span class="entity-name">${e.name}</span>
+            <div class="entity-actions">
+                <button class="btn btn-sm btn-secondary" onclick="editEntity(${e.id}, '${e.name}')">编辑</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteEntity(${e.id})">删除</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function addEntity() {
+    const name = document.getElementById('new-entity-name').value.trim();
+    if (!name) {
+        showToast('请输入主体名称', 'error');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('name', name);
+    
+    const result = await fetchAPI('/api/summary-entities', { method: 'POST', body: formData });
+    
+    if (result.success) {
+        showToast('添加成功', 'success');
+        document.getElementById('new-entity-name').value = '';
+        await loadEntities();
+        renderEntityList();
+    } else {
+        showToast(result.message, 'error');
+    }
+}
+
+async function editEntity(entityId, currentName) {
+    const newName = prompt('修改主体名称:', currentName);
+    if (!newName || newName === currentName) return;
+    
+    const formData = new FormData();
+    formData.append('name', newName);
+    
+    const result = await fetchAPI(`/api/summary-entities/${entityId}`, { method: 'PUT', body: formData });
+    
+    if (result.success) {
+        showToast('更新成功', 'success');
+        await loadEntities();
+        renderEntityList();
+    } else {
+        showToast(result.message, 'error');
+    }
+}
+
+async function deleteEntity(entityId) {
+    if (!confirm('确定删除此汇总主体？')) return;
+    
+    const result = await fetchAPI(`/api/summary-entities/${entityId}`, { method: 'DELETE' });
+    
+    if (result.success) {
+        showToast('删除成功', 'success');
+        await loadEntities();
+        renderEntityList();
+    } else {
+        showToast(result.message, 'error');
+    }
+}
+
+// === 汇总主体选择弹窗 ===
+
+function openSelectEntityModal(supplierId, currentEntity) {
+    currentSupplierId = supplierId;
+    
+    const selectEl = document.getElementById('entity-select');
+    selectEl.innerHTML = '<option value="">不设置</option>' + 
+        allEntities.map(e => `<option value="${e.name}" ${e.name === currentEntity ? 'selected' : ''}>${e.name}</option>`).join('');
+    
+    document.getElementById('select-entity-modal').style.display = 'flex';
+}
+
+function closeSelectEntityModal() {
+    document.getElementById('select-entity-modal').style.display = 'none';
+    currentSupplierId = null;
+}
+
+async function confirmSelectEntity() {
+    const entityName = document.getElementById('entity-select').value;
+    
+    const formData = new FormData();
+    formData.append('entity_name', entityName);
+    
+    const result = await fetchAPI(`/api/base/suppliers/${currentSupplierId}/entity`, { method: 'POST', body: formData });
+    
+    if (result.success) {
+        showToast('更新成功', 'success');
+        closeSelectEntityModal();
+        loadSuppliers();
+    } else {
+        showToast(result.message, 'error');
+    }
+}
+
+async function batchSetEntity() {
+    // 先加载汇总主体列表
+    if (allEntities.length === 0) {
+        await loadEntities();
+    }
+    
+    if (allEntities.length === 0) {
+        showToast('请先添加汇总主体', 'error');
+        return;
+    }
+    
+    // 弹窗选择
+    const entityName = prompt('输入要设置的汇总主体名称:\n可用主体: ' + allEntities.map(e => e.name).join(', '));
+    if (!entityName) return;
+    
+    const formData = new FormData();
+    formData.append('entity_name', entityName);
+    
+    const result = await fetchAPI('/api/base/suppliers/batch-entity', { method: 'POST', body: formData });
+    
+    if (result.success) {
+        showToast(result.message, 'success');
+        loadSuppliers();
+    } else {
+        showToast(result.message, 'error');
+    }
+}
+{% endblock %}

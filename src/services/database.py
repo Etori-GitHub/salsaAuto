@@ -104,6 +104,30 @@ class Database:
             )
         """)
         
+        # 供应商表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS suppliers (
+                id INTEGER PRIMARY KEY,
+                supplier_code TEXT,
+                supplier_name TEXT,
+                phone TEXT,
+                contact TEXT,
+                address TEXT,
+                status INTEGER DEFAULT 1,
+                summary_entity TEXT,
+                updated_at TEXT
+            )
+        """)
+        
+        # 汇总主体表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS summary_entities (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                created_at TEXT
+            )
+        """)
+        
         conn.commit()
         conn.close()
     
@@ -236,8 +260,8 @@ class Database:
             cursor.execute("""
                 INSERT INTO goods (id, product_code, product_name, category_id, category_name,
                     sub_category_id, sub_category_name, cang_sub_category_id, cang_sub_category_name,
-                    unit_price, true_price, unit, spec_name, status, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    unit_price, true_price, unit, spec_name, status, supplier_code, supplier_name, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 g.get("id"),
                 g.get("productCode"),
@@ -253,6 +277,8 @@ class Database:
                 g.get("unit"),
                 g.get("specName"),
                 g.get("status", 1),  # 默认上架
+                g.get("supplierCode"),
+                g.get("supplierName"),
                 now
             ))
         
@@ -450,6 +476,133 @@ class Database:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("UPDATE members SET member_type = ? WHERE id = ?", (member_type, member_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+    
+    # ==================== 供应商操作 ====================
+    
+    def sync_suppliers(self, supplier_list: List[Dict]) -> int:
+        """同步供应商数据（保留汇总主体设置）"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 获取现有的汇总主体设置
+        cursor.execute("SELECT id, summary_entity FROM suppliers WHERE summary_entity IS NOT NULL AND summary_entity != ''")
+        existing_entities = {row[0]: row[1] for row in cursor.fetchall()}
+        
+        cursor.execute("DELETE FROM suppliers")
+        
+        for s in supplier_list:
+            supplier_id = s.get("id")
+            preserved_entity = existing_entities.get(supplier_id)
+            
+            cursor.execute("""
+                INSERT INTO suppliers (id, supplier_code, supplier_name, phone, contact, address, status, summary_entity, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                supplier_id,
+                s.get("supplierCode"),
+                s.get("supplierName"),
+                s.get("phone"),
+                s.get("contact"),
+                s.get("address"),
+                s.get("status", 1),
+                preserved_entity,
+                now
+            ))
+        
+        conn.commit()
+        count = cursor.execute("SELECT COUNT(*) FROM suppliers").fetchone()[0]
+        conn.close()
+        return count
+    
+    def get_suppliers(self, search: str = None) -> List[Dict]:
+        """查询供应商"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        sql = "SELECT * FROM suppliers WHERE 1=1"
+        params = []
+        
+        if search:
+            sql += " AND (supplier_name LIKE ? OR supplier_code LIKE ? OR phone LIKE ?)"
+            params.extend([f"%{search}%", f"%{search}%", f"%{search}%"])
+        
+        sql += " ORDER BY id"
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def update_supplier_entity(self, supplier_id: int, entity_name: str) -> bool:
+        """更新供应商汇总主体"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE suppliers SET summary_entity = ? WHERE id = ?", (entity_name, supplier_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+    
+    def batch_update_supplier_entity(self, entity_name: str) -> int:
+        """批量更新所有空汇总主体的供应商"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE suppliers SET summary_entity = ? WHERE summary_entity IS NULL OR summary_entity = ''", (entity_name,))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected
+    
+    # ==================== 汇总主体操作 ====================
+    
+    def get_summary_entities(self) -> List[Dict]:
+        """获取所有汇总主体"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM summary_entities ORDER BY id")
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def add_summary_entity(self, name: str) -> bool:
+        """添加汇总主体"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            cursor.execute("INSERT INTO summary_entities (name, created_at) VALUES (?, ?)", (name, now))
+            conn.commit()
+            conn.close()
+            return True
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False
+    
+    def update_summary_entity(self, entity_id: int, name: str) -> bool:
+        """更新汇总主体"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        try:
+            cursor.execute("UPDATE summary_entities SET name = ? WHERE id = ?", (name, entity_id))
+            affected = cursor.rowcount
+            conn.commit()
+            conn.close()
+            return affected > 0
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False
+    
+    def delete_summary_entity(self, entity_id: int) -> bool:
+        """删除汇总主体"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM summary_entities WHERE id = ?", (entity_id,))
         affected = cursor.rowcount
         conn.commit()
         conn.close()

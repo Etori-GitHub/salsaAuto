@@ -66,6 +66,7 @@
                         <li><a href="/goods" class="nav-item {% if page == 'goods' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><span class="nav-label">商品库</span></a></li>
                         <li><a href="/goods-sub-cate" class="nav-item {% if page == 'goods-sub-cate' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="nav-label">商品分类</span></a></li>
                         <li><a href="/cang-sub-cate" class="nav-item {% if page == 'cang-sub-cate' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span class="nav-label">档口分类</span></a></li>
+                        <li><a href="/suppliers" class="nav-item {% if page == 'suppliers' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg><span class="nav-label">供应商管理</span></a></li>
                     </ul>
                 </div>
                 <div class="nav-group">
@@ -87,6 +88,8 @@
                     <ul class="nav-items">
                         <li><a href="/supply-calculator" class="nav-item {% if page == 'supply-calculator' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg><span class="nav-label">要货任务</span></a></li>
                         <li><a href="/supply-adjust" class="nav-item {% if page == 'supply-adjust' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span class="nav-label">补要货</span></a></li>
+                        <li><a href="/purchase-task" class="nav-item {% if page == 'purchase-task' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="12" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/></svg><span class="nav-label">采购任务</span></a></li>
+                        <li><a href="/purchase-adjust" class="nav-item {% if page == 'purchase-adjust' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span class="nav-label">补采购</span></a></li>
                     </ul>
                 </div>
                 <div class="nav-group">
@@ -99,6 +102,7 @@
                         <li><a href="/product-analysis" class="nav-item {% if page == 'product-analysis' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg><span class="nav-label">菜品分析</span></a></li>
                         <li><a href="/category-analysis" class="nav-item {% if page == 'category-analysis' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span class="nav-label">档口分析</span></a></li>
                         <li><a href="/supply-query" class="nav-item {% if page == 'supply-query' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg><span class="nav-label">要货查询</span></a></li>
+                        <li><a href="/purchase-query" class="nav-item {% if page == 'purchase-query' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><span class="nav-label">采购查询</span></a></li>
                         <li><a href="/monthly-order" class="nav-item {% if page == 'monthly-order' %}active{% endif %}"><svg class="nav-icon" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span class="nav-label">月订货统计</span></a></li>
                     </ul>
                 </div>

@@ -41,7 +41,16 @@ class APIClient:
     
     def _request(self, method: str, endpoint: str, params: Optional[dict] = None, 
                  data: Optional[dict] = None, **kwargs) -> dict:
-        url = config.get_api_url(endpoint)
+        # 判断是端点名称还是完整路径
+        if endpoint.startswith("/"):
+            # 已经是路径，直接拼接
+            url = f"{config.api_base_url}{endpoint}"
+        elif endpoint.startswith("http"):
+            url = endpoint
+        else:
+            # 端点名称，从配置获取
+            url = config.get_api_url(endpoint)
+        
         try:
             response = self.session.request(
                 method=method, url=url, params=params, data=data,
@@ -69,6 +78,8 @@ class APIClient:
             url = endpoint
         elif "/" in endpoint:
             # 已经是路径，直接拼接
+            if not endpoint.startswith("/"):
+                endpoint = "/" + endpoint
             url = f"{config.api_base_url}{endpoint}"
         else:
             # 端点名称，从配置获取

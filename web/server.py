@@ -278,6 +278,22 @@ async def supply_calculator_page(request: Request):
 async def supply_adjust_page(request: Request):
     return render_template("supply_adjust.html", {"request": request, "page": "supply-adjust"})
 
+@app.get("/suppliers", response_class=HTMLResponse)
+async def suppliers_page(request: Request):
+    return render_template("suppliers.html", {"request": request, "page": "suppliers"})
+
+@app.get("/purchase-query", response_class=HTMLResponse)
+async def purchase_query_page(request: Request):
+    return render_template("purchase_query.html", {"request": request, "page": "purchase-query"})
+
+@app.get("/purchase-task", response_class=HTMLResponse)
+async def purchase_task_page(request: Request):
+    return render_template("purchase_task.html", {"request": request, "page": "purchase-task"})
+
+@app.get("/purchase-adjust", response_class=HTMLResponse)
+async def purchase_adjust_page(request: Request):
+    return render_template("purchase_adjust.html", {"request": request, "page": "purchase-adjust"})
+
 
 # === API 路由 ===
 
@@ -864,6 +880,9 @@ def run_server(host: str = "127.0.0.1", port: int = 8080):
     import webbrowser
     import threading
     import time
+    import subprocess
+    import signal
+    import sys
 
     init_chrome_versions()
 
@@ -871,10 +890,43 @@ def run_server(host: str = "127.0.0.1", port: int = 8080):
     auth_service.load_token()
 
     url = f"http://{host}:{port}"
+    chrome_process = None
 
     def open_browser():
+        nonlocal chrome_process
         time.sleep(1)
+        # 使用 Chrome 打开
+        chrome_paths = [
+            "chrome",
+            "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+            "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+        ]
+        for path in chrome_paths:
+            try:
+                if Path(path).exists() if not path == "chrome" else True:
+                    chrome_process = subprocess.Popen(
+                        [path, url],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                    return
+            except FileNotFoundError:
+                continue
+        # 找不到 Chrome，用默认浏览器
         webbrowser.open(url)
+
+    def close_browser(signum=None, frame=None):
+        """关闭浏览器"""
+        if chrome_process:
+            try:
+                chrome_process.terminate()
+            except:
+                pass
+        sys.exit(0)
+
+    # 注册信号处理
+    signal.signal(signal.SIGINT, close_browser)
+    signal.signal(signal.SIGTERM, close_browser)
 
     threading.Thread(target=open_browser, daemon=True).start()
     uvicorn.run(app, host=host, port=port, log_config=None)
@@ -1647,3 +1699,592 @@ async def export_products_excel(
             "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
         }
     )
+
+
+# ==================== 供应商管理 API ====================
+
+@app.get("/api/base/suppliers")
+async def query_suppliers(page: int = 1, page_size: int = 100):
+    """查询供应商"""
+    result = base_library_service.query_suppliers(page=page, page_size=page_size)
+    return result
+
+@app.get("/api/base/suppliers/all")
+async def query_all_suppliers():
+    """查询所有供应商"""
+    result = base_library_service.query_all_suppliers()
+    return result
+
+@app.post("/api/base/suppliers/update")
+async def update_suppliers_config():
+    """更新本地供应商配置"""
+    result = base_library_service.update_suppliers_config()
+    return result
+
+@app.get("/api/base/suppliers/local")
+async def get_local_suppliers(search: str = None):
+    """从数据库查询供应商"""
+    from src.services.database import db
+    records = db.get_suppliers(search=search)
+    return {"success": True, "records": records, "total": len(records)}
+
+@app.post("/api/base/suppliers/{supplier_id}/entity")
+async def update_supplier_entity(supplier_id: int, entity_name: str = Form(...)):
+    """更新供应商汇总主体"""
+    from src.services.database import db
+    success = db.update_supplier_entity(supplier_id, entity_name)
+    return {"success": success, "message": "更新成功" if success else "更新失败"}
+
+@app.post("/api/base/suppliers/batch-entity")
+async def batch_update_supplier_entity(entity_name: str = Form(...)):
+    """批量更新所有空汇总主体的供应商"""
+    from src.services.database import db
+    count = db.batch_update_supplier_entity(entity_name)
+    return {"success": True, "message": f"已更新 {count} 条供应商", "count": count}
+
+# ==================== 汇总主体管理 API ====================
+
+@app.get("/api/summary-entities")
+async def get_summary_entities():
+    """获取所有汇总主体"""
+    from src.services.database import db
+    records = db.get_summary_entities()
+    return {"success": True, "records": records}
+
+@app.post("/api/summary-entities")
+async def add_summary_entity(name: str = Form(...)):
+    """添加汇总主体"""
+    from src.services.database import db
+    success = db.add_summary_entity(name)
+    if success:
+        return {"success": True, "message": "添加成功"}
+    else:
+        return {"success": False, "message": "名称已存在"}
+
+@app.put("/api/summary-entities/{entity_id}")
+async def update_summary_entity(entity_id: int, name: str = Form(...)):
+    """更新汇总主体"""
+    from src.services.database import db
+    success = db.update_summary_entity(entity_id, name)
+    if success:
+        return {"success": True, "message": "更新成功"}
+    else:
+        return {"success": False, "message": "名称已存在或记录不存在"}
+
+@app.delete("/api/summary-entities/{entity_id}")
+async def delete_summary_entity(entity_id: int):
+    """删除汇总主体"""
+    from src.services.database import db
+    success = db.delete_summary_entity(entity_id)
+    return {"success": success, "message": "删除成功" if success else "删除失败"}
+
+# ==================== 采购查询 API ====================
+
+@app.get("/api/purchase/orders")
+async def query_purchase_orders(
+    page: int = 1,
+    page_size: int = 100,
+    startTime: Optional[str] = None,
+    endTime: Optional[str] = None,
+    detailCode: Optional[str] = None,
+    supplierCode: Optional[str] = None,
+    supplierName: Optional[str] = None,
+    purchaseCode: Optional[str] = None,
+    purchaser: Optional[str] = None,
+    categoryCode: Optional[str] = None,
+    categoryName: Optional[str] = None,
+    subCategoryCode: Optional[str] = None,
+    subCategoryName: Optional[str] = None,
+    cangSubCategoryCode: Optional[str] = None,
+    cangSubCategoryName: Optional[str] = None,
+    productCode: Optional[str] = None,
+    productName: Optional[str] = None,
+    inboundStatus: Optional[str] = None,
+    inOrderId: Optional[str] = None,
+):
+    """查询采购明细"""
+    filters = {
+        "detailCode": detailCode or "",
+        "supplierCode": supplierCode or "",
+        "supplierName": supplierName or "",
+        "purchaseCode": purchaseCode or "",
+        "purchaser": purchaser or "",
+        "categoryCode": categoryCode or "",
+        "categoryName": categoryName or "",
+        "subCategoryCode": subCategoryCode or "",
+        "subCategoryName": subCategoryName or "",
+        "cangSubCategoryCode": cangSubCategoryCode or "",
+        "cangSubCategoryName": cangSubCategoryName or "",
+        "productCode": productCode or "",
+        "productName": productName or "",
+        "inboundStatus": inboundStatus or "",
+        "inOrderId": inOrderId or "",
+        "startTime": startTime or "",
+        "endTime": endTime or "",
+    }
+    result = base_library_service.query_purchase_orders(page=page, page_size=page_size, **filters)
+    return result
+
+@app.post("/api/purchase/detail/update-can-show")
+async def update_purchase_detail_can_show(
+    detail_id: int = Form(...),
+    can_show: int = Form(default=0),
+):
+    """更新采购明细显示状态"""
+    result = base_library_service.close_purchase_detail(detail_id=detail_id, can_show=can_show)
+    return result
+
+@app.get("/api/purchase/order-list")
+async def query_purchase_order_list(
+    page: int = 1,
+    page_size: int = 100,
+    supplierCode: Optional[str] = None,
+    supplierName: Optional[str] = None,
+    purchaseCode: Optional[str] = None,
+    purchaser: Optional[str] = None,
+):
+    """查询采购订单列表"""
+    filters = {
+        "supplierCode": supplierCode or "",
+        "supplierName": supplierName or "",
+        "purchaseCode": purchaseCode or "",
+        "purchaser": purchaser or "",
+    }
+    result = base_library_service.query_purchase_order_list(page=page, page_size=page_size, **filters)
+    return result
+
+@app.post("/api/purchase/detail/add")
+async def add_purchase_detail(
+    purchase_code: str = Form(...),
+    product_ids: str = Form(...),  # 逗号分隔的商品 ID
+    quantity: int = Form(default=1),
+    purchaser: str = Form(default="system"),
+    purchase_time: Optional[str] = Form(default=None),
+):
+    """增加采购明细"""
+    # 解析商品 ID 列表
+    pid_list = [p.strip() for p in product_ids.split(",") if p.strip()]
+    
+    if not pid_list:
+        return {"success": False, "message": "请提供商品 ID"}
+    
+    result = base_library_service.add_purchase_detail(
+        purchase_code=purchase_code,
+        product_ids=pid_list,
+        quantity=quantity,
+        purchaser=purchaser,
+        purchase_time=purchase_time,
+    )
+    return result
+
+@app.post("/api/purchase/inbound/add")
+async def add_inbound_detail(
+    purchase_code: str = Form(...),
+    product_ids: str = Form(...),  # 逗号分隔的商品 ID
+    quantity: int = Form(default=1),
+    purchaser: str = Form(default="system"),
+    purchase_time: Optional[str] = Form(default=None),
+):
+    """添加采购明细并入库"""
+    # 解析商品 ID 列表
+    pid_list = [p.strip() for p in product_ids.split(",") if p.strip()]
+    
+    if not pid_list:
+        return {"success": False, "message": "请提供商品 ID"}
+    
+    result = base_library_service.add_inbound_detail(
+        purchase_code=purchase_code,
+        product_ids=pid_list,
+        quantity=quantity,
+        purchaser=purchaser,
+        purchase_time=purchase_time,
+    )
+    return result
+
+@app.post("/api/purchase/order/create")
+async def create_purchase_order(
+    supplier_id: int = Form(...),
+    purchase_time: str = Form(...),
+    purchaser: str = Form(default="system"),
+):
+    """创建采购订单"""
+    result = base_library_service.create_purchase_order(
+        supplier_id=supplier_id,
+        purchase_time=purchase_time,
+        purchaser=purchaser,
+    )
+    return result
+
+@app.post("/api/purchase/detail/close")
+async def close_purchase_detail(
+    detail_id: int = Form(...),
+):
+    """关闭采购明细"""
+    result = base_library_service.close_purchase_detail(detail_id=detail_id)
+    return result
+
+@app.post("/api/purchase/task/save")
+async def save_purchase_task(request: Request):
+    """保存采购任务"""
+    import json
+    from datetime import datetime
+    
+    data = await request.json()
+    
+    # 生成文件名
+    summary_entity = data.get("summary_entity", "unknown")
+    start_date = data.get("start_date", "")
+    end_date = data.get("end_date", "")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    filename = f"{summary_entity}_{start_date}_{end_date}_{timestamp}.json"
+    
+    # 保存到文件
+    tasks_dir = Path(__file__).parent.parent / "data" / "purchase-tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    
+    file_path = tasks_dir / filename
+    
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    
+    return {"success": True, "message": "任务已保存", "filename": filename}
+
+@app.get("/api/purchase/task/list")
+async def list_purchase_tasks():
+    """获取采购任务列表"""
+    import json
+    from datetime import datetime
+    
+    tasks_dir = Path(__file__).parent.parent / "data" / "purchase-tasks"
+    
+    if not tasks_dir.exists():
+        return {"success": True, "tasks": []}
+    
+    tasks = []
+    for file in tasks_dir.glob("*.json"):
+        try:
+            with open(file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            tasks.append({
+                "filename": file.name,
+                "summary_entity": data.get("summary_entity"),
+                "total_amount": data.get("total_amount"),
+                "start_date": data.get("start_date"),
+                "end_date": data.get("end_date"),
+                "days_count": len(data.get("days", [])),
+                "created_at": data.get("created_at"),
+            })
+        except:
+            continue
+    
+    # 按创建时间倒序
+    tasks.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    
+    return {"success": True, "tasks": tasks}
+
+@app.get("/api/purchase/task/{filename}")
+async def get_purchase_task(filename: str):
+    """获取采购任务详情"""
+    import json
+    
+    tasks_dir = Path(__file__).parent.parent / "data" / "purchase-tasks"
+    file_path = tasks_dir / filename
+    
+    if not file_path.exists():
+        return {"success": False, "message": "任务不存在"}
+    
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return {"success": True, "task": data}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+@app.post("/api/purchase/adjust-day")
+async def adjust_purchase_day(request: Request):
+    """执行单日补采购"""
+    import json
+    from datetime import datetime
+    from src.services.database import db
+    
+    data = await request.json()
+    date_str = data.get("date")
+    summary_entity = data.get("summary_entity")
+    target_amount = data.get("target_amount")
+    purchase_time = data.get("purchase_time")
+    purchaser = data.get("purchaser")
+    
+    # 特殊供应商：参与汇总计算，但不能增减其产品
+    # 不再使用此逻辑，改为按分类筛选
+    # 只能使用"贸易品"分类的商品进行配平
+    ALLOWED_CATEGORY = "贸易品"
+    
+    # 1. 获取属于该汇总主体的供应商
+    suppliers = db.get_suppliers()
+    entity_suppliers = [s for s in suppliers if s.get("summary_entity") == summary_entity]
+    entity_supplier_codes = [s.get("supplier_code") for s in entity_suppliers]
+    
+    if not entity_supplier_codes:
+        return {"success": False, "message": f"汇总主体 {summary_entity} 下没有供应商"}
+    
+    # 2. 查询当天的采购明细（按进货时间筛选）
+    detail_result = base_library_service.query_purchase_orders(
+        page=1, page_size=1000,
+        purchaseStartTime=date_str,
+        purchaseEndTime=date_str,
+    )
+    
+    if not detail_result["success"]:
+        return {"success": False, "message": "查询采购明细失败"}
+    
+    # 3. 筛选属于该汇总主体的明细（canShow=1）
+    # 注意：特殊供应商的明细也参与计算
+    valid_details = []
+    for d in detail_result["records"]:
+        supplier_code = d.get("supplierCode", "")
+        if supplier_code in entity_supplier_codes and d.get("canShow", 1) == 1:
+            valid_details.append(d)
+    
+    # 4. 计算当前总金额
+    # 字段名：totalPrice 是金额，quantity 是数量
+    print(f"有效明细数: {len(valid_details)}")
+    if valid_details:
+        print(f"示例明细字段: {list(valid_details[0].keys())}")
+        print(f"示例明细金额字段: totalPrice={valid_details[0].get('totalPrice')}, amount={valid_details[0].get('amount')}")
+    
+    current_amount = sum(d.get("totalPrice", 0) or d.get("amount", 0) for d in valid_details)
+    diff_amount = target_amount - current_amount
+    
+    print(f"目标金额: {target_amount}, 当前金额: {current_amount}, 差额: {diff_amount}")
+    
+    result_log = {
+        "date": date_str,
+        "target_amount": target_amount,
+        "current_amount": current_amount,
+        "diff_amount": diff_amount,
+        "actions": [],
+    }
+    
+    # 5. 调整策略
+    if diff_amount < 0:
+        # 需要关闭明细（从最接近差额的开始）
+        sorted_details = sorted(valid_details, key=lambda d: abs(d.get("totalPrice", 0) - abs(diff_amount)))
+        close_amount = 0
+        for d in sorted_details:
+            if current_amount - close_amount <= target_amount:
+                break
+            detail_id = d.get("id")
+            close_result = base_library_service.close_purchase_detail(detail_id)
+            if close_result["success"]:
+                close_amount += d.get("totalPrice", 0) or d.get("amount", 0)
+                result_log["actions"].append({"action": "close", "detail_id": detail_id, "amount": d.get("totalPrice", 0) or d.get("amount", 0)})
+        current_amount -= close_amount
+        diff_amount = target_amount - current_amount
+        print(f"关闭明细后: 当前金额={current_amount}, 差额={diff_amount}")
+    
+    # 6. 如果差额 > 0，需要增加采购
+    if diff_amount > 0.01:
+        # 获取商品库中属于该汇总主体的商品（只使用贸易品）
+        goods_result = base_library_service.query_all_goods()
+        if not goods_result["success"]:
+            return {"success": False, "message": "查询商品库失败"}
+        
+        entity_goods = []
+        for g in goods_result["records"]:
+            supplier_code = g.get("supplierCode", "")
+            category_name = g.get("categoryName", "")
+            cang_sub_category_name = g.get("cangSubCategoryName", "")
+            
+            # 排除现采和加工品
+            if category_name in ["现采", "加工品"]:
+                continue
+            # 排除档口分类包含"现采"的商品
+            if cang_sub_category_name and "现采" in cang_sub_category_name:
+                continue
+            
+            if supplier_code in entity_supplier_codes:
+                entity_goods.append(g)
+        
+        print(f"筛选商品: 总数 {len(goods_result['records'])}, 符合条件 {len(entity_goods)}")
+        
+        if not entity_goods:
+            return {"success": False, "message": f"汇总主体 {summary_entity} 下没有可用的商品"}
+        
+        # 7. 贪心算法选择商品（返回商品ID和数量）
+        selected_goods_map = greedy_select_goods(diff_amount, entity_goods)
+        print(f"贪心选择商品: {len(selected_goods_map)} 种，目标差额: {diff_amount}")
+        
+        if not selected_goods_map:
+            return {"success": False, "message": f"无法找到合适的商品组合来填补差额 ¥{diff_amount:.2f}"}
+        
+        # 8. 为每个商品创建采购明细和入库
+        add_amount = 0
+        for product_id, item in selected_goods_map.items():
+            g = item["goods"]
+            quantity = item["quantity"]
+            supplier_code = g.get("supplierCode")
+            
+            # 找到供应商 ID
+            supplier_id = None
+            for s in entity_suppliers:
+                if s.get("supplier_code") == supplier_code:
+                    supplier_id = s.get("id")
+                    break
+            
+            print(f"处理商品: ID={product_id}, 名称={g.get('productName')}, 数量={quantity}, 供应商={supplier_code}, ID={supplier_id}")
+            
+            if not supplier_id:
+                print(f"  未找到供应商ID，跳过")
+                continue
+            
+            # 查询该供应商今天的采购单
+            existing_order = None
+            existing_orders = base_library_service.query_purchase_order_list(
+                supplierCode=supplier_code,
+                purchaser=purchaser,
+                page_size=10,
+            )
+            if existing_orders["success"] and existing_orders["records"]:
+                # 找到今天创建的采购单
+                for order in existing_orders["records"]:
+                    if order.get("purchaseTime", "").startswith(date_str):
+                        existing_order = order
+                        break
+            
+            # 如果没有现有采购单，创建新的
+            if not existing_order:
+                order_result = base_library_service.create_purchase_order(
+                    supplier_id=supplier_id,
+                    purchase_time=purchase_time,
+                    purchaser=purchaser,
+                )
+                print(f"  创建采购订单: {order_result}")
+                
+                if not order_result["success"]:
+                    result_log["actions"].append({"action": "create_order_failed", "supplier_code": supplier_code, "message": order_result["message"]})
+                    continue
+                
+                # 获取新创建的采购单
+                new_orders = base_library_service.query_purchase_order_list(
+                    supplierCode=supplier_code,
+                    purchaser=purchaser,
+                    page_size=10,
+                )
+                if new_orders["success"] and new_orders["records"]:
+                    existing_order = new_orders["records"][0]
+                else:
+                    print(f"  未找到新创建的订单")
+                    continue
+            
+            purchase_code = existing_order.get("purchaseCode")
+            print(f"  采购单号: {purchase_code}")
+            
+            # 添加采购明细（指定数量）
+            add_result = base_library_service.add_purchase_detail(
+                purchase_code=purchase_code,
+                product_ids=[product_id],
+                quantity=quantity,
+                purchaser="system",
+                purchase_time=purchase_time,
+            )
+            print(f"  添加采购明细: {add_result}")
+            
+            if add_result["success"]:
+                # 入库处理
+                inbound_result = base_library_service.add_inbound_detail(
+                    purchase_code=purchase_code,
+                    product_ids=[product_id],
+                    quantity=quantity,
+                    purchaser="system",
+                    purchase_time=purchase_time,
+                )
+                print(f"  入库结果: {inbound_result}")
+                
+                price = g.get("unitPrice") or g.get("inPrice") or 0
+                item_amount = price * quantity
+                add_amount += item_amount
+                result_log["actions"].append({
+                    "action": "add", 
+                    "purchase_code": purchase_code, 
+                    "product_id": product_id,
+                    "name": g.get("productName"), 
+                    "price": price,
+                    "quantity": quantity,
+                    "amount": item_amount,
+                    "inbound": inbound_result.get("success")
+                })
+            else:
+                print(f"  添加采购明细失败: {add_result.get('message')}")
+        
+        
+        current_amount += add_amount
+        diff_amount = target_amount - current_amount
+    
+    result_log["final_current_amount"] = current_amount
+    result_log["final_diff_amount"] = diff_amount
+    
+    return {
+        "success": True,
+        "message": f"调整完成，当前金额 ¥{current_amount:.2f}，差额 ¥{diff_amount:.2f}",
+        "current_amount": current_amount,
+        "diff_amount": diff_amount,
+        "log": result_log,
+    }
+
+
+def greedy_select_goods(target_amount: float, goods_list: list) -> dict:
+    """贪心算法选择商品组合（从大到小，返回商品ID和数量）
+    
+    Returns:
+        dict: {商品ID: {"goods": 商品对象, "quantity": 数量}}
+    """
+    # 按价格排序（从大到小）
+    sorted_goods = sorted(goods_list, key=lambda g: g.get("unitPrice") or g.get("inPrice") or 0, reverse=True)
+    
+    # 过滤掉价格为 0 的商品
+    valid_goods = [g for g in sorted_goods if (g.get("unitPrice") or g.get("inPrice") or 0) > 0]
+    
+    if not valid_goods:
+        return {}
+    
+    selected = {}  # {商品ID: {"goods": 商品对象, "quantity": 数量}}
+    remaining = target_amount
+    
+    # 从大到小贪心选择
+    for g in valid_goods:
+        price = g.get("unitPrice") or g.get("inPrice") or 0
+        product_id = str(g.get("id"))
+        
+        # 计算可以选多少个
+        count = int(remaining / price)
+        
+        if count > 0:
+            selected[product_id] = {
+                "goods": g,
+                "quantity": count
+            }
+            remaining -= price * count
+        
+        # 如果已经够了，退出
+        if remaining <= 0.001:
+            break
+    
+    # 如果还有剩余，用最小价格商品补齐
+    if remaining > 0.001:
+        min_price_goods = valid_goods[-1]  # 最小价格商品
+        min_price = min_price_goods.get("unitPrice") or min_price_goods.get("inPrice") or 0
+        min_product_id = str(min_price_goods.get("id"))
+        
+        # 需要补的数量
+        extra_count = int((remaining + min_price - 0.001) / min_price)  # 向上取整
+        
+        if min_product_id in selected:
+            selected[min_product_id]["quantity"] += extra_count
+        else:
+            selected[min_product_id] = {
+                "goods": min_price_goods,
+                "quantity": extra_count
+            }
+    
+    return selected

@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}补采购 - salsaAuto{% endblock %}
+{% block header %}补采购{% endblock %}
+
+{% block head %}
+<style>
+    .task-card {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .task-card:hover {
+        border-color: var(--accent);
+        background: var(--bg-secondary);
+    }
+    .task-card.selected {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+    }
+    .task-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .task-name {
+        font-weight: 600;
+    }
+    .task-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 13px;
+        color: var(--muted);
+    }
+    .day-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+    }
+    .day-table th, .day-table td {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        text-align: center;
+    }
+    .day-table th {
+        background: var(--bg-secondary);
+        font-weight: 600;
+    }
+    .day-table .success {
+        color: var(--ok);
+    }
+    .day-table .fail {
+        color: var(--danger);
+    }
+    .action-log {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-sm);
+        padding: 12px;
+        margin-top: 8px;
+        font-size: 13px;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+    .action-log .action-item {
+        padding: 4px 0;
+        border-bottom: 1px dashed var(--border);
+    }
+    .action-log .action-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display: grid; grid-template-columns: 300px 1fr; gap: 24px;">
+    <!-- 左侧任务列表 -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">采购任务</span>
+        </div>
+        <div id="task-list" style="max-height: 600px; overflow-y: auto;">
+            <div class="loading">加载中...</div>
+        </div>
+    </div>
+    
+    <!-- 右侧详情和执行 -->
+    <div>
+        <div class="card" id="detail-card" style="display: none;">
+            <div class="card-header">
+                <span class="card-title">任务详情</span>
+            </div>
+            <div id="task-detail"></div>
+        </div>
+        
+        <div class="card" id="result-card" style="display: none; margin-top: 24px;">
+            <div class="card-header">
+                <span class="card-title">执行结果</span>
+            </div>
+            <div id="result-content"></div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+let tasks = [];
+let selectedTaskFile = null;
+let selectedTask = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadTasks();
+});
+
+async function loadTasks() {
+    const result = await fetchAPI('/api/purchase/task/list');
+    tasks = result.tasks || [];
+    
+    const container = document.getElementById('task-list');
+    
+    if (tasks.length === 0) {
+        container.innerHTML = '<div class="loading">暂无任务</div>';
+        return;
+    }
+    
+    container.innerHTML = tasks.map(t => `
+        <div class="task-card" data-filename="${t.filename}" onclick="selectTask('${t.filename}')">
+            <div class="task-header">
+                <span class="task-name">${t.summary_entity}</span>
+                <span style="color: var(--accent); font-weight: 600;">¥${t.total_amount?.toFixed(2)}</span>
+            </div>
+            <div class="task-meta">
+                <span>${t.start_date} ~ ${t.end_date}</span>
+                <span>${t.days_count} 天</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function selectTask(filename) {
+    selectedTaskFile = filename;
+    
+    // 更新选中状态
+    document.querySelectorAll('.task-card').forEach(card => {
+        card.classList.toggle('selected', card.dataset.filename === filename);
+    });
+    
+    // 加载详情
+    const result = await fetchAPI('/api/purchase/task/' + encodeURIComponent(filename));
+    
+    if (!result.success) {
+        showToast('加载任务详情失败', 'error');
+        return;
+    }
+    
+    selectedTask = result.task;
+    renderTaskDetail(selectedTask);
+}
+
+function renderTaskDetail(task) {
+    const card = document.getElementById('detail-card');
+    const container = document.getElementById('task-detail');
+    
+    const days = task.days || [];
+    
+    container.innerHTML = `
+        <div style="margin-bottom: 16px;">
+            <div style="display: flex; gap: 24px; margin-bottom: 8px;">
+                <span><strong>汇总主体：</strong>${task.summary_entity}</span>
+                <span><strong>总金额：</strong>¥${task.total_amount?.toFixed(2)}</span>
+            </div>
+            <div style="display: flex; gap: 24px;">
+                <span><strong>日期范围：</strong>${task.start_date} ~ ${task.end_date}</span>
+                <span><strong>天数：</strong>${days.length} 天</span>
+                <span><strong>采购人：</strong>${task.purchaser}</span>
+            </div>
+        </div>
+        <table class="day-table">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>采购时间</th>
+                    <th>目标金额</th>
+                    <th>当前金额</th>
+                    <th>差额</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${days.map((d, i) => `
+                    <tr id="day-row-${i}">
+                        <td>${d.date}</td>
+                        <td>${d.purchase_time}</td>
+                        <td>¥${d.target_amount?.toFixed(2)}</td>
+                        <td id="current-${i}">-</td>
+                        <td id="diff-${i}">-</td>
+                        <td id="status-${i}">待执行</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="executeDay(${i})">执行</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+    
+    card.style.display = 'block';
+    document.getElementById('result-card').style.display = 'none';
+}
+
+async function executeDay(dayIndex) {
+    if (!selectedTask) return;
+    
+    const day = selectedTask.days[dayIndex];
+    
+    // 更新状态
+    document.getElementById(`status-${dayIndex}`).textContent = '执行中...';
+    document.getElementById(`status-${dayIndex}`).className = '';
+    
+    try {
+        const result = await fetchAPI('/api/purchase/adjust-day', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                date: day.date,
+                summary_entity: selectedTask.summary_entity,
+                target_amount: day.target_amount,
+                purchase_time: day.purchase_time,
+                purchaser: selectedTask.purchaser,
+            }),
+        });
+        
+        if (result.success) {
+            document.getElementById(`current-${dayIndex}`).textContent = '¥' + result.current_amount.toFixed(2);
+            document.getElementById(`diff-${dayIndex}`).textContent = '¥' + result.diff_amount.toFixed(2);
+            document.getElementById(`status-${dayIndex}`).textContent = '成功';
+            document.getElementById(`status-${dayIndex}`).className = 'success';
+            showToast(`执行成功: ${result.message}`, 'success');
+        } else {
+            document.getElementById(`status-${dayIndex}`).textContent = '失败';
+            document.getElementById(`status-${dayIndex}`).className = 'fail';
+            showToast(`执行失败: ${result.message}`, 'error');
+        }
+    } catch (e) {
+        document.getElementById(`status-${dayIndex}`).textContent = '失败';
+        document.getElementById(`status-${dayIndex}`).className = 'fail';
+        showToast(`执行失败: ${e.message}`, 'error');
+    }
+}
+{% endblock %}
