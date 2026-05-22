@@ -2001,9 +2001,25 @@ async def get_purchase_task(filename: str):
     except Exception as e:
         return {"success": False, "message": str(e)}
 
+@app.post("/api/purchase/sync-details")
+async def sync_purchase_details():
+    """同步采购明细到本地库"""
+    from src.services.database import db
+    
+    # 拉取全部采购明细
+    result = base_library_service.query_purchase_orders(page=1, page_size=10000)
+    
+    if not result["success"]:
+        return {"success": False, "message": "查询采购明细失败"}
+    
+    records = result["records"]
+    count = db.sync_purchase_details(records)
+    
+    return {"success": True, "message": f"已同步 {count} 条采购明细", "count": count}
+
 @app.post("/api/purchase/adjust-day")
 async def adjust_purchase_day(request: Request):
-    """执行单日补采购"""
+    """执行单日补采购（自动同步数据）"""
     import json
     from datetime import datetime
     from src.services.database import db
@@ -2015,10 +2031,12 @@ async def adjust_purchase_day(request: Request):
     purchase_time = data.get("purchase_time")
     purchaser = data.get("purchaser")
     
-    # 特殊供应商：参与汇总计算，但不能增减其产品
-    # 不再使用此逻辑，改为按分类筛选
-    # 只能使用"贸易品"分类的商品进行配平
-    ALLOWED_CATEGORY = "贸易品"
+    # 0. 先同步采购明细到本地库
+    print("同步采购明细...")
+    sync_result = base_library_service.query_purchase_orders(page=1, page_size=10000)
+    if sync_result["success"]:
+        db.sync_purchase_details(sync_result["records"])
+        print(f"已同步 {len(sync_result['records'])} 条采购明细")
     
     # 1. 获取属于该汇总主体的供应商
     suppliers = db.get_suppliers()
@@ -2028,32 +2046,12 @@ async def adjust_purchase_day(request: Request):
     if not entity_supplier_codes:
         return {"success": False, "message": f"汇总主体 {summary_entity} 下没有供应商"}
     
-    # 2. 查询当天的采购明细（按进货时间筛选）
-    detail_result = base_library_service.query_purchase_orders(
-        page=1, page_size=1000,
-        purchaseStartTime=date_str,
-        purchaseEndTime=date_str,
-    )
+    # 2. 从本地库查询当天的采购明细（按进货时间筛选）
+    valid_details = db.get_purchase_details_by_date(date_str, entity_supplier_codes)
+    valid_details = [d for d in valid_details if d.get("can_show", 1) == 1]
     
-    if not detail_result["success"]:
-        return {"success": False, "message": "查询采购明细失败"}
-    
-    # 3. 筛选属于该汇总主体的明细（canShow=1）
-    # 注意：特殊供应商的明细也参与计算
-    valid_details = []
-    for d in detail_result["records"]:
-        supplier_code = d.get("supplierCode", "")
-        if supplier_code in entity_supplier_codes and d.get("canShow", 1) == 1:
-            valid_details.append(d)
-    
-    # 4. 计算当前总金额
-    # 字段名：totalPrice 是金额，quantity 是数量
-    print(f"有效明细数: {len(valid_details)}")
-    if valid_details:
-        print(f"示例明细字段: {list(valid_details[0].keys())}")
-        print(f"示例明细金额字段: totalPrice={valid_details[0].get('totalPrice')}, amount={valid_details[0].get('amount')}")
-    
-    current_amount = sum(d.get("totalPrice", 0) or d.get("amount", 0) for d in valid_details)
+    # 3. 计算当前总金额
+    current_amount = sum(d.get("total_price", 0) or 0 for d in valid_details)
     diff_amount = target_amount - current_amount
     
     print(f"目标金额: {target_amount}, 当前金额: {current_amount}, 差额: {diff_amount}")
@@ -2066,10 +2064,10 @@ async def adjust_purchase_day(request: Request):
         "actions": [],
     }
     
-    # 5. 调整策略
+    # 4. 调整策略
     if diff_amount < 0:
         # 需要关闭明细（从最接近差额的开始）
-        sorted_details = sorted(valid_details, key=lambda d: abs(d.get("totalPrice", 0) - abs(diff_amount)))
+        sorted_details = sorted(valid_details, key=lambda d: abs(d.get("total_price", 0) - abs(diff_amount)))
         close_amount = 0
         for d in sorted_details:
             if current_amount - close_amount <= target_amount:
@@ -2077,8 +2075,10 @@ async def adjust_purchase_day(request: Request):
             detail_id = d.get("id")
             close_result = base_library_service.close_purchase_detail(detail_id)
             if close_result["success"]:
-                close_amount += d.get("totalPrice", 0) or d.get("amount", 0)
-                result_log["actions"].append({"action": "close", "detail_id": detail_id, "amount": d.get("totalPrice", 0) or d.get("amount", 0)})
+                close_amount += d.get("total_price", 0) or 0
+                # 同步更新本地库
+                db.update_purchase_detail_can_show(detail_id, 0)
+                result_log["actions"].append({"action": "close", "detail_id": detail_id, "amount": d.get("total_price", 0)})
         current_amount -= close_amount
         diff_amount = target_amount - current_amount
         print(f"关闭明细后: 当前金额={current_amount}, 差额={diff_amount}")

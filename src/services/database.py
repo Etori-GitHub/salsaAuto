@@ -128,6 +128,30 @@ class Database:
             )
         """)
         
+        # 采购明细表（本地缓存）
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS purchase_details (
+                id INTEGER PRIMARY KEY,
+                detail_code TEXT,
+                purchase_code TEXT,
+                supplier_code TEXT,
+                supplier_name TEXT,
+                product_id INTEGER,
+                product_name TEXT,
+                category_name TEXT,
+                sub_category_name TEXT,
+                quantity INTEGER,
+                unit_price REAL,
+                total_price REAL,
+                purchase_time TEXT,
+                purchaser TEXT,
+                can_show INTEGER DEFAULT 1,
+                inbound_status INTEGER DEFAULT 0,
+                create_time TEXT,
+                updated_at TEXT
+            )
+        """)
+        
         conn.commit()
         conn.close()
     
@@ -607,6 +631,114 @@ class Database:
         conn.commit()
         conn.close()
         return affected > 0
+    
+    # ==================== 采购明细操作 ====================
+    
+    def sync_purchase_details(self, details: List[Dict]) -> int:
+        """同步采购明细到本地库（覆盖）"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 清空旧数据
+        cursor.execute("DELETE FROM purchase_details")
+        
+        # 插入新数据
+        for d in details:
+            cursor.execute("""
+                INSERT INTO purchase_details (
+                    id, detail_code, purchase_code, supplier_code, supplier_name,
+                    product_id, product_name, category_name, sub_category_name,
+                    quantity, unit_price, total_price, purchase_time, purchaser,
+                    can_show, inbound_status, create_time, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                d.get("id"),
+                d.get("detailCode"),
+                d.get("orderCode") or d.get("purchaseCode"),
+                d.get("supplierCode"),
+                d.get("supplierName"),
+                d.get("productId"),
+                d.get("productName"),
+                d.get("productCategoryName"),
+                d.get("productCategorySubName"),
+                d.get("quantity"),
+                d.get("unitPrice"),
+                d.get("totalPrice"),
+                d.get("purchaseTime"),
+                d.get("purchaser"),
+                d.get("canShow", 1),
+                d.get("inboundStatus", 0),
+                d.get("createTime"),
+                now
+            ))
+        
+        count = len(details)
+        conn.commit()
+        conn.close()
+        return count
+    
+    def get_purchase_details_by_date(self, date_str: str, supplier_codes: List[str] = None) -> List[Dict]:
+        """按进货时间查询采购明细"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        sql = "SELECT * FROM purchase_details WHERE purchase_time LIKE ?"
+        params = [f"{date_str}%"]
+        
+        if supplier_codes:
+            placeholders = ",".join("?" * len(supplier_codes))
+            sql += f" AND supplier_code IN ({placeholders})"
+            params.extend(supplier_codes)
+        
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def update_purchase_detail_can_show(self, detail_id: int, can_show: int):
+        """更新采购明细的显示状态"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE purchase_details SET can_show = ? WHERE id = ?", (can_show, detail_id))
+        conn.commit()
+        conn.close()
+    
+    def add_purchase_detail(self, detail: Dict):
+        """添加采购明细到本地库"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cursor.execute("""
+            INSERT OR REPLACE INTO purchase_details (
+                id, detail_code, purchase_code, supplier_code, supplier_name,
+                product_id, product_name, category_name, sub_category_name,
+                quantity, unit_price, total_price, purchase_time, purchaser,
+                can_show, inbound_status, create_time, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            detail.get("id"),
+            detail.get("detailCode"),
+            detail.get("orderCode") or detail.get("purchaseCode"),
+            detail.get("supplierCode"),
+            detail.get("supplierName"),
+            detail.get("productId"),
+            detail.get("productName"),
+            detail.get("productCategoryName"),
+            detail.get("productCategorySubName"),
+            detail.get("quantity"),
+            detail.get("unitPrice"),
+            detail.get("totalPrice"),
+            detail.get("purchaseTime"),
+            detail.get("purchaser"),
+            detail.get("canShow", 1),
+            detail.get("inboundStatus", 0),
+            detail.get("createTime"),
+            now
+        ))
+        conn.commit()
+        conn.close()
 
 
 db = Database()
