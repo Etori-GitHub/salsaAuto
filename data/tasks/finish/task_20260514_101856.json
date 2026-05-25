@@ -1,0 +1,1012 @@
+{
+  "task_id": "task_20260514_101856",
+  "task_name": "一纸满_现金支付_2026-01-01-2026-01-31_20260514_101856",
+  "created_at": "2026-05-14T10:18:56.220Z",
+  "store_id": "32",
+  "store_name": "一纸满",
+  "pay_type": "cash",
+  "pay_type_name": "现金支付",
+  "total_amount": 473180.1,
+  "date_range": {
+    "start": "2026-01-01",
+    "end": "2026-01-31"
+  },
+  "days": [
+    {
+      "date": "2026-01-01",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 250
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 218
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 3
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 2
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 5
+        }
+      ],
+      "total_amount": 15866.7
+    },
+    {
+      "date": "2026-01-02",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 174
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 218
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 1
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 2
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 1
+        }
+      ],
+      "total_amount": 14351.9
+    },
+    {
+      "date": "2026-01-03",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 265
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 210
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 5
+        }
+      ],
+      "total_amount": 15756
+    },
+    {
+      "date": "2026-01-04",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 210
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 236
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 1
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 1
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 8
+        }
+      ],
+      "total_amount": 15962.2
+    },
+    {
+      "date": "2026-01-05",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 248
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 215
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 2
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 9
+        }
+      ],
+      "total_amount": 15681.6
+    },
+    {
+      "date": "2026-01-06",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 180
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 216
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 1
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 6
+        }
+      ],
+      "total_amount": 14366
+    },
+    {
+      "date": "2026-01-07",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 253
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 212
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 2
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 1
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 7
+        }
+      ],
+      "total_amount": 15621.2
+    },
+    {
+      "date": "2026-01-08",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 229
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 201
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 4
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 2
+        }
+      ],
+      "total_amount": 14606.2
+    },
+    {
+      "date": "2026-01-09",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 229
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 200
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 1
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 1
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 4
+        }
+      ],
+      "total_amount": 14543.5
+    },
+    {
+      "date": "2026-01-10",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 247
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 219
+        }
+      ],
+      "total_amount": 15843.4
+    },
+    {
+      "date": "2026-01-11",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 211
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 205
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 2
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 8
+        }
+      ],
+      "total_amount": 14431.2
+    },
+    {
+      "date": "2026-01-12",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 257
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 214
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 2
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 6
+        }
+      ],
+      "total_amount": 15810.5
+    },
+    {
+      "date": "2026-01-13",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 200
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 229
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 2
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 1
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 1
+        }
+      ],
+      "total_amount": 15414.2
+    },
+    {
+      "date": "2026-01-14",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 251
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 197
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 4
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 9
+        }
+      ],
+      "total_amount": 14830.1
+    },
+    {
+      "date": "2026-01-15",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 181
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 232
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 4
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 8
+        }
+      ],
+      "total_amount": 15183.5
+    },
+    {
+      "date": "2026-01-16",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 215
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 216
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 3
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 2
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 3
+        }
+      ],
+      "total_amount": 15070.2
+    },
+    {
+      "date": "2026-01-17",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 216
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 235
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 3
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 1
+        }
+      ],
+      "total_amount": 16032.9
+    },
+    {
+      "date": "2026-01-18",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 232
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 219
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 3
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 8
+        }
+      ],
+      "total_amount": 15563.7
+    },
+    {
+      "date": "2026-01-19",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 270
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 211
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 3
+        }
+      ],
+      "total_amount": 15917.2
+    },
+    {
+      "date": "2026-01-20",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 201
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 231
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 2
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 4
+        }
+      ],
+      "total_amount": 15537.2
+    },
+    {
+      "date": "2026-01-21",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 194
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 244
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 2
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 1
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 1
+        }
+      ],
+      "total_amount": 16043.3
+    },
+    {
+      "date": "2026-01-22",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 176
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 235
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 4
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 1
+        }
+      ],
+      "total_amount": 15248
+    },
+    {
+      "date": "2026-01-23",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 240
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 221
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 4
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 5
+        }
+      ],
+      "total_amount": 15808.4
+    },
+    {
+      "date": "2026-01-24",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 202
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 220
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 2
+        }
+      ],
+      "total_amount": 15013
+    },
+    {
+      "date": "2026-01-25",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 220
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 215
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 4
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 2
+        }
+      ],
+      "total_amount": 15120.5
+    },
+    {
+      "date": "2026-01-26",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 229
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 200
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 1
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 1
+        }
+      ],
+      "total_amount": 14553.2
+    },
+    {
+      "date": "2026-01-27",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 269
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 206
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 2
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 3
+        }
+      ],
+      "total_amount": 15649.5
+    },
+    {
+      "date": "2026-01-28",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 212
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 227
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 9
+        }
+      ],
+      "total_amount": 15547
+    },
+    {
+      "date": "2026-01-29",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 185
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 215
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 3
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 4
+        }
+      ],
+      "total_amount": 14413.4
+    },
+    {
+      "date": "2026-01-30",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 248
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 202
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 4
+        },
+        {
+          "id": "512",
+          "name": "大窑",
+          "price": 5,
+          "quantity": 1
+        },
+        {
+          "id": "513",
+          "name": "塑料袋",
+          "price": 0.1,
+          "quantity": 3
+        }
+      ],
+      "total_amount": 15024.3
+    },
+    {
+      "date": "2026-01-31",
+      "dishes": [
+        {
+          "id": "73",
+          "name": "自助餐",
+          "price": 19.9,
+          "quantity": 218
+        },
+        {
+          "id": "77",
+          "name": "烤肉",
+          "price": 49.9,
+          "quantity": 201
+        },
+        {
+          "id": "511",
+          "name": "康师傅纯净水",
+          "price": 1,
+          "quantity": 2
+        }
+      ],
+      "total_amount": 14370.1
+    }
+  ]
+}

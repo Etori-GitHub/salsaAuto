@@ -8,8 +8,6 @@ venv/
 ENV/
 
 # 数据文件
-data/
-*.db
 
 # 配置文件（含敏感信息）
 config/token.json
