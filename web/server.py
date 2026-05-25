@@ -2142,11 +2142,11 @@ async def adjust_purchase_day(request: Request):
             supplier_code = g.get("supplierCode")
             if supplier_code not in supplier_groups:
                 supplier_groups[supplier_code] = []
-            supplier_groups[supplier_code].append((product_id, item))
+            supplier_groups[supplier_code].append({"product_id": product_id, "item": item})
         
         print(f"按供应商分组: {len(supplier_groups)} 个供应商")
         for sc, items in supplier_groups.items():
-            total_amount = sum((it["goods"].get("unitPrice") or it["goods"].get("inPrice") or 0) * it["quantity"] for it in items)
+            total_amount = sum((it["item"]["goods"].get("unitPrice") or it["item"]["goods"].get("inPrice") or 0) * it["item"]["quantity"] for it in items)
             print(f"  {sc}: {len(items)} 个商品, 金额 {total_amount:.2f}")
         
         # 按供应商处理
@@ -2208,7 +2208,9 @@ async def adjust_purchase_day(request: Request):
             purchase_code = existing_order.get("purchaseCode")
             
             # 处理该供应商的所有商品
-            for product_id, item in items:
+            for entry in items:
+                product_id = entry["product_id"]
+                item = entry["item"]
                 g = item["goods"]
                 quantity = item["quantity"]
                 
