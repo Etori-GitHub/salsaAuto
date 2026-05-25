@@ -1,0 +1,21 @@
+{
+  "task_id": "purchase_20260525_072430",
+  "task_name": "外部供应商_采购_2026-01-01-2026-01-01_20260525_072430",
+  "task_type": "purchase",
+  "created_at": "2026-05-25T07:24:30.449Z",
+  "summary_entity": "外部供应商",
+  "total_amount": 3513.47,
+  "float_percent": 0.1,
+  "purchaser": "system",
+  "date_range": {
+    "start": "2026-01-01",
+    "end": "2026-01-01"
+  },
+  "days": [
+    {
+      "date": "2026-01-01",
+      "purchase_time": "2026-01-01 09:50:00",
+      "target_amount": 3513.47
+    }
+  ]
+}

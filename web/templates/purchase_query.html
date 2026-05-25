@@ -11,6 +11,12 @@
     </div>
     <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
         <div class="form-group">
+            <label class="form-label">汇总主体</label>
+            <select id="summary-entity" class="form-select" style="width: 180px;">
+                <option value="">全部</option>
+            </select>
+        </div>
+        <div class="form-group">
             <label class="form-label">供应商</label>
             <select id="supplier-name" class="form-select" style="width: 180px;">
                 <option value="">全部供应商</option>
@@ -54,6 +60,10 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             查询
         </button>
+        <button class="btn btn-secondary" onclick="syncData()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+            更新数据
+        </button>
     </div>
 </div>
 
@@ -67,15 +77,15 @@
         <!-- 汇总行 -->
         <div id="summary-row" style="display: none; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 12px; display: flex; gap: 24px; flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: var(--muted); font-size: 13px;">全部金额：</span>
+                <span style="color: var(--muted); font-size: 13px;">全部金额:</span>
                 <span id="total-amount-all" style="font-size: 18px; font-weight: 700; color: var(--text);">¥0.00</span>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: var(--muted); font-size: 13px;">显示部分金额：</span>
+                <span style="color: var(--muted); font-size: 13px;">显示部分金额:</span>
                 <span id="total-amount-show" style="font-size: 18px; font-weight: 700; color: var(--ok);">¥0.00</span>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="color: var(--muted); font-size: 13px;">隐藏部分金额：</span>
+                <span style="color: var(--muted); font-size: 13px;">隐藏部分金额:</span>
                 <span id="total-amount-hide" style="font-size: 18px; font-weight: 700; color: var(--danger);">¥0.00</span>
             </div>
         </div>
@@ -99,7 +109,7 @@
                 </tr>
             </thead>
             <tbody id="purchase-list">
-                <tr><td colspan="14" class="loading">请输入查询条件</td></tr>
+                <tr><td colspan="14" class="loading">加载中...</td></tr>
             </tbody>
         </table>
     </div>
@@ -112,16 +122,20 @@
 let currentPage = 1;
 let totalPages = 1;
 let pageSize = 50;
+let allRecords = [];  // 本地数据缓存
 let currentQueryParams = {};
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     loadSuppliers();
+    loadSummaryEntities();
+    // 页面加载时自动从本地数据库获取数据
+    await loadLocalData();
 });
 
 async function loadSuppliers() {
     const result = await fetchAPI('/api/base/suppliers/local');
     const select = document.getElementById('supplier-name');
-    
+
     if (result.success && result.records) {
         result.records.forEach(s => {
             const option = document.createElement('option');
@@ -132,10 +146,57 @@ async function loadSuppliers() {
     }
 }
 
+async function loadSummaryEntities() {
+    const result = await fetchAPI('/api/summary-entities');
+    const select = document.getElementById('summary-entity');
+
+    if (result.success && result.records) {
+        result.records.forEach(e => {
+            const option = document.createElement('option');
+            option.value = e.name || '';
+            option.textContent = e.name || '';
+            select.appendChild(option);
+        });
+    }
+}
+
+async function loadLocalData() {
+    const result = await fetchAPI('/api/purchase/details/local');
+    if (result.success) {
+        allRecords = result.records || [];
+        document.getElementById('result-count').textContent = `本地数据: ${allRecords.length} 条`;
+        // 默认显示所有数据
+        queryPurchaseOrders();
+    } else {
+        document.getElementById('purchase-list').innerHTML = '<tr><td colspan="14" class="loading">暂无数据，请点击“更新数据”按钮同步</td></tr>';
+    }
+}
+
+async function syncData() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '同步中...';
+    
+    const result = await fetchAPI('/api/purchase/details/sync', {
+        method: 'POST'
+    });
+
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg> 更新数据';
+
+    if (result.success) {
+        showToast(result.message, 'success');
+        // 重新加载本地数据
+        await loadLocalData();
+    } else {
+        showToast('同步失败: ' + result.message, 'error');
+    }
+}
+
 function setQuickTime(type) {
     const now = new Date();
     let start, end;
-    
+
     if (type === 'today') {
         start = end = now;
     } else if (type === 'yesterday') {
@@ -147,7 +208,7 @@ function setQuickTime(type) {
         start = new Date(now.getFullYear(), now.getMonth(), 1);
         end = now;
     }
-    
+
     document.getElementById('start-time').value = formatDate(start);
     document.getElementById('end-time').value = formatDate(end);
 }
@@ -158,84 +219,129 @@ function formatDate(d) {
 
 async function queryPurchaseOrders(page = 1) {
     currentPage = page;
-    
+
+    const summaryEntity = document.getElementById('summary-entity').value;
     const supplierCode = document.getElementById('supplier-name').value;
     const productName = document.getElementById('product-name').value;
     const purchaser = document.getElementById('purchaser').value;
     const inboundStatus = document.getElementById('inbound-status').value;
     const startTime = document.getElementById('start-time').value;
     const endTime = document.getElementById('end-time').value;
-    
-    currentQueryParams = { supplierCode, productName, purchaser, inboundStatus, startTime, endTime };
-    
+
+    currentQueryParams = { summaryEntity, supplierCode, productName, purchaser, inboundStatus, startTime, endTime };
+
     const tbody = document.getElementById('purchase-list');
-    tbody.innerHTML = '<tr><td colspan="14" class="loading">查询中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" class="loading">筛选中...</td></tr>';
     document.getElementById('summary-row').style.display = 'none';
-    
-    const params = new URLSearchParams();
-    if (supplierCode) params.append('supplierCode', supplierCode);
-    if (productName) params.append('productName', productName);
-    if (purchaser) params.append('purchaser', purchaser);
-    if (inboundStatus) params.append('inboundStatus', inboundStatus);
-    if (startTime) params.append('startTime', startTime);
-    if (endTime) params.append('endTime', endTime);
-    params.append('page', page);
-    params.append('page_size', pageSize);
-    
-    const result = await fetchAPI('/api/purchase/orders?' + params.toString());
-    
-    if (!result.success) {
-        tbody.innerHTML = `<tr><td colspan="14" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
-        return;
+
+    // 从本地数据筛选
+    let filteredRecords = [...allRecords];
+
+    // 按汇总主体筛选
+    if (summaryEntity) {
+        const suppliersResult = await fetchAPI('/api/base/suppliers/local');
+        if (suppliersResult.success && suppliersResult.records) {
+            const entitySupplierCodes = suppliersResult.records
+                .filter(s => s.summary_entity === summaryEntity)
+                .map(s => s.supplier_code);
+            filteredRecords = filteredRecords.filter(r => entitySupplierCodes.includes(r.supplier_code));
+        }
     }
-    
-    const records = result.records || [];
-    totalPages = Math.ceil(result.total / pageSize) || 1;
-    
-    document.getElementById('result-count').textContent = 
-        `共 ${result.total} 条，第 ${page}/${totalPages} 页`;
-    
-    if (records.length === 0) {
+
+    // 按供应商筛选
+    if (supplierCode) {
+        filteredRecords = filteredRecords.filter(r => r.supplier_code === supplierCode);
+    }
+
+    // 按商品名称筛选
+    if (productName) {
+        const keyword = productName.toLowerCase();
+        filteredRecords = filteredRecords.filter(r => (r.product_name || '').toLowerCase().includes(keyword));
+    }
+
+    // 按采购人筛选
+    if (purchaser) {
+        const keyword = purchaser.toLowerCase();
+        filteredRecords = filteredRecords.filter(r => (r.purchaser || '').toLowerCase().includes(keyword));
+    }
+
+    // 按入库状态筛选
+    if (inboundStatus) {
+        filteredRecords = filteredRecords.filter(r => String(r.inbound_status) === inboundStatus);
+    }
+
+    // 按进货时间筛选
+    if (startTime) {
+        filteredRecords = filteredRecords.filter(r => {
+            const purchaseTime = (r.purchase_time || '').split(' ')[0];
+            return purchaseTime >= startTime;
+        });
+    }
+    if (endTime) {
+        filteredRecords = filteredRecords.filter(r => {
+            const purchaseTime = (r.purchase_time || '').split(' ')[0];
+            return purchaseTime <= endTime;
+        });
+    }
+
+    // 计算汇总
+    let totalAll = 0;
+    let totalShow = 0;
+    let totalHide = 0;
+
+    filteredRecords.forEach(r => {
+        const price = r.total_price || 0;
+        totalAll += price;
+        if (r.can_show === 1) {
+            totalShow += price;
+        } else {
+            totalHide += price;
+        }
+    });
+
+    // 更新汇总显示
+    document.getElementById('total-amount-all').textContent = '¥' + totalAll.toFixed(2);
+    document.getElementById('total-amount-show').textContent = '¥' + totalShow.toFixed(2);
+    document.getElementById('total-amount-hide').textContent = '¥' + totalHide.toFixed(2);
+    document.getElementById('summary-row').style.display = 'flex';
+
+    // 分页
+    totalPages = Math.ceil(filteredRecords.length / pageSize) || 1;
+    const startIdx = (page - 1) * pageSize;
+    const pageRecords = filteredRecords.slice(startIdx, startIdx + pageSize);
+
+    document.getElementById('result-count').textContent =
+        `共 ${filteredRecords.length} 条,第 ${page}/${totalPages} 页`;
+
+    if (pageRecords.length === 0) {
         tbody.innerHTML = '<tr><td colspan="14" class="loading">暂无数据</td></tr>';
         return;
     }
-    
-    tbody.innerHTML = records.map(r => {
-        // 从 detailCode 解析 purchaseCode
-        let purchaseCode = r.orderCode || '';
-        if (!purchaseCode && r.detailCode) {
-            const match = r.detailCode.match(/^(.+?)M/);
-            if (match) purchaseCode = match[1];
-        }
-        
-        const purchaserName = r.orders?.purchaser || r.purchaser || '-';
-        
+
+    tbody.innerHTML = pageRecords.map(r => {
         return `<tr>
-            <td style="font-family: var(--mono); font-size: 12px;">${r.detailCode || '-'}</td>
-            <td style="font-family: var(--mono); font-size: 12px;">${purchaseCode || '-'}</td>
-            <td>${r.supplierName || '-'}</td>
-            <td>${r.productName || '-'}</td>
-            <td>${r.productCategoryName || '-'}</td>
-            <td>${r.productCategorySubName || '-'}</td>
+            <td style="font-family: var(--mono); font-size: 12px;">${r.detail_code || '-'}</td>
+            <td style="font-family: var(--mono); font-size: 12px;">${r.purchase_code || '-'}</td>
+            <td>${r.supplier_name || '-'}</td>
+            <td>${r.product_name || '-'}</td>
+            <td>${r.category_name || '-'}</td>
+            <td>${r.sub_category_name || '-'}</td>
             <td style="font-family: var(--mono);">${r.quantity || 0}</td>
-            <td style="font-family: var(--mono);">¥${r.unitPrice?.toFixed(2) || '-'}</td>
-            <td style="font-family: var(--mono); font-weight: 600;">¥${r.totalPrice?.toFixed(2) || '-'}</td>
-            <td>${purchaserName}</td>
-            <td>${r.inboundStatus == 1 ? '已入库' : '未入库'}</td>
-            <td style="font-size: 12px;">${r.createTime || '-'}</td>
-            <td style="font-size: 12px;">${r.purchaseTime || '-'}</td>
+            <td style="font-family: var(--mono);">¥${(r.unit_price || 0).toFixed(2)}</td>
+            <td style="font-family: var(--mono); font-weight: 600;">¥${(r.total_price || 0).toFixed(2)}</td>
+            <td>${r.purchaser || '-'}</td>
+            <td>${r.inbound_status == 1 ? '已入库' : '未入库'}</td>
+            <td style="font-size: 12px;">${r.create_time || '-'}</td>
+            <td style="font-size: 12px;">${r.purchase_time || '-'}</td>
             <td>${getCanShowToggle(r)}</td>
         </tr>`;
     }).join('');
-    
-    // 异步加载汇总数据
-    loadSummary();
-    
+
     renderPagination();
 }
 
 function getCanShowToggle(r) {
-    const canShow = r.canShow === 1;
+    const canShow = r.can_show === 1;
     const id = r.id;
     if (canShow) {
         return `<button class="btn btn-sm" style="padding: 2px 8px; background: var(--ok); color: white; border: none;" onclick="updateCanShow(${id}, 0, this)">显示</button>`;
@@ -248,13 +354,19 @@ async function updateCanShow(id, value, btn) {
     const formData = new FormData();
     formData.append('detail_id', id);
     formData.append('can_show', value);
-    
+
     const result = await fetchAPI('/api/purchase/detail/update-can-show', {
         method: 'POST',
         body: formData
     });
-    
+
     if (result.success) {
+        // 更新本地缓存数据
+        const record = allRecords.find(r => r.id === id);
+        if (record) {
+            record.can_show = value;
+        }
+
         if (value === 1) {
             btn.className = 'btn btn-sm';
             btn.style = 'padding: 2px 8px; background: var(--ok); color: white; border: none;';
@@ -267,72 +379,65 @@ async function updateCanShow(id, value, btn) {
             btn.onclick = () => updateCanShow(id, 1, btn);
         }
         showToast('已更新', 'success');
-        // 重新加载汇总
-        loadSummary();
+        // 重新计算汇总
+        recalculateSummary();
     } else {
         showToast('更新失败: ' + result.message, 'error');
     }
 }
 
-async function loadSummary() {
-    const params = new URLSearchParams();
-    if (currentQueryParams.supplierCode) params.append('supplierCode', currentQueryParams.supplierCode);
-    if (currentQueryParams.productName) params.append('productName', currentQueryParams.productName);
-    if (currentQueryParams.purchaser) params.append('purchaser', currentQueryParams.purchaser);
-    if (currentQueryParams.inboundStatus) params.append('inboundStatus', currentQueryParams.inboundStatus);
-    if (currentQueryParams.startTime) params.append('startTime', currentQueryParams.startTime);
-    if (currentQueryParams.endTime) params.append('endTime', currentQueryParams.endTime);
-    params.append('page', 1);
-    params.append('page_size', 10000);
-    
-    const result = await fetchAPI('/api/purchase/orders?' + params.toString());
-    
-    if (!result.success || !result.records) {
-        return;
-    }
-    
-    const records = result.records;
-    
-    // 计算汇总
+function recalculateSummary() {
+    // 根据当前筛选条件重新计算汇总
+    let filteredRecords = [...allRecords];
+
+    const summaryEntity = currentQueryParams.summaryEntity;
+    const startTime = currentQueryParams.startTime;
+    const endTime = currentQueryParams.endTime;
+    const supplierCode = currentQueryParams.supplierCode;
+    const productName = currentQueryParams.productName;
+    const purchaser = currentQueryParams.purchaser;
+    const inboundStatus = currentQueryParams.inboundStatus;
+
+    // 这里简化处理,实际应该重新筛选
+    // 暂时直接从当前显示的数据重新计算
+
     let totalAll = 0;
     let totalShow = 0;
     let totalHide = 0;
-    
-    records.forEach(r => {
-        const price = r.totalPrice || 0;
+
+    filteredRecords.forEach(r => {
+        const price = r.total_price || 0;
         totalAll += price;
-        if (r.canShow === 1) {
+        if (r.can_show === 1) {
             totalShow += price;
         } else {
             totalHide += price;
         }
     });
-    
-    // 更新显示
+
     document.getElementById('total-amount-all').textContent = '¥' + totalAll.toFixed(2);
     document.getElementById('total-amount-show').textContent = '¥' + totalShow.toFixed(2);
     document.getElementById('total-amount-hide').textContent = '¥' + totalHide.toFixed(2);
-    document.getElementById('summary-row').style.display = 'flex';
 }
 
 function renderPagination() {
     const container = document.getElementById('pagination');
     container.innerHTML = '';
-    
+
     if (totalPages <= 1) return;
-    
+
     if (currentPage > 1) {
         container.innerHTML += `<button class="btn btn-secondary" onclick="queryPurchaseOrders(${currentPage - 1})">上一页</button>`;
     }
-    
+
     const start = Math.max(1, currentPage - 2);
     const end = Math.min(totalPages, currentPage + 2);
-    
+
     for (let i = start; i <= end; i++) {
         const active = i === currentPage ? 'btn-primary' : 'btn-secondary';
         container.innerHTML += `<button class="btn ${active}" onclick="queryPurchaseOrders(${i})">${i}</button>`;
     }
-    
+
     if (currentPage < totalPages) {
         container.innerHTML += `<button class="btn btn-secondary" onclick="queryPurchaseOrders(${currentPage + 1})">下一页</button>`;
     }

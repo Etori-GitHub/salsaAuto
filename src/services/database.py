@@ -645,6 +645,14 @@ class Database:
         
         # 插入新数据
         for d in details:
+            # 进货时间：优先从明细获取，否则从订单获取，最后用创建时间
+            purchase_time = d.get("purchaseTime")
+            if not purchase_time:
+                orders = d.get("orders") or {}
+                purchase_time = orders.get("purchaseTime")
+            if not purchase_time:
+                purchase_time = d.get("createTime")
+            
             cursor.execute("""
                 INSERT INTO purchase_details (
                     id, detail_code, purchase_code, supplier_code, supplier_name,
@@ -665,7 +673,7 @@ class Database:
                 d.get("quantity"),
                 d.get("unitPrice"),
                 d.get("totalPrice"),
-                d.get("purchaseTime"),
+                purchase_time,
                 d.get("purchaser"),
                 d.get("canShow", 1),
                 d.get("inboundStatus", 0),
@@ -739,6 +747,16 @@ class Database:
         ))
         conn.commit()
         conn.close()
+    
+    def get_purchase_details_local(self) -> List[Dict]:
+        """从本地数据库获取所有采购明细"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM purchase_details")
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
 
 
 db = Database()

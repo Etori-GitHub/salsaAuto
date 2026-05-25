@@ -161,8 +161,8 @@ function calculate() {
         showToast('开始日期不能晚于结束日期', 'warning');
         return;
     }
-    if (totalAmount <= 0) {
-        showToast('总采购金额必须大于0', 'warning');
+    if (totalAmount < 0) {
+        showToast('总采购金额不能为负数', 'warning');
         return;
     }
     

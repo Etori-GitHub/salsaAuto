@@ -34,6 +34,7 @@ from src.services.store_query import store_query_service
 from src.services.supply_query import supply_query_service
 from src.services.base_library import base_library_service
 from src.services.monthly_order import monthly_order_service
+from src.services.database import db
 
 
 app = FastAPI(title="salsaAuto", description="餐饮管理系统自动化工具")
@@ -1780,6 +1781,39 @@ async def delete_summary_entity(entity_id: int):
 
 # ==================== 采购查询 API ====================
 
+@app.get("/api/purchase/details/local")
+async def get_purchase_details_local():
+    """从本地数据库获取采购明细"""
+    try:
+        records = db.get_purchase_details_local()
+        return {"success": True, "records": records, "total": len(records)}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "message": str(e), "records": [], "total": 0}
+
+@app.post("/api/purchase/details/sync")
+async def sync_purchase_details():
+    """从 API 同步采购明细到本地数据库"""
+    # 分页拉取全部数据
+    all_records = []
+    page = 1
+    while True:
+        result = base_library_service.query_purchase_orders(page=page, page_size=1000)
+        if not result["success"]:
+            return {"success": False, "message": result.get("message", "查询失败")}
+        records = result.get("records", [])
+        if not records:
+            break
+        all_records.extend(records)
+        if len(records) < 1000:
+            break
+        page += 1
+    
+    # 同步到本地数据库
+    count = db.sync_purchase_details(all_records)
+    return {"success": True, "message": f"已同步 {count} 条采购明细", "total": count}
+
 @app.get("/api/purchase/orders")
 async def query_purchase_orders(
     page: int = 1,
@@ -1832,6 +1866,9 @@ async def update_purchase_detail_can_show(
 ):
     """更新采购明细显示状态"""
     result = base_library_service.close_purchase_detail(detail_id=detail_id, can_show=can_show)
+    if result.get("success"):
+        # 同时更新本地数据库
+        db.update_purchase_detail_can_show(detail_id, can_show)
     return result
 
 @app.get("/api/purchase/order-list")
@@ -2031,12 +2068,26 @@ async def adjust_purchase_day(request: Request):
     purchase_time = data.get("purchase_time")
     purchaser = data.get("purchaser")
     
-    # 0. 先同步采购明细到本地库
+    # 0. 先同步采购明细到本地库（分页拉取全部数据）
     print("同步采购明细...")
-    sync_result = base_library_service.query_purchase_orders(page=1, page_size=10000)
-    if sync_result["success"]:
-        db.sync_purchase_details(sync_result["records"])
-        print(f"已同步 {len(sync_result['records'])} 条采购明细")
+    all_records = []
+    page = 1
+    while True:
+        sync_result = base_library_service.query_purchase_orders(page=page, page_size=1000)
+        if not sync_result["success"]:
+            print(f"查询采购明细失败: {sync_result.get('message')}")
+            break
+        records = sync_result.get("records", [])
+        if not records:
+            break
+        all_records.extend(records)
+        if len(records) < 1000:
+            break
+        page += 1
+    
+    if all_records:
+        db.sync_purchase_details(all_records)
+        print(f"已同步 {len(all_records)} 条采购明细")
     
     # 1. 获取属于该汇总主体的供应商
     suppliers = db.get_suppliers()
@@ -2216,27 +2267,17 @@ async def adjust_purchase_day(request: Request):
                 
                 print(f"  处理商品: {g.get('productName')}, 数量={quantity}")
                 
-                # 添加采购明细（指定数量）
-                add_result = base_library_service.add_purchase_detail(
+                # 添加采购明细并入库（add_inbound_detail 内部会调用 add_purchase_detail）
+                inbound_result = base_library_service.add_inbound_detail(
                     purchase_code=purchase_code,
                     product_ids=[product_id],
                     quantity=quantity,
                     purchaser="system",
                     purchase_time=purchase_time,
                 )
-                print(f"    添加采购明细: {add_result}")
+                print(f"    添加明细并入库: {inbound_result}")
                 
-                if add_result["success"]:
-                    # 入库处理
-                    inbound_result = base_library_service.add_inbound_detail(
-                        purchase_code=purchase_code,
-                        product_ids=[product_id],
-                        quantity=quantity,
-                        purchaser="system",
-                        purchase_time=purchase_time,
-                    )
-                    print(f"    入库结果: {inbound_result}")
-                    
+                if inbound_result["success"]:
                     price = g.get("unitPrice") or g.get("inPrice") or 0
                     item_amount = price * quantity
                     add_amount += item_amount
@@ -2248,10 +2289,10 @@ async def adjust_purchase_day(request: Request):
                         "price": price,
                         "quantity": quantity,
                         "amount": item_amount,
-                        "inbound": inbound_result.get("success")
+                        "inbound": True
                     })
                 else:
-                    print(f"    添加采购明细失败: {add_result.get('message')}")
+                    print(f"    添加明细失败: {inbound_result.get('message')}")
         
         
         current_amount += add_amount
@@ -2259,9 +2300,23 @@ async def adjust_purchase_day(request: Request):
     
     # 9. 验算: 重新查询采购明细并计算总金额
     print("=== 开始验算 ===")
-    sync_result = base_library_service.query_purchase_orders(page=1, page_size=10000)
-    if sync_result["success"]:
-        db.sync_purchase_details(sync_result["records"])
+    all_verify_records = []
+    page = 1
+    while True:
+        sync_result = base_library_service.query_purchase_orders(page=page, page_size=1000)
+        if not sync_result["success"]:
+            break
+        records = sync_result.get("records", [])
+        if not records:
+            break
+        all_verify_records.extend(records)
+        if len(records) < 1000:
+            break
+        page += 1
+    
+    if all_verify_records:
+        db.sync_purchase_details(all_verify_records)
+        print(f"验算同步: {len(all_verify_records)} 条采购明细")
     
     verify_details = db.get_purchase_details_by_date(date_str, entity_supplier_codes)
     verify_details = [d for d in verify_details if d.get("can_show", 1) == 1]
