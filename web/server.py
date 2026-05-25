@@ -2090,6 +2090,9 @@ async def adjust_purchase_day(request: Request):
         if not goods_result["success"]:
             return {"success": False, "message": "查询商品库失败"}
         
+        # 排除的供应商代码
+        excluded_supplier_codes = ["G00003", "G00004"]
+        
         entity_goods = []
         for g in goods_result["records"]:
             supplier_code = g.get("supplierCode", "")
@@ -2101,6 +2104,12 @@ async def adjust_purchase_day(request: Request):
                 continue
             # 排除档口分类包含"现采"的商品
             if cang_sub_category_name and "现采" in cang_sub_category_name:
+                continue
+            # 排除指定供应商
+            if supplier_code in excluded_supplier_codes:
+                continue
+            # 只取上架状态的商品
+            if g.get("status", 1) != 1:
                 continue
             
             if supplier_code in entity_supplier_codes:
@@ -2115,16 +2124,33 @@ async def adjust_purchase_day(request: Request):
         selected_goods_map = greedy_select_goods(diff_amount, entity_goods)
         print(f"贪心选择商品: {len(selected_goods_map)} 种，目标差额: {diff_amount}")
         
+        # 打印选择的商品详情
+        for pid, item in selected_goods_map.items():
+            g = item["goods"]
+            print(f"  - {g.get('productName')}: {item['quantity']} x {g.get('unitPrice') or g.get('inPrice')} = {(g.get('unitPrice') or g.get('inPrice') or 0) * item['quantity']}")
+        
         if not selected_goods_map:
             return {"success": False, "message": f"无法找到合适的商品组合来填补差额 ¥{diff_amount:.2f}"}
         
-        # 8. 为每个商品创建采购明细和入库
+        # 8. 按供应商分组处理商品
         add_amount = 0
+        
+        # 先按供应商分组
+        supplier_groups = {}
         for product_id, item in selected_goods_map.items():
             g = item["goods"]
-            quantity = item["quantity"]
             supplier_code = g.get("supplierCode")
-            
+            if supplier_code not in supplier_groups:
+                supplier_groups[supplier_code] = []
+            supplier_groups[supplier_code].append((product_id, item))
+        
+        print(f"按供应商分组: {len(supplier_groups)} 个供应商")
+        for sc, items in supplier_groups.items():
+            total_amount = sum((it["goods"].get("unitPrice") or it["goods"].get("inPrice") or 0) * it["quantity"] for it in items)
+            print(f"  {sc}: {len(items)} 个商品, 金额 {total_amount:.2f}")
+        
+        # 按供应商处理
+        for supplier_code, items in supplier_groups.items():
             # 找到供应商 ID
             supplier_id = None
             for s in entity_suppliers:
@@ -2132,7 +2158,7 @@ async def adjust_purchase_day(request: Request):
                     supplier_id = s.get("id")
                     break
             
-            print(f"处理商品: ID={product_id}, 名称={g.get('productName')}, 数量={quantity}, 供应商={supplier_code}, ID={supplier_id}")
+            print(f"\n处理供应商: {supplier_code}, ID={supplier_id}")
             
             if not supplier_id:
                 print(f"  未找到供应商ID，跳过")
@@ -2150,6 +2176,7 @@ async def adjust_purchase_day(request: Request):
                 for order in existing_orders["records"]:
                     if order.get("purchaseTime", "").startswith(date_str):
                         existing_order = order
+                        print(f"  找到现有采购单: {order.get('purchaseCode')}")
                         break
             
             # 如果没有现有采购单，创建新的
@@ -2173,68 +2200,98 @@ async def adjust_purchase_day(request: Request):
                 )
                 if new_orders["success"] and new_orders["records"]:
                     existing_order = new_orders["records"][0]
+                    print(f"  新创建的采购单: {existing_order.get('purchaseCode')}")
                 else:
                     print(f"  未找到新创建的订单")
                     continue
             
             purchase_code = existing_order.get("purchaseCode")
-            print(f"  采购单号: {purchase_code}")
             
-            # 添加采购明细（指定数量）
-            add_result = base_library_service.add_purchase_detail(
-                purchase_code=purchase_code,
-                product_ids=[product_id],
-                quantity=quantity,
-                purchaser="system",
-                purchase_time=purchase_time,
-            )
-            print(f"  添加采购明细: {add_result}")
-            
-            if add_result["success"]:
-                # 入库处理
-                inbound_result = base_library_service.add_inbound_detail(
+            # 处理该供应商的所有商品
+            for product_id, item in items:
+                g = item["goods"]
+                quantity = item["quantity"]
+                
+                print(f"  处理商品: {g.get('productName')}, 数量={quantity}")
+                
+                # 添加采购明细（指定数量）
+                add_result = base_library_service.add_purchase_detail(
                     purchase_code=purchase_code,
                     product_ids=[product_id],
                     quantity=quantity,
                     purchaser="system",
                     purchase_time=purchase_time,
                 )
-                print(f"  入库结果: {inbound_result}")
+                print(f"    添加采购明细: {add_result}")
                 
-                price = g.get("unitPrice") or g.get("inPrice") or 0
-                item_amount = price * quantity
-                add_amount += item_amount
-                result_log["actions"].append({
-                    "action": "add", 
-                    "purchase_code": purchase_code, 
-                    "product_id": product_id,
-                    "name": g.get("productName"), 
-                    "price": price,
-                    "quantity": quantity,
-                    "amount": item_amount,
-                    "inbound": inbound_result.get("success")
-                })
-            else:
-                print(f"  添加采购明细失败: {add_result.get('message')}")
+                if add_result["success"]:
+                    # 入库处理
+                    inbound_result = base_library_service.add_inbound_detail(
+                        purchase_code=purchase_code,
+                        product_ids=[product_id],
+                        quantity=quantity,
+                        purchaser="system",
+                        purchase_time=purchase_time,
+                    )
+                    print(f"    入库结果: {inbound_result}")
+                    
+                    price = g.get("unitPrice") or g.get("inPrice") or 0
+                    item_amount = price * quantity
+                    add_amount += item_amount
+                    result_log["actions"].append({
+                        "action": "add", 
+                        "purchase_code": purchase_code, 
+                        "product_id": product_id,
+                        "name": g.get("productName"), 
+                        "price": price,
+                        "quantity": quantity,
+                        "amount": item_amount,
+                        "inbound": inbound_result.get("success")
+                    })
+                else:
+                    print(f"    添加采购明细失败: {add_result.get('message')}")
         
         
         current_amount += add_amount
         diff_amount = target_amount - current_amount
     
-    result_log["final_current_amount"] = current_amount
-    result_log["final_diff_amount"] = diff_amount
+    # 9. 验算: 重新查询采购明细并计算总金额
+    print("=== 开始验算 ===")
+    sync_result = base_library_service.query_purchase_orders(page=1, page_size=10000)
+    if sync_result["success"]:
+        db.sync_purchase_details(sync_result["records"])
+    
+    verify_details = db.get_purchase_details_by_date(date_str, entity_supplier_codes)
+    verify_details = [d for d in verify_details if d.get("can_show", 1) == 1]
+    verify_amount = sum(d.get("total_price", 0) or 0 for d in verify_details)
+    verify_diff = target_amount - verify_amount
+    print(f"验算结果: 目标={target_amount:.2f}, 实际={verify_amount:.2f}, 差额={verify_diff:.2f}")
+    print("=== 验算完成 ===")
+    
+    result_log["final_current_amount"] = verify_amount
+    result_log["final_diff_amount"] = verify_diff
+    result_log["verify_details_count"] = len(verify_details)
     
     return {
         "success": True,
-        "message": f"调整完成，当前金额 ¥{current_amount:.2f}，差额 ¥{diff_amount:.2f}",
-        "current_amount": current_amount,
-        "diff_amount": diff_amount,
+        "message": f"调整完成，验算金额 ¥{verify_amount:.2f}，差额 ¥{verify_diff:.2f}",
+        "current_amount": verify_amount,
+        "diff_amount": verify_diff,
         "log": result_log,
     }
 
 
 def greedy_select_goods(target_amount: float, goods_list: list) -> dict:
-    """贪心算法选择商品组合（从大到小，返回商品ID和数量）
+    """贪心算法选择商品组合（精确补齐到 0.01 元级别）
+    
+    算法流程:
+    1. 按价格排序（从大到小）
+    2. 用大金额商品填满大部分差额
+    3. 用小金额商品精确补齐零头（0.1 元、0.01 元）
+    
+    Args:
+        target_amount: 目标差额金额
+        goods_list: 可用商品列表
     
     Returns:
         dict: {商品ID: {"goods": 商品对象, "quantity": 数量}}
@@ -2248,15 +2305,20 @@ def greedy_select_goods(target_amount: float, goods_list: list) -> dict:
     if not valid_goods:
         return {}
     
+    # 分离大金额商品和小金额商品（用于补零头）
+    # 小金额商品: 价格 <= 1 元的（如 1 元、0.1 元、0.01 元）
+    big_goods = [g for g in valid_goods if (g.get("unitPrice") or g.get("inPrice") or 0) > 1]
+    small_goods = [g for g in valid_goods if (g.get("unitPrice") or g.get("inPrice") or 0) <= 1]
+    
     selected = {}  # {商品ID: {"goods": 商品对象, "quantity": 数量}}
     remaining = target_amount
     
-    # 从大到小贪心选择
-    for g in valid_goods:
+    # 第一阶段: 用大金额商品填满大部分差额
+    for g in big_goods:
         price = g.get("unitPrice") or g.get("inPrice") or 0
         product_id = str(g.get("id"))
         
-        # 计算可以选多少个
+        # 计算可以选多少个（整数）
         count = int(remaining / price)
         
         if count > 0:
@@ -2266,25 +2328,55 @@ def greedy_select_goods(target_amount: float, goods_list: list) -> dict:
             }
             remaining -= price * count
         
-        # 如果已经够了，退出
-        if remaining <= 0.001:
+        # 如果剩余已经小于最小大金额商品，可以切换到小金额商品
+        if remaining <= 1.01:
             break
     
-    # 如果还有剩余，用最小价格商品补齐
-    if remaining > 0.001:
-        min_price_goods = valid_goods[-1]  # 最小价格商品
+    # 第二阶段: 用小金额商品精确补齐零头
+    # 按价格排序（从大到小），确保能精确补齐
+    small_goods_sorted = sorted(small_goods, key=lambda g: g.get("unitPrice") or g.get("inPrice") or 0, reverse=True)
+    
+    for g in small_goods_sorted:
+        price = g.get("unitPrice") or g.get("inPrice") or 0
+        product_id = str(g.get("id"))
+        
+        # 计算可以选多少个
+        count = int(remaining / price)
+        
+        if count > 0:
+            if product_id in selected:
+                selected[product_id]["quantity"] += count
+            else:
+                selected[product_id] = {
+                    "goods": g,
+                    "quantity": count
+                }
+            remaining -= price * count
+        
+        # 如果已经精确补齐（剩余 <= 0.005），退出
+        if remaining <= 0.005:
+            break
+    
+    # 第三阶段: 如果还有极小剩余（如 0.003），用最小价格商品补一个
+    if remaining > 0.005 and small_goods_sorted:
+        min_price_goods = small_goods_sorted[-1]  # 最小价格商品
         min_price = min_price_goods.get("unitPrice") or min_price_goods.get("inPrice") or 0
         min_product_id = str(min_price_goods.get("id"))
         
-        # 需要补的数量
-        extra_count = int((remaining + min_price - 0.001) / min_price)  # 向上取整
-        
         if min_product_id in selected:
-            selected[min_product_id]["quantity"] += extra_count
+            selected[min_product_id]["quantity"] += 1
         else:
             selected[min_product_id] = {
                 "goods": min_price_goods,
-                "quantity": extra_count
+                "quantity": 1
             }
+        remaining -= min_price
+    
+    # 计算最终总金额
+    total_selected = sum(
+        (item["goods"].get("unitPrice") or item["goods"].get("inPrice") or 0) * item["quantity"]
+        for item in selected.values()
+    )
+    print(f"贪心算法完成: 选择金额={total_selected:.2f}, 剩余差额={remaining:.2f}")
     
     return selected
