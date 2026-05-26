@@ -2454,3 +2454,38 @@ def greedy_select_goods(target_amount: float, goods_list: list) -> dict:
     print(f"贪心算法完成: 选择金额={total_selected:.2f}, 剩余差额={remaining:.2f}")
     
     return selected
+
+
+# ========== 摸鱼游戏 API ==========
+from src.game import typing as typing_game
+from src.game import findcow as findcow_game
+
+@app.get("/api/game/typing/vocabs")
+async def api_game_typing_vocabs():
+    """获取打字练习词库列表"""
+    return {"vocabs": typing_game.get_vocab_list()}
+
+
+@app.get("/api/game/typing/word")
+async def api_game_typing_word(vocab: str = "programmer"):
+    """获取随机单词"""
+    return typing_game.get_random_word(vocab)
+
+
+@app.post("/api/game/typing/verify")
+async def api_game_typing_verify(vocab: str = Form(...), word: str = Form(...), user_input: str = Form(...)):
+    """验证用户输入"""
+    return typing_game.verify_word(vocab, word, user_input)
+
+
+@app.post("/api/game/findcow/generate")
+async def api_game_findcow_generate(size: int = Form(6)):
+    """生成找牛关卡"""
+    return findcow_game.generate_puzzle(size)
+
+
+@app.post("/api/game/findcow/verify")
+async def api_game_findcow_verify(puzzle: str = Form(...), row: int = Form(...), col: int = Form(...)):
+    """验证用户猜测"""
+    puzzle_data = json.loads(puzzle)
+    return findcow_game.verify_cow(puzzle_data, row, col)
