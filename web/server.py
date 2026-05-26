@@ -252,6 +252,10 @@ async def calculator_page(request: Request):
 async def records_page(request: Request):
     return render_template("records.html", {"request": request, "page": "records"})
 
+@app.get("/moyu", response_class=HTMLResponse)
+async def moyu_page(request: Request):
+    return render_template("moyu.html", {"request": request, "page": "moyu"})
+
 @app.get("/order-query", response_class=HTMLResponse)
 async def order_query_page(request: Request):
     return render_template("order_query.html", {"request": request, "page": "order-query"})

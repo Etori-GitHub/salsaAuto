@@ -1,0 +1,779 @@
+{% extends "base.html" %}
+
+{% block title %}摸鱼 - salsaAuto{% endblock %}
+{% block header %}摸鱼时间 🎮{% endblock %}
+
+{% block head %}
+<style>
+    .game-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px;
+    }
+    .game-select {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 16px;
+        width: 100%;
+        max-width: 800px;
+        margin-bottom: 24px;
+    }
+    .game-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 20px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .game-card:hover {
+        border-color: var(--accent);
+        transform: translateY(-2px);
+    }
+    .game-card.active {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+    }
+    .game-card .icon {
+        font-size: 48px;
+        margin-bottom: 12px;
+    }
+    .game-card .name {
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .game-card .desc {
+        font-size: 13px;
+        color: var(--muted);
+    }
+    .game-area {
+        width: 100%;
+        max-width: 800px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        padding: 24px;
+        min-height: 400px;
+    }
+    .game-area h3 {
+        margin-bottom: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .score {
+        color: var(--accent);
+        font-family: var(--mono);
+    }
+    
+    /* 贪吃蛇游戏样式 */
+    #snake-canvas {
+        background: var(--bg);
+        border-radius: var(--radius-sm);
+    }
+    
+    /* 打字游戏样式 */
+    .typing-word {
+        font-size: 32px;
+        font-weight: 600;
+        text-align: center;
+        margin: 40px 0;
+        letter-spacing: 8px;
+    }
+    .typing-input {
+        width: 100%;
+        font-size: 24px;
+        text-align: center;
+        padding: 12px;
+        background: var(--bg);
+        border: 2px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+    }
+    .typing-input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+    
+    /* 记忆游戏样式 */
+    .memory-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        max-width: 400px;
+        margin: 0 auto;
+    }
+    .memory-card {
+        aspect-ratio: 1;
+        background: var(--bg);
+        border: 2px solid var(--border);
+        border-radius: var(--radius-sm);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .memory-card:hover {
+        border-color: var(--accent);
+    }
+    .memory-card.flipped {
+        background: var(--accent-bg);
+        border-color: var(--accent);
+    }
+    .memory-card.matched {
+        background: var(--ok-subtle);
+        border-color: var(--ok);
+    }
+    
+    /* 找牛游戏样式 */
+    .cow-grid {
+        display: grid;
+        gap: 2px;
+        max-width: 400px;
+        margin: 0 auto;
+        background: var(--border);
+        padding: 2px;
+        border-radius: var(--radius-sm);
+    }
+    .cow-cell {
+        aspect-ratio: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.1s;
+    }
+    .cow-cell:hover {
+        opacity: 0.8;
+    }
+    .cow-cell.marked-x {
+        position: relative;
+    }
+    .cow-cell.marked-x::after {
+        content: '×';
+        font-size: 28px;
+        font-weight: bold;
+        color: var(--muted);
+    }
+    .cow-cell.has-cow {
+        font-size: 28px;
+    }
+    .cow-cell.wrong {
+        background: var(--danger) !important;
+    }
+    .cow-cell.wrong::after {
+        color: white;
+    }
+    .cow-stats {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+        margin-bottom: 16px;
+    }
+    .cow-stat {
+        text-align: center;
+    }
+    .cow-stat-value {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--accent);
+    }
+    .cow-stat-label {
+        font-size: 12px;
+        color: var(--muted);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="game-container">
+    <div class="game-select">
+        <div class="game-card" onclick="startGame('snake')">
+            <div class="icon">🐍</div>
+            <div class="name">贪吃蛇</div>
+            <div class="desc">经典贪吃蛇，方向键控制</div>
+        </div>
+        <div class="game-card" onclick="startGame('typing')">
+            <div class="icon">⌨️</div>
+            <div class="name">打字练习</div>
+            <div class="desc">看谁打字快</div>
+        </div>
+        <div class="game-card" onclick="startGame('memory')">
+            <div class="icon">🧠</div>
+            <div class="name">记忆翻牌</div>
+            <div class="desc">考验记忆力</div>
+        </div>
+        <div class="game-card" onclick="startGame('findcow')">
+            <div class="icon">🐄</div>
+            <div class="name">找牛</div>
+            <div class="desc">逻辑推理游戏</div>
+        </div>
+    </div>
+    
+    <div class="game-area" id="game-area">
+        <div style="text-align: center; color: var(--muted); padding: 100px 0;">
+            👈 选择一个游戏开始摸鱼吧！
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+let currentGame = null;
+let gameInterval = null;
+
+function startGame(game) {
+    // 更新选中状态
+    document.querySelectorAll('.game-card').forEach(card => card.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    
+    // 停止之前的游戏
+    if (gameInterval) {
+        clearInterval(gameInterval);
+        gameInterval = null;
+    }
+    currentGame = game;
+    
+    const area = document.getElementById('game-area');
+    
+    switch (game) {
+        case 'snake':
+            initSnake(area);
+            break;
+        case 'typing':
+            initTyping(area);
+            break;
+        case 'memory':
+            initMemory(area);
+            break;
+        case 'findcow':
+            initFindCow(area);
+            break;
+    }
+}
+
+// ========== 贪吃蛇 ==========
+let snakeCanvas, snakeCtx;
+let snake, food, direction, score, gameOver;
+
+function initSnake(area) {
+    area.innerHTML = `
+        <h3>贪吃蛇 <span class="score" id="snake-score">得分: 0</span></h3>
+        <canvas id="snake-canvas" width="400" height="400" style="display: block; margin: 0 auto;"></canvas>
+        <p style="text-align: center; margin-top: 16px; color: var(--muted);">方向键控制移动，空格键重新开始</p>
+    `;
+    
+    snakeCanvas = document.getElementById('snake-canvas');
+    snakeCtx = snakeCanvas.getContext('2d');
+    
+    document.addEventListener('keydown', handleSnakeKey);
+    resetSnake();
+}
+
+function resetSnake() {
+    snake = [{x: 10, y: 10}];
+    direction = {x: 0, y: 0};
+    food = spawnFood();
+    score = 0;
+    gameOver = false;
+    document.getElementById('snake-score').textContent = '得分: 0';
+    
+    if (gameInterval) clearInterval(gameInterval);
+    gameInterval = setInterval(gameLoop, 100);
+}
+
+function spawnFood() {
+    return {
+        x: Math.floor(Math.random() * 20),
+        y: Math.floor(Math.random() * 20)
+    };
+}
+
+function handleSnakeKey(e) {
+    if (currentGame !== 'snake') return;
+    
+    if (e.code === 'Space' && gameOver) {
+        resetSnake();
+        return;
+    }
+    
+    switch (e.key) {
+        case 'ArrowUp': if (direction.y !== 1) direction = {x: 0, y: -1}; break;
+        case 'ArrowDown': if (direction.y !== -1) direction = {x: 0, y: 1}; break;
+        case 'ArrowLeft': if (direction.x !== 1) direction = {x: -1, y: 0}; break;
+        case 'ArrowRight': if (direction.x !== -1) direction = {x: 1, y: 0}; break;
+    }
+}
+
+function gameLoop() {
+    if (gameOver || (direction.x === 0 && direction.y === 0)) {
+        drawSnake();
+        return;
+    }
+    
+    const head = {x: snake[0].x + direction.x, y: snake[0].y + direction.y};
+    
+    // 撞墙检测
+    if (head.x < 0 || head.x >= 20 || head.y < 0 || head.y >= 20) {
+        gameOver = true;
+        drawSnake();
+        return;
+    }
+    
+    // 撞自己检测
+    for (let s of snake) {
+        if (head.x === s.x && head.y === s.y) {
+            gameOver = true;
+            drawSnake();
+            return;
+        }
+    }
+    
+    snake.unshift(head);
+    
+    // 吃到食物
+    if (head.x === food.x && head.y === food.y) {
+        score += 10;
+        document.getElementById('snake-score').textContent = '得分: ' + score;
+        food = spawnFood();
+    } else {
+        snake.pop();
+    }
+    
+    drawSnake();
+}
+
+function drawSnake() {
+    snakeCtx.fillStyle = '#0e1015';
+    snakeCtx.fillRect(0, 0, 400, 400);
+    
+    // 画蛇
+    snakeCtx.fillStyle = '#22c55e';
+    for (let s of snake) {
+        snakeCtx.fillRect(s.x * 20 + 1, s.y * 20 + 1, 18, 18);
+    }
+    
+    // 画食物
+    snakeCtx.fillStyle = '#ff5c5c';
+    snakeCtx.fillRect(food.x * 20 + 1, food.y * 20 + 1, 18, 18);
+    
+    // 游戏结束提示
+    if (gameOver) {
+        snakeCtx.fillStyle = 'rgba(0,0,0,0.7)';
+        snakeCtx.fillRect(0, 0, 400, 400);
+        snakeCtx.fillStyle = '#fff';
+        snakeCtx.font = '24px sans-serif';
+        snakeCtx.textAlign = 'center';
+        snakeCtx.fillText('游戏结束!', 200, 180);
+        snakeCtx.font = '16px sans-serif';
+        snakeCtx.fillText('按空格键重新开始', 200, 220);
+    }
+}
+
+// ========== 打字游戏 ==========
+const words = ['apple', 'banana', 'cherry', 'dragon', 'elephant', 'flower', 'guitar', 'happy', 'island', 'jungle', 'kitten', 'lemon', 'mountain', 'night', 'ocean', 'piano', 'queen', 'rainbow', 'sunset', 'tiger'];
+let currentWord, typedCorrect, totalTyped, startTime;
+
+function initTyping(area) {
+    currentWord = '';
+    typedCorrect = 0;
+    totalTyped = 0;
+    startTime = null;
+    
+    area.innerHTML = `
+        <h3>打字练习 <span class="score" id="typing-stats">正确率: 0% | 速度: 0 WPM</span></h3>
+        <div class="typing-word" id="typing-word"></div>
+        <input type="text" class="typing-input" id="typing-input" placeholder="开始输入..." autocomplete="off">
+        <p style="text-align: center; margin-top: 16px; color: var(--muted);">输入显示的单词，按回车确认</p>
+    `;
+    
+    nextWord();
+    document.getElementById('typing-input').addEventListener('keydown', handleTypingKey);
+    document.getElementById('typing-input').focus();
+}
+
+function nextWord() {
+    currentWord = words[Math.floor(Math.random() * words.length)];
+    document.getElementById('typing-word').textContent = currentWord;
+    document.getElementById('typing-input').value = '';
+}
+
+function handleTypingKey(e) {
+    if (currentGame !== 'typing') return;
+    
+    if (!startTime) startTime = Date.now();
+    
+    if (e.key === 'Enter') {
+        const input = e.target.value.trim().toLowerCase();
+        totalTyped++;
+        
+        if (input === currentWord) {
+            typedCorrect++;
+        }
+        
+        const elapsed = (Date.now() - startTime) / 1000 / 60; // 分钟
+        const wpm = Math.round(typedCorrect / elapsed) || 0;
+        const accuracy = Math.round((typedCorrect / totalTyped) * 100) || 0;
+        
+        document.getElementById('typing-stats').textContent = `正确率: ${accuracy}% | 速度: ${wpm} WPM`;
+        nextWord();
+    }
+}
+
+// ========== 记忆翻牌 ==========
+const emojis = ['🎮', '🎲', '🎯', '🎪', '🎨', '🎭', '🎵', '🎸'];
+let memoryCards, flippedCards, matchedPairs, moves;
+
+function initMemory(area) {
+    const shuffled = [...emojis, ...emojis].sort(() => Math.random() - 0.5);
+    memoryCards = shuffled.map((emoji, i) => ({id: i, emoji: emoji, flipped: false, matched: false}));
+    flippedCards = [];
+    matchedPairs = 0;
+    moves = 0;
+    
+    area.innerHTML = `
+        <h3>记忆翻牌 <span class="score" id="memory-stats">步数: 0 | 配对: 0/8</span></h3>
+        <div class="memory-grid" id="memory-grid"></div>
+        <button class="btn btn-secondary" style="display: block; margin: 20px auto 0;" onclick="initMemory(document.getElementById('game-area'))">重新开始</button>
+    `;
+    
+    const grid = document.getElementById('memory-grid');
+    memoryCards.forEach((card, i) => {
+        const div = document.createElement('div');
+        div.className = 'memory-card';
+        div.dataset.id = i;
+        div.onclick = () => flipCard(i);
+        grid.appendChild(div);
+    });
+}
+
+function flipCard(index) {
+    if (currentGame !== 'memory') return;
+    
+    const card = memoryCards[index];
+    if (card.flipped || card.matched || flippedCards.length >= 2) return;
+    
+    card.flipped = true;
+    flippedCards.push(index);
+    
+    const div = document.querySelector(`[data-id="${index}"]`);
+    div.classList.add('flipped');
+    div.textContent = card.emoji;
+    
+    if (flippedCards.length === 2) {
+        moves++;
+        document.getElementById('memory-stats').textContent = `步数: ${moves} | 配对: ${matchedPairs}/8`;
+        
+        const [first, second] = flippedCards;
+        
+        if (memoryCards[first].emoji === memoryCards[second].emoji) {
+            memoryCards[first].matched = true;
+            memoryCards[second].matched = true;
+            matchedPairs++;
+            document.getElementById('memory-stats').textContent = `步数: ${moves} | 配对: ${matchedPairs}/8`;
+            
+            document.querySelector(`[data-id="${first}"]`).classList.add('matched');
+            document.querySelector(`[data-id="${second}"]`).classList.add('matched');
+            
+            flippedCards = [];
+            
+            if (matchedPairs === 8) {
+                setTimeout(() => alert(`恭喜完成！共用了 ${moves} 步`), 300);
+            }
+        } else {
+            setTimeout(() => {
+                memoryCards[first].flipped = false;
+                memoryCards[second].flipped = false;
+                document.querySelector(`[data-id="${first}"]`).classList.remove('flipped');
+                document.querySelector(`[data-id="${first}"]`).textContent = '';
+                document.querySelector(`[data-id="${second}"]`).classList.remove('flipped');
+                document.querySelector(`[data-id="${second}"]`).textContent = '';
+                flippedCards = [];
+            }, 800);
+        }
+    }
+}
+
+// ========== 找牛游戏 ==========
+const COW_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e91e63', '#00bcd4'];
+let cowGrid, cowColors, cowPositions, cowSize, cowColorCount;
+let cowMarked, cowFound, cowErrors, cowGameOver;
+
+function initFindCow(area) {
+    area.innerHTML = `
+        <h3>🐄 找牛</h3>
+        <div class="cow-stats">
+            <div class="cow-stat">
+                <div class="cow-stat-value" id="cow-found">0</div>
+                <div class="cow-stat-label">已找到</div>
+            </div>
+            <div class="cow-stat">
+                <div class="cow-stat-value" id="cow-total">0</div>
+                <div class="cow-stat-label">总牛数</div>
+            </div>
+            <div class="cow-stat">
+                <div class="cow-stat-value" id="cow-errors">0/3</div>
+                <div class="cow-stat-label">错误次数</div>
+            </div>
+        </div>
+        <div class="cow-grid" id="cow-grid"></div>
+        <div style="text-align: center; margin-top: 16px; color: var(--muted); font-size: 13px;">
+            单击：标记×（无牛）| 双击：确认有牛
+        </div>
+        <button class="btn btn-secondary" style="display: block; margin: 16px auto 0;" onclick="initFindCow(document.getElementById('game-area'))">新游戏</button>
+    `;
+    
+    generateCowPuzzle();
+    renderCowGrid();
+}
+
+function generateCowPuzzle() {
+    // 随机选择难度：6x6(4色), 7x7(5色), 8x8(6色)
+    const difficulties = [
+        {size: 6, colors: 4},
+        {size: 7, colors: 5},
+        {size: 8, colors: 6}
+    ];
+    const diff = difficulties[Math.floor(Math.random() * difficulties.length)];
+    
+    cowSize = diff.size;
+    cowColorCount = diff.colors;
+    
+    // 初始化网格
+    cowGrid = [];
+    for (let i = 0; i < cowSize; i++) {
+        cowGrid[i] = [];
+        for (let j = 0; j < cowSize; j++) {
+            cowGrid[i][j] = 0; // 0表示未分配颜色
+        }
+    }
+    
+    // 使用洪水填充算法生成连通区域
+    generateColorRegions();
+    
+    // 在每个颜色区域放置一只牛
+    placeCows();
+    
+    // 初始化状态
+    cowMarked = [];
+    for (let i = 0; i < cowSize; i++) {
+        cowMarked[i] = [];
+        for (let j = 0; j < cowSize; j++) {
+            cowMarked[i][j] = {marked: false, hasCow: false};
+        }
+    }
+    cowFound = 0;
+    cowErrors = 0;
+    cowGameOver = false;
+    
+    document.getElementById('cow-total').textContent = cowColorCount;
+    document.getElementById('cow-found').textContent = '0';
+    document.getElementById('cow-errors').textContent = '0/3';
+}
+
+function generateColorRegions() {
+    // 简单的区域生成：从随机种子点开始洪水填充
+    const cells = [];
+    for (let i = 0; i < cowSize; i++) {
+        for (let j = 0; j < cowSize; j++) {
+            cells.push([i, j]);
+        }
+    }
+    
+    // 打乱顺序
+    for (let i = cells.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cells[i], cells[j]] = [cells[j], cells[i]];
+    }
+    
+    // 为每个格子分配颜色，确保连通
+    for (const [r, c] of cells) {
+        if (cowGrid[r][c] !== 0) continue;
+        
+        // 选择一个颜色
+        let color = 1;
+        const neighbors = getNeighbors(r, c);
+        const neighborColors = neighbors.map(([nr, nc]) => cowGrid[nr][nc]).filter(c => c !== 0);
+        
+        // 如果邻居有颜色，优先选择相同的
+        if (neighborColors.length > 0 && Math.random() < 0.7) {
+            color = neighborColors[0];
+        } else {
+            // 选择一个新的或最少使用的颜色
+            const colorCounts = {};
+            for (let i = 1; i <= cowColorCount; i++) colorCounts[i] = 0;
+            for (let i = 0; i < cowSize; i++) {
+                for (let j = 0; j < cowSize; j++) {
+                    if (cowGrid[i][j] !== 0) colorCounts[cowGrid[i][j]]++;
+                }
+            }
+            // 选择最少的颜色
+            let minCount = Infinity;
+            for (let i = 1; i <= cowColorCount; i++) {
+                if (colorCounts[i] < minCount) {
+                    minCount = colorCounts[i];
+                    color = i;
+                }
+            }
+        }
+        
+        cowGrid[r][c] = color;
+    }
+}
+
+function getNeighbors(r, c) {
+    const neighbors = [];
+    if (r > 0) neighbors.push([r-1, c]);
+    if (r < cowSize-1) neighbors.push([r+1, c]);
+    if (c > 0) neighbors.push([r, c-1]);
+    if (c < cowSize-1) neighbors.push([r, c+1]);
+    return neighbors;
+}
+
+function placeCows() {
+    cowPositions = [];
+    
+    // 为每个颜色区域找一个可以放牛的位置
+    for (let color = 1; color <= cowColorCount; color++) {
+        const colorCells = [];
+        for (let i = 0; i < cowSize; i++) {
+            for (let j = 0; j < cowSize; j++) {
+                if (cowGrid[i][j] === color) {
+                    colorCells.push([i, j]);
+                }
+            }
+        }
+        
+        // 打乱顺序，随机选择
+        for (let i = colorCells.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [colorCells[i], colorCells[j]] = [colorCells[j], colorCells[i]];
+        }
+        
+        // 找一个满足条件的位置
+        for (const [r, c] of colorCells) {
+            if (isValidCowPosition(r, c)) {
+                cowPositions.push([r, c]);
+                break;
+            }
+        }
+    }
+    
+    console.log('Cow positions:', cowPositions);
+}
+
+function isValidCowPosition(r, c) {
+    // 检查是否与已放置的牛在同一行或列
+    for (const [pr, pc] of cowPositions) {
+        if (pr === r || pc === c) return false;
+        // 检查周围8格
+        if (Math.abs(pr - r) <= 1 && Math.abs(pc - c) <= 1) return false;
+    }
+    return true;
+}
+
+function renderCowGrid() {
+    const grid = document.getElementById('cow-grid');
+    grid.style.gridTemplateColumns = `repeat(${cowSize}, 1fr)`;
+    grid.innerHTML = '';
+    
+    for (let i = 0; i < cowSize; i++) {
+        for (let j = 0; j < cowSize; j++) {
+            const cell = document.createElement('div');
+            cell.className = 'cow-cell';
+            cell.style.background = COW_COLORS[cowGrid[i][j] - 1];
+            cell.dataset.row = i;
+            cell.dataset.col = j;
+            
+            // 单击标记×
+            cell.addEventListener('click', () => handleCowClick(i, j));
+            // 双击确认有牛
+            cell.addEventListener('dblclick', () => handleCowDoubleClick(i, j));
+            
+            grid.appendChild(cell);
+        }
+    }
+}
+
+function handleCowClick(r, c) {
+    if (cowGameOver) return;
+    const mark = cowMarked[r][c];
+    
+    // 已经确认有牛的不能标记
+    if (mark.hasCow) return;
+    
+    // 切换×标记
+    mark.marked = !mark.marked;
+    
+    const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+    if (mark.marked) {
+        cell.classList.add('marked-x');
+    } else {
+        cell.classList.remove('marked-x');
+    }
+}
+
+function handleCowDoubleClick(r, c) {
+    if (cowGameOver) return;
+    const mark = cowMarked[r][c];
+    
+    // 已经确认有牛的不能再点
+    if (mark.hasCow) return;
+    
+    // 检查是否真的有牛
+    const hasCow = cowPositions.some(([pr, pc]) => pr === r && pc === c);
+    
+    if (hasCow) {
+        // 正确！
+        mark.hasCow = true;
+        mark.marked = false;
+        cowFound++;
+        
+        const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+        cell.classList.remove('marked-x');
+        cell.classList.add('has-cow');
+        cell.textContent = '🐄';
+        
+        document.getElementById('cow-found').textContent = cowFound;
+        
+        // 检查是否获胜
+        if (cowFound === cowColorCount) {
+            cowGameOver = true;
+            setTimeout(() => alert('🎉 恭喜你找到了所有的牛！'), 100);
+        }
+    } else {
+        // 错误！
+        cowErrors++;
+        document.getElementById('cow-errors').textContent = `${cowErrors}/3`;
+        
+        const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+        cell.classList.add('wrong', 'marked-x');
+        
+        // 检查是否游戏结束
+        if (cowErrors >= 3) {
+            cowGameOver = true;
+            setTimeout(() => {
+                alert('游戏结束！你错了3次。');
+                // 显示所有牛的位置
+                showAllCows();
+            }, 100);
+        }
+    }
+}
+
+function showAllCows() {
+    for (const [r, c] of cowPositions) {
+        if (!cowMarked[r][c].hasCow) {
+            const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+            cell.classList.add('has-cow');
+            cell.textContent = '🐄';
+        }
+    }
+}
+{% endblock %}

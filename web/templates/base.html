@@ -27,6 +27,11 @@
         .nav-group.collapsed .nav-items {
             display: none;
         }
+        .content-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
     </style>
 </head>
 <body>
@@ -112,6 +117,9 @@
         <main class="main-content">
             <header class="content-header">
                 <h1>{% block header %}{% endblock %}</h1>
+                <a href="/moyu" class="btn btn-secondary" style="font-size: 13px; padding: 6px 12px; margin-left: auto;" title="摸鱼一下">
+                    🎮 摸鱼
+                </a>
             </header>
 
             <div class="content-body">
