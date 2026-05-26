@@ -144,13 +144,14 @@ class OrderService:
         print(f"批量创建完成: 共 {order_count} 个订单, 总数量 {total_quantity}")
         return order_count
     
-    def execute_task(self, task_data: dict, member_type: str = "") -> dict:
+    def execute_task(self, task_data: dict, member_type: str = "", remark: str = "111") -> dict:
         """
         执行刷单任务
         
         Args:
             task_data: 任务 JSON 数据
             member_type: 会员类型（可选）
+            remark: 订单备注（默认 "111")
         
         Returns:
             执行结果统计
@@ -191,7 +192,8 @@ class OrderService:
                         total_quantity=quantity,
                         pay_type=pay_type,
                         start_time=order_time,
-                        member_type=member_type
+                        member_type=member_type,
+                        remark=remark
                     )
                     total_orders += count
                     total_quantity += quantity

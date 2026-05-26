@@ -184,6 +184,11 @@
             </select>
             <p class="form-hint">仅对会员支付有效</p>
         </div>
+        <div class="form-group">
+            <label class="form-label">订单备注</label>
+            <input type="text" id="task-remark" class="form-input" value="111">
+            <p class="form-hint">将显示在订单备注中</p>
+        </div>
         <button class="btn btn-primary" id="task-execute-btn" onclick="executeTask()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
             开始执行
@@ -313,8 +318,10 @@ async function executeTask() {
     btn.innerHTML = '执行中...';
 
     const memberType = document.getElementById('task-member-type').value;
+    const remark = document.getElementById('task-remark').value;
     const formData = new FormData();
     formData.append('member_type', memberType);
+    formData.append('remark', remark);
 
     try {
         const result = await fetchAPI(`/api/tasks/${selectedTask.task_id}/execute`, {

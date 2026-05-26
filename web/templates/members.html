@@ -113,10 +113,6 @@ async function syncMembers() {
 async function changeMemberType(memberId, currentType) {
     const newType = currentType === 'yizhiman' ? 'None' : 'yizhiman';
     
-    if (!confirm(`确定将会员 ${memberId} 的类型改为 ${newType === 'yizhiman' ? '一纸满' : '通用'}？`)) {
-        return;
-    }
-    
     const formData = new FormData();
     formData.append('type', newType);
     
@@ -126,6 +122,8 @@ async function changeMemberType(memberId, currentType) {
     });
     
     if (result.success) {
+        const typeName = newType === 'yizhiman' ? '一纸满' : '通用';
+        showToast(`已修改为 ${typeName}`, 'success');
         loadMembers();
     } else {
         showToast('修改失败', 'error');

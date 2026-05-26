@@ -114,14 +114,22 @@ class SupplyAdjustService:
             print(f"查询订单失败: {e}")
             return None
     
-    def query_supply_details_by_delivery_code(self, delivery_code: str) -> List[dict]:
-        """通过订单号查询要货明细"""
+    def query_supply_details_by_delivery_code(self, delivery_code: str, store_code: str = "") -> List[dict]:
+        """通过订单号查询要货明细
+        
+        Args:
+            delivery_code: 要货单号
+            store_code: 门店代码（可选，用于过滤重复的要货单号）
+        """
+        # 转换门店代码格式（如 "11" -> "M00011"）
+        api_store_code = f"M{store_code.zfill(5)}" if store_code and not store_code.startswith("M") else store_code
+        
         params = [
             ("page", 1),
             ("pageSize", 1000),
             ("deliveryCode", delivery_code),
             ("detailCode", ""),
-            ("storeCode", ""),
+            ("storeCode", api_store_code),  # 加上门店代码过滤
             ("storeName", ""),
             ("categoryCode", ""),
             ("categoryName", ""),
@@ -132,7 +140,7 @@ class SupplyAdjustService:
             ("deliveryId", ""),
         ]
         
-        print(f"查询要货明细: delivery_code={delivery_code}")
+        print(f"查询要货明细: delivery_code={delivery_code}, store_code={api_store_code}")
         
         try:
             result = api_client.get_raw("/restful/shasha/supply/sordersDetail", params=params)
@@ -360,8 +368,8 @@ class SupplyAdjustService:
         result["delivery_code"] = delivery_code
         result["delivery_id"] = delivery_id
         
-        # 2. 用 delivery_code 查询明细
-        details = self.query_supply_details_by_delivery_code(delivery_code)
+        # 2. 用 delivery_code + store_code 查询明细
+        details = self.query_supply_details_by_delivery_code(delivery_code, store_code)
         
         print(f"查询明细结果: 明细数={len(details) if details else 0}")
         
@@ -485,8 +493,8 @@ class SupplyAdjustService:
                     break
         
         # 7. 修改新添加明细的创建时间
-        # 用 delivery_code 重新查询明细，找出新添加的
-        final_details = self.query_supply_details_by_delivery_code(delivery_code)
+        # 用 delivery_code + store_code 重新查询明细，找出新添加的
+        final_details = self.query_supply_details_by_delivery_code(delivery_code, store_code)
         
         # 找出新添加的明细（ID 不在 existing_detail_ids 中）
         new_detail_ids = []

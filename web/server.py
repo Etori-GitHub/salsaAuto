@@ -194,6 +194,19 @@ def init_chrome_versions():
     chrome_version = detect_chrome_version()
     print(f"Chrome 浏览器版本: {chrome_version or '未检测到'}")
 
+    # 如果没有检测到 ChromeDriver，自动下载默认版本
+    if not chromedriver_version:
+        print("未检测到 ChromeDriver，尝试下载默认版本 148.0.7778.168...")
+        default_version = "148.0.7778.168"
+        default_url = f"https://storage.googleapis.com/chrome-for-testing-public/{default_version}/win64/chromedriver-win64.zip"
+        
+        success, message = download_and_update_chromedriver(default_url)
+        if success:
+            chromedriver_version = detect_chromedriver_version()
+            print(f"ChromeDriver 已安装: {chromedriver_version}")
+        else:
+            print(f"ChromeDriver 自动安装失败: {message}")
+
     # 检查下载链接是否可用
     if chrome_version:
         chromedriver_download_url = check_chromedriver_download_url(chrome_version)
@@ -843,7 +856,7 @@ async def get_task(task_id: str):
 
 
 @app.post("/api/tasks/{task_id}/execute")
-async def execute_task(task_id: str, member_type: str = Form(default="")):
+async def execute_task(task_id: str, member_type: str = Form(default=""), remark: str = Form(default="111")):
     """执行刷单任务"""
     tasks_dir = Path(__file__).parent.parent / "data" / "tasks"
     file_path = tasks_dir / f"{task_id}.json"
@@ -855,7 +868,7 @@ async def execute_task(task_id: str, member_type: str = Form(default="")):
         with open(file_path, "r", encoding="utf-8") as f:
             task_data = json.load(f)
 
-        result = order_service.execute_task(task_data, member_type=member_type)
+        result = order_service.execute_task(task_data, member_type=member_type, remark=remark)
 
         # 更新今日刷单统计
         store_name = task_data.get("store_name", "")

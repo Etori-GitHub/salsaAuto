@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}刷单计算器 - salsaAuto{% endblock %}
-{% block header %}刷单计算器{% endblock %}
+{% block title %}刷单任务 - salsaAuto{% endblock %}
+{% block header %}刷单任务{% endblock %}
 
 {% block head %}
 <style>
@@ -82,14 +82,6 @@
             </select>
         </div>
         <div class="form-group">
-            <label class="form-label">开始日期</label>
-            <input type="date" id="start-date" class="form-input" value="2026-01-01">
-        </div>
-        <div class="form-group">
-            <label class="form-label">结束日期</label>
-            <input type="date" id="end-date" class="form-input" value="2026-01-31">
-        </div>
-        <div class="form-group">
             <label class="form-label">总金额</label>
             <input type="number" id="total-amount" class="form-input" step="0.01" value="10000">
         </div>
@@ -97,6 +89,21 @@
             <label class="form-label">每日浮动 (%)</label>
             <input type="number" id="float-percent" class="form-input" value="20" min="0" max="100">
             <p class="form-hint">每日金额在平均值上下浮动此百分比</p>
+        </div>
+    </div>
+
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">开始日期</label>
+            <input type="date" id="start-date" class="form-input" style="width: 160px;">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label class="form-label">结束日期</label>
+            <input type="date" id="end-date" class="form-input" style="width: 160px;">
+        </div>
+        <div class="form-group" style="margin-bottom: 0; display: flex; align-items: flex-end; gap: 8px;">
+            <button type="button" class="btn btn-sm btn-secondary" onclick="setDateYesterday()">昨天</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="setDateLast3Days()">前三天</button>
         </div>
     </div>
 
@@ -131,6 +138,9 @@ let stores = {};
 let lastResult = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // 设置默认日期为昨天
+    setDateYesterday();
+    
     const dishesData = await fetchAPI('/api/dishes');
     dishes = dishesData.dishes || {};
     renderDishList();
@@ -536,5 +546,32 @@ function exportResult() {
     a.download = `刷单方案_${document.getElementById('start-date').value}_${document.getElementById('end-date').value}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+}
+
+// 快捷日期函数
+function formatDate(date) {
+    return date.toISOString().split('T')[0];
+}
+
+function getYesterday() {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    return yesterday;
+}
+
+function setDateYesterday() {
+    const yesterday = getYesterday();
+    document.getElementById('start-date').value = formatDate(yesterday);
+    document.getElementById('end-date').value = formatDate(yesterday);
+}
+
+function setDateLast3Days() {
+    const today = new Date();
+    const start = new Date(today);
+    start.setDate(start.getDate() - 3);
+    const end = new Date(today);
+    end.setDate(end.getDate() - 1);
+    document.getElementById('start-date').value = formatDate(start);
+    document.getElementById('end-date').value = formatDate(end);
 }
 {% endblock %}
