@@ -2489,3 +2489,11 @@ async def api_game_findcow_verify(puzzle: str = Form(...), row: int = Form(...),
     """验证用户猜测"""
     puzzle_data = json.loads(puzzle)
     return findcow_game.verify_cow(puzzle_data, row, col)
+
+
+# ========== RPG 游戏页面 ==========
+
+@app.get("/rpg", response_class=HTMLResponse)
+async def rpg_game():
+    """RPG 游戏页面"""
+    return render_template("game.html", {})

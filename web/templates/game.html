@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPG Demo - GameMark</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      background: #1a1a2e;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+    }
+    
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    
+    .game-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #4A90D9;
+    }
+    
+    #game-canvas {
+      border: 2px solid #4A90D9;
+      border-radius: 4px;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 24px;
+      font-size: 14px;
+      color: #888;
+    }
+    
+    .controls span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    
+    .key {
+      background: #333;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-container">
+    <h1 class="game-title">🎮 RPG Demo</h1>
+    <canvas id="game-canvas"></canvas>
+    <div class="controls">
+      <span><span class="key">↑↓←→</span> 移动</span>
+      <span><span class="key">Space</span> 确认/交互</span>
+      <span><span class="key">Esc</span> 取消/菜单</span>
+    </div>
+  </div>
+  
+  <script type="module" src="/static/game/rpg-demo.bundle.js"></script>
+</body>
+</html>
