@@ -94,6 +94,15 @@ class MemberService:
             return True
         return False
     
+    def add_member(self, member_id: int, phone: str = "", username: str = "",
+                    balance: float = 0, member_type: str = "None") -> bool:
+        """添加新会员"""
+        if db.add_member(member_id, phone, username, balance, member_type):
+            print(f"添加会员成功: {member_id} - {username}")
+            return True
+        print(f"添加会员失败: ID {member_id} 已存在")
+        return False
+    
     def set_member_type(self, member_id: int, member_type: str) -> bool:
         """设置会员类型"""
         if db.update_member_type(member_id, member_type):

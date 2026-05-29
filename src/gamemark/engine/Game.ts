@@ -8,7 +8,6 @@ import {
   GameEvent, 
   GameEventType, 
   EventCallback,
-  Character,
   GlobalState,
 } from '../types';
 import { InputManager } from './Input';
@@ -473,18 +472,18 @@ export class Game {
   
   // ========== 场景更新 ==========
   
-  private updateDialogueScene(dt: number): void {
+  private updateDialogueScene(_dt: number): void {
     // 对话场景更新
     if (this.input.isJustPressed('A') || this.input.isJustPressed('B')) {
       this.state.scene = 'map';
     }
   }
   
-  private updateBattleScene(dt: number): void {
+  private updateBattleScene(_dt: number): void {
     // 战斗场景更新
   }
   
-  private updateMenuScene(dt: number): void {
+  private updateMenuScene(_dt: number): void {
     // 菜单场景更新
     if (this.input.isJustPressed('B') || this.input.isJustPressed('START')) {
       this.state.scene = 'map';

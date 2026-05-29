@@ -2,7 +2,7 @@
  * 地图系统 - 瓦片地图渲染和管理
  */
 
-import { GameMap, MapLayer, MapEvent, Exit, TileSet, TileInfo } from '../types';
+import { GameMap, MapLayer, MapEvent, Exit, TileSet } from '../types';
 import { Camera } from './Camera';
 
 export class MapRenderer {
@@ -27,7 +27,6 @@ export class MapRenderer {
   
   // 渲染层缓存
   private layerCanvases: Map<string, HTMLCanvasElement> = new Map();
-  private needsRedraw: boolean = true;
   
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -43,7 +42,7 @@ export class MapRenderer {
     const loadImagePromises: Promise<void>[] = [];
     
     // 检查是否有 tileset 需要加载
-    for (const layer of map.layers) {
+    for (const _layer of map.layers) {
       // 这里简化处理，假设所有瓦片都来自同一个 tileset
       // 实际实现可以根据瓦片 ID 区分不同的 tileset
     }
@@ -67,7 +66,6 @@ export class MapRenderer {
     
     // 清除层缓存
     this.layerCanvases.clear();
-    this.needsRedraw = true;
     
     console.log(`[Map] Loaded: ${map.name} (${map.width}x${map.height})`);
   }
@@ -309,7 +307,7 @@ export class MapRenderer {
     
     // 渲染事件标记
     this.ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
-    for (const [key, event] of this.eventGrid) {
+    for (const [key, _event] of this.eventGrid) {
       const [x, y] = key.split(',').map(Number);
       if (camera.isTileVisible(x, y, tileSize)) {
         const screenPos = camera.worldToScreen(x * tileSize, y * tileSize);
@@ -324,7 +322,7 @@ export class MapRenderer {
     
     // 渲染传送点标记
     this.ctx.fillStyle = 'rgba(0, 0, 255, 0.5)';
-    for (const [key, exit] of this.exitGrid) {
+    for (const [key, _exit] of this.exitGrid) {
       const [x, y] = key.split(',').map(Number);
       if (camera.isTileVisible(x, y, tileSize)) {
         const screenPos = camera.worldToScreen(x * tileSize, y * tileSize);

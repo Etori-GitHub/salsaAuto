@@ -1,0 +1,1125 @@
+{% extends "base.html" %}
+
+{% block title %}游戏编辑器 - salsaAuto{% endblock %}
+{% block header %}游戏编辑器 🛠️{% endblock %}
+
+{% block head %}
+<style>
+    .editor-container {
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 120px);
+        padding: 16px;
+    }
+    
+    /* 分页标签 */
+    .editor-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 16px;
+        border-bottom: 2px solid var(--border);
+        padding-bottom: 8px;
+    }
+    
+    .editor-tab {
+        padding: 8px 24px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .editor-tab:hover {
+        background: var(--accent-bg);
+    }
+    
+    .editor-tab.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+    }
+    
+    /* 编辑器面板 */
+    .editor-panel {
+        display: none;
+        flex: 1;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+    }
+    
+    .editor-panel.active {
+        display: flex;
+    }
+    
+    /* ========== 地图编辑器 ========== */
+    .map-editor {
+        display: grid;
+        grid-template-columns: 250px 1fr 280px;
+        gap: 0;
+        height: 100%;
+    }
+    
+    .map-sidebar {
+        background: var(--bg);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .map-sidebar-header {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+    }
+    
+    .map-tools, .tile-list {
+        padding: 8px;
+        overflow-y: auto;
+    }
+    
+    .tool-group {
+        margin-bottom: 12px;
+    }
+    
+    .tool-group-title {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 4px;
+    }
+    
+    .tool-buttons {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
+    }
+    
+    .tool-btn {
+        padding: 6px 12px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        font-size: 13px;
+    }
+    
+    .tool-btn:hover {
+        border-color: var(--accent);
+    }
+    
+    .tool-btn.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+    }
+    
+    .tile-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 4px;
+    }
+    
+    .tile-item {
+        aspect-ratio: 1;
+        background: var(--bg-secondary);
+        border: 2px solid var(--border);
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+    }
+    
+    .tile-item:hover {
+        border-color: var(--accent);
+    }
+    
+    .tile-item.selected {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px var(--accent-bg);
+    }
+    
+    .tile-item.collision {
+        background: rgba(255, 0, 0, 0.1);
+    }
+    
+    /* 地图画布 */
+    .map-canvas-area {
+        display: flex;
+        flex-direction: column;
+        background: #1a1a2e;
+    }
+    
+    .map-toolbar {
+        padding: 8px 12px;
+        background: var(--bg);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+    
+    .map-info {
+        margin-left: auto;
+        font-size: 12px;
+        color: var(--muted);
+    }
+    
+    .map-canvas-wrapper {
+        flex: 1;
+        overflow: auto;
+        padding: 16px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+    }
+    
+    #map-canvas {
+        background: #2d3748;
+        border: 2px solid var(--border);
+        image-rendering: pixelated;
+        cursor: crosshair;
+    }
+    
+    /* 属性面板 */
+    .map-properties {
+        background: var(--bg);
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .properties-header {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+    }
+    
+    .properties-content {
+        padding: 12px;
+        overflow-y: auto;
+        flex: 1;
+    }
+    
+    .property-group {
+        margin-bottom: 16px;
+    }
+    
+    .property-group-title {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+    
+    .property-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .property-label {
+        width: 80px;
+        font-size: 13px;
+    }
+    
+    .property-input {
+        flex: 1;
+        padding: 4px 8px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        font-size: 13px;
+    }
+    
+    .property-input:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+    
+    .event-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+    }
+    
+    .event-item {
+        padding: 8px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+        font-size: 13px;
+    }
+    
+    .event-item:hover {
+        background: var(--accent-bg);
+    }
+    
+    .event-item.selected {
+        background: var(--accent);
+        color: white;
+    }
+    
+    /* ========== 剧情编辑器 ========== */
+    .dialogue-editor {
+        display: grid;
+        grid-template-columns: 280px 1fr 320px;
+        gap: 0;
+        height: 100%;
+    }
+    
+    .dialogue-sidebar {
+        background: var(--bg);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .dialogue-list-header {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .dialogue-list-header h4 {
+        margin: 0;
+    }
+    
+    .dialogue-list {
+        flex: 1;
+        overflow-y: auto;
+    }
+    
+    .dialogue-item {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border);
+        cursor: pointer;
+    }
+    
+    .dialogue-item:hover {
+        background: var(--accent-bg);
+    }
+    
+    .dialogue-item.selected {
+        background: var(--accent);
+        color: white;
+    }
+    
+    .dialogue-item-name {
+        font-weight: 500;
+        margin-bottom: 2px;
+    }
+    
+    .dialogue-item-id {
+        font-size: 11px;
+        color: var(--muted);
+    }
+    
+    /* 节点画布 */
+    .node-canvas-area {
+        background: #1a1a2e;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .node-toolbar {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        z-index: 10;
+        display: flex;
+        gap: 4px;
+    }
+    
+    #node-canvas {
+        width: 100%;
+        height: 100%;
+    }
+    
+    /* 节点 */
+    .dialogue-node {
+        position: absolute;
+        background: var(--bg);
+        border: 2px solid var(--border);
+        border-radius: var(--radius-md);
+        min-width: 180px;
+        cursor: move;
+        user-select: none;
+    }
+    
+    .dialogue-node.selected {
+        border-color: var(--accent);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .node-header {
+        padding: 8px 12px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+        font-size: 13px;
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md) var(--radius-md) 0 0;
+    }
+    
+    .node-content {
+        padding: 8px 12px;
+        font-size: 12px;
+        color: var(--muted);
+        max-height: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .node-ports {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 8px;
+    }
+    
+    .node-port {
+        width: 12px;
+        height: 12px;
+        background: var(--accent);
+        border-radius: 50%;
+        cursor: pointer;
+    }
+    
+    .node-port:hover {
+        transform: scale(1.3);
+    }
+    
+    /* 属性编辑面板 */
+    .node-properties {
+        background: var(--bg);
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .node-prop-header {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        font-weight: 600;
+    }
+    
+    .node-prop-content {
+        padding: 12px;
+        overflow-y: auto;
+        flex: 1;
+    }
+    
+    .prop-textarea {
+        width: 100%;
+        min-height: 100px;
+        padding: 8px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        font-size: 13px;
+        resize: vertical;
+    }
+    
+    .prop-textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+    }
+    
+    .choice-list {
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        overflow: hidden;
+    }
+    
+    .choice-item {
+        padding: 8px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .choice-item:last-child {
+        border-bottom: none;
+    }
+    
+    .choice-input {
+        flex: 1;
+        padding: 4px 8px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        font-size: 13px;
+    }
+    
+    .portrait-select {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .portrait-option {
+        aspect-ratio: 3/4;
+        background: var(--bg-secondary);
+        border: 2px solid var(--border);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+    }
+    
+    .portrait-option:hover {
+        border-color: var(--accent);
+    }
+    
+    .portrait-option.selected {
+        border-color: var(--accent);
+        background: var(--accent-bg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="editor-container">
+    <div class="editor-tabs">
+        <div class="editor-tab active" onclick="switchEditor('map')">🗺️ 地图编辑器</div>
+        <div class="editor-tab" onclick="switchEditor('dialogue')">💬 剧情编辑器</div>
+    </div>
+    
+    <!-- 地图编辑器 -->
+    <div class="editor-panel active" id="map-panel">
+        <div class="map-editor">
+            <!-- 左侧工具栏 -->
+            <div class="map-sidebar">
+                <div class="map-sidebar-header">🛠️ 工具</div>
+                <div class="map-tools">
+                    <div class="tool-group">
+                        <div class="tool-group-title">绘制工具</div>
+                        <div class="tool-buttons">
+                            <button class="tool-btn active" onclick="setTool('brush')">画笔</button>
+                            <button class="tool-btn" onclick="setTool('eraser')">橡皮</button>
+                            <button class="tool-btn" onclick="setTool('fill')">填充</button>
+                        </div>
+                    </div>
+                    <div class="tool-group">
+                        <div class="tool-group-title">编辑</div>
+                        <div class="tool-buttons">
+                            <button class="tool-btn" onclick="setTool('collision')">碰撞</button>
+                            <button class="tool-btn" onclick="setTool('event')">事件</button>
+                            <button class="tool-btn" onclick="setTool('exit')">传送点</button>
+                        </div>
+                    </div>
+                    <div class="tool-group">
+                        <div class="tool-group-title">地图</div>
+                        <div class="tool-buttons">
+                            <button class="tool-btn" onclick="newMap()">新建</button>
+                            <button class="tool-btn" onclick="saveMap()">保存</button>
+                            <button class="tool-btn" onclick="loadMap()">加载</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="map-sidebar-header">🧱 瓦片</div>
+                <div class="tile-list">
+                    <div class="tile-grid" id="tile-grid"></div>
+                </div>
+            </div>
+            
+            <!-- 中间画布 -->
+            <div class="map-canvas-area">
+                <div class="map-toolbar">
+                    <button class="btn btn-sm btn-secondary" onclick="zoomIn()">放大</button>
+                    <button class="btn btn-sm btn-secondary" onclick="zoomOut()">缩小</button>
+                    <button class="btn btn-sm btn-secondary" onclick="resetView()">重置</button>
+                    <span class="map-info" id="map-info">未创建地图</span>
+                </div>
+                <div class="map-canvas-wrapper">
+                    <canvas id="map-canvas" width="320" height="240"></canvas>
+                </div>
+            </div>
+            
+            <!-- 右侧属性 -->
+            <div class="map-properties">
+                <div class="properties-header">📋 属性</div>
+                <div class="properties-content">
+                    <div class="property-group">
+                        <div class="property-group-title">地图设置</div>
+                        <div class="property-row">
+                            <span class="property-label">名称</span>
+                            <input type="text" class="property-input" id="map-name" placeholder="地图名称">
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">宽度</span>
+                            <input type="number" class="property-input" id="map-width" value="20" min="5" max="100">
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">高度</span>
+                            <input type="number" class="property-input" id="map-height" value="15" min="5" max="100">
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">类型</span>
+                            <select class="property-input" id="map-type">
+                                <option value="world">大地图</option>
+                                <option value="area" selected>子地图</option>
+                                <option value="room">房间</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="property-group">
+                        <div class="property-group-title">选中事件</div>
+                        <div class="event-list" id="event-list">
+                            <div style="padding: 16px; text-align: center; color: var(--muted); font-size: 12px;">
+                                点击事件工具后<br>在地图上放置
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="property-group">
+                        <div class="property-group-title">导出/导入</div>
+                        <div class="tool-buttons">
+                            <button class="tool-btn" onclick="exportMapJSON()">导出JSON</button>
+                            <button class="tool-btn" onclick="importMapJSON()">导入JSON</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 剧情编辑器 -->
+    <div class="editor-panel" id="dialogue-panel">
+        <div class="dialogue-editor">
+            <!-- 左侧对话列表 -->
+            <div class="dialogue-sidebar">
+                <div class="dialogue-list-header">
+                    <h4>📝 对话列表</h4>
+                    <button class="btn btn-sm btn-secondary" onclick="newDialogue()">+ 新建</button>
+                </div>
+                <div class="dialogue-list" id="dialogue-list"></div>
+            </div>
+            
+            <!-- 中间节点画布 -->
+            <div class="node-canvas-area">
+                <div class="node-toolbar">
+                    <button class="btn btn-sm btn-secondary" onclick="addNode()">+ 添加节点</button>
+                    <button class="btn btn-sm btn-secondary" onclick="deleteSelectedNode()">删除节点</button>
+                    <button class="btn btn-sm btn-secondary" onclick="saveDialogue()">保存</button>
+                </div>
+                <div id="node-canvas"></div>
+            </div>
+            
+            <!-- 右侧节点属性 -->
+            <div class="node-properties">
+                <div class="node-prop-header">📝 节点属性</div>
+                <div class="node-prop-content">
+                    <div class="property-group">
+                        <div class="property-group-title">说话人</div>
+                        <input type="text" class="property-input" id="node-speaker" placeholder="角色名称（留空为旁白）">
+                    </div>
+                    
+                    <div class="property-group">
+                        <div class="property-group-title">对话内容</div>
+                        <textarea class="prop-textarea" id="node-text" placeholder="输入对话内容..."></textarea>
+                    </div>
+                    
+                    <div class="property-group">
+                        <div class="property-group-title">立绘</div>
+                        <div class="portrait-select" id="portrait-select">
+                            <div class="portrait-option selected" data-pos="left">左</div>
+                            <div class="portrait-option" data-pos="center">中</div>
+                            <div class="portrait-option" data-pos="right">右</div>
+                        </div>
+                    </div>
+                    
+                    <div class="property-group">
+                        <div class="property-group-title">分支选项</div>
+                        <div class="choice-list" id="choice-list">
+                            <div class="choice-item">
+                                <input type="text" class="choice-input" placeholder="选项文本">
+                                <button class="btn btn-sm btn-secondary">→</button>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-secondary" style="margin-top: 8px; width: 100%;" onclick="addChoice()">+ 添加选项</button>
+                    </div>
+                    
+                    <div class="property-group">
+                        <div class="property-group-title">动作</div>
+                        <select class="property-input" id="node-action">
+                            <option value="">无</option>
+                            <option value="give_item">给予物品</option>
+                            <option value="set_flag">设置标志</option>
+                            <option value="teleport">传送</option>
+                            <option value="battle">触发战斗</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+// ========== 编辑器切换 ==========
+function switchEditor(type) {
+    document.querySelectorAll('.editor-tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.editor-panel').forEach(panel => panel.classList.remove('active'));
+    
+    event.currentTarget.classList.add('active');
+    document.getElementById(type + '-panel').classList.add('active');
+}
+
+// ========== 地图编辑器 ==========
+let mapData = null;
+let currentTool = 'brush';
+let selectedTile = 1;
+let tileSize = 16;
+let zoom = 2;
+let mapCanvas, mapCtx;
+
+// 初始化瓦片列表
+function initTiles() {
+    const tileGrid = document.getElementById('tile-grid');
+    const tiles = [
+        { id: 1, name: '地面', color: '#4a5568' },
+        { id: 2, name: '墙', color: '#718096', collision: true },
+        { id: 3, name: '障碍', color: '#48bb78', collision: true },
+        { id: 4, name: '水', color: '#4299e1', collision: true },
+        { id: 5, name: '草地', color: '#68d391' },
+        { id: 6, name: '沙地', color: '#f6e05e' },
+        { id: 7, name: '地板', color: '#a0aec0' },
+        { id: 8, name: '地毯', color: '#9f7aea' },
+    ];
+    
+    tiles.forEach(tile => {
+        const div = document.createElement('div');
+        div.className = 'tile-item' + (tile.collision ? ' collision' : '');
+        div.style.background = tile.color;
+        div.title = tile.name;
+        div.dataset.id = tile.id;
+        div.onclick = () => selectTile(tile.id, div);
+        tileGrid.appendChild(div);
+    });
+}
+
+function selectTile(id, elem) {
+    document.querySelectorAll('.tile-item').forEach(t => t.classList.remove('selected'));
+    elem.classList.add('selected');
+    selectedTile = id;
+}
+
+function setTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.map-tools .tool-btn').forEach(btn => btn.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+}
+
+function newMap() {
+    const width = parseInt(document.getElementById('map-width').value);
+    const height = parseInt(document.getElementById('map-height').value);
+    const name = document.getElementById('map-name').value || '新地图';
+    
+    mapData = {
+        id: 'map_' + Date.now(),
+        name: name,
+        type: document.getElementById('map-type').value,
+        width: width,
+        height: height,
+        tileSize: 16,
+        layers: [{
+            name: 'ground',
+            tiles: Array(height).fill(null).map(() => Array(width).fill(1)),
+            zIndex: 0
+        }],
+        collisions: Array(height).fill(null).map(() => Array(width).fill(false)),
+        events: [],
+        exits: []
+    };
+    
+    resizeCanvas();
+    renderMap();
+    document.getElementById('map-info').textContent = `${name} (${width}x${height})`;
+}
+
+function resizeCanvas() {
+    if (!mapData) return;
+    mapCanvas.width = mapData.width * tileSize * zoom;
+    mapCanvas.height = mapData.height * tileSize * zoom;
+}
+
+function renderMap() {
+    if (!mapData || !mapCtx) return;
+    
+    mapCtx.fillStyle = '#1a1a2e';
+    mapCtx.fillRect(0, 0, mapCanvas.width, mapCanvas.height);
+    
+    const colors = ['', '#4a5568', '#718096', '#48bb78', '#4299e1', '#68d391', '#f6e05e', '#a0aec0', '#9f7aea'];
+    
+    for (let y = 0; y < mapData.height; y++) {
+        for (let x = 0; x < mapData.width; x++) {
+            const tileId = mapData.layers[0].tiles[y][x];
+            const px = x * tileSize * zoom;
+            const py = y * tileSize * zoom;
+            
+            // 绘制瓦片
+            mapCtx.fillStyle = colors[tileId] || '#4a5568';
+            mapCtx.fillRect(px, py, tileSize * zoom, tileSize * zoom);
+            
+            // 绘制网格
+            mapCtx.strokeStyle = 'rgba(255,255,255,0.1)';
+            mapCtx.strokeRect(px, py, tileSize * zoom, tileSize * zoom);
+            
+            // 绘制碰撞
+            if (mapData.collisions[y][x]) {
+                mapCtx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                mapCtx.fillRect(px, py, tileSize * zoom, tileSize * zoom);
+            }
+        }
+    }
+    
+    // 绘制事件
+    mapData.events.forEach(event => {
+        const px = event.x * tileSize * zoom;
+        const py = event.y * tileSize * zoom;
+        mapCtx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+        mapCtx.fillRect(px + 2, py + 2, tileSize * zoom - 4, tileSize * zoom - 4);
+    });
+    
+    // 绘制传送点
+    mapData.exits.forEach(exit => {
+        const px = exit.x * tileSize * zoom;
+        const py = exit.y * tileSize * zoom;
+        mapCtx.fillStyle = 'rgba(0, 100, 255, 0.5)';
+        mapCtx.beginPath();
+        mapCtx.arc(px + tileSize * zoom / 2, py + tileSize * zoom / 2, tileSize * zoom / 3, 0, Math.PI * 2);
+        mapCtx.fill();
+    });
+}
+
+function handleCanvasClick(e) {
+    if (!mapData) return;
+    
+    const rect = mapCanvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / (tileSize * zoom));
+    const y = Math.floor((e.clientY - rect.top) / (tileSize * zoom));
+    
+    if (x < 0 || x >= mapData.width || y < 0 || y >= mapData.height) return;
+    
+    switch (currentTool) {
+        case 'brush':
+            mapData.layers[0].tiles[y][x] = selectedTile;
+            break;
+        case 'eraser':
+            mapData.layers[0].tiles[y][x] = 1;
+            break;
+        case 'fill':
+            floodFill(x, y, mapData.layers[0].tiles[y][x], selectedTile);
+            break;
+        case 'collision':
+            mapData.collisions[y][x] = !mapData.collisions[y][x];
+            break;
+        case 'event':
+            addEvent(x, y);
+            break;
+        case 'exit':
+            addExit(x, y);
+            break;
+    }
+    
+    renderMap();
+}
+
+function floodFill(x, y, targetTile, newTile) {
+    if (targetTile === newTile) return;
+    if (mapData.layers[0].tiles[y][x] !== targetTile) return;
+    
+    mapData.layers[0].tiles[y][x] = newTile;
+    
+    if (x > 0) floodFill(x - 1, y, targetTile, newTile);
+    if (x < mapData.width - 1) floodFill(x + 1, y, targetTile, newTile);
+    if (y > 0) floodFill(x, y - 1, targetTile, newTile);
+    if (y < mapData.height - 1) floodFill(x, y + 1, targetTile, newTile);
+}
+
+function addEvent(x, y) {
+    const existing = mapData.events.findIndex(e => e.x === x && e.y === y);
+    if (existing >= 0) {
+        mapData.events.splice(existing, 1);
+    } else {
+        mapData.events.push({
+            id: 'event_' + Date.now(),
+            x: x,
+            y: y,
+            trigger: 'interact',
+            conditions: [],
+            actions: []
+        });
+    }
+}
+
+function addExit(x, y) {
+    const existing = mapData.exits.findIndex(e => e.x === x && e.y === y);
+    if (existing >= 0) {
+        mapData.exits.splice(existing, 1);
+    } else {
+        const target = prompt('输入目标地图ID和坐标 (格式: map_id,x,y)', 'map_test,10,10');
+        if (target) {
+            const [mapId, tx, ty] = target.split(',');
+            mapData.exits.push({
+                x: x,
+                y: y,
+                targetMap: mapId,
+                targetX: parseInt(tx),
+                targetY: parseInt(ty)
+            });
+        }
+    }
+}
+
+function zoomIn() {
+    zoom = Math.min(4, zoom + 0.5);
+    resizeCanvas();
+    renderMap();
+}
+
+function zoomOut() {
+    zoom = Math.max(1, zoom - 0.5);
+    resizeCanvas();
+    renderMap();
+}
+
+function resetView() {
+    zoom = 2;
+    resizeCanvas();
+    renderMap();
+}
+
+function saveMap() {
+    if (!mapData) return alert('请先创建地图');
+    localStorage.setItem('gamemark_map_' + mapData.id, JSON.stringify(mapData));
+    alert('地图已保存到本地存储');
+}
+
+function loadMap() {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith('gamemark_map_'));
+    if (keys.length === 0) return alert('没有保存的地图');
+    
+    const list = keys.map(k => {
+        const data = JSON.parse(localStorage.getItem(k));
+        return `${data.name} (${data.id})`;
+    }).join('\n');
+    
+    const choice = prompt('选择地图:\n' + list + '\n\n输入地图ID:');
+    if (choice) {
+        const data = localStorage.getItem('gamemark_map_' + choice);
+        if (data) {
+            mapData = JSON.parse(data);
+            resizeCanvas();
+            renderMap();
+            document.getElementById('map-info').textContent = `${mapData.name} (${mapData.width}x${mapData.height})`;
+        }
+    }
+}
+
+function exportMapJSON() {
+    if (!mapData) return alert('请先创建地图');
+    const json = JSON.stringify(mapData, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = mapData.id + '.json';
+    a.click();
+}
+
+function importMapJSON() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+        reader.onload = ev => {
+            mapData = JSON.parse(ev.target.result);
+            resizeCanvas();
+            renderMap();
+            document.getElementById('map-info').textContent = `${mapData.name} (${mapData.width}x${mapData.height})`;
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
+
+// ========== 剧情编辑器 ==========
+let dialogues = [];
+let currentDialogue = null;
+let selectedNode = null;
+let nodeCanvas;
+let nodes = [];
+let connections = [];
+let dragging = null;
+
+function newDialogue() {
+    const id = 'dialogue_' + Date.now();
+    const dialogue = {
+        id: id,
+        name: '新对话',
+        nodes: []
+    };
+    dialogues.push(dialogue);
+    currentDialogue = dialogue;
+    renderDialogueList();
+    addNode();
+}
+
+function renderDialogueList() {
+    const list = document.getElementById('dialogue-list');
+    list.innerHTML = dialogues.map(d => `
+        <div class="dialogue-item ${currentDialogue && currentDialogue.id === d.id ? 'selected' : ''}" onclick="selectDialogue('${d.id}')">
+            <div class="dialogue-item-name">${d.name}</div>
+            <div class="dialogue-item-id">${d.id}</div>
+        </div>
+    `).join('');
+}
+
+function selectDialogue(id) {
+    currentDialogue = dialogues.find(d => d.id === id);
+    renderDialogueList();
+    // TODO: 加载节点
+}
+
+function addNode() {
+    if (!currentDialogue) return alert('请先创建对话');
+    
+    const node = {
+        id: 'node_' + Date.now(),
+        x: 100 + Math.random() * 200,
+        y: 100 + Math.random() * 200,
+        speaker: '',
+        text: '',
+        choices: []
+    };
+    
+    nodes.push(node);
+    renderNodes();
+}
+
+function renderNodes() {
+    const canvas = document.getElementById('node-canvas');
+    canvas.innerHTML = nodes.map(node => `
+        <div class="dialogue-node ${selectedNode && selectedNode.id === node.id ? 'selected' : ''}" 
+             style="left: ${node.x}px; top: ${node.y}px;"
+             onclick="selectNode('${node.id}')"
+             onmousedown="startDrag(event, '${node.id}')">
+            <div class="node-header">${node.speaker || '旁白'}</div>
+            <div class="node-content">${node.text || '（空）'}</div>
+            <div class="node-ports">
+                <div class="node-port" title="输入"></div>
+                <div class="node-port" title="输出"></div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function selectNode(id) {
+    selectedNode = nodes.find(n => n.id === id);
+    renderNodes();
+    updateNodeProperties();
+}
+
+function updateNodeProperties() {
+    if (!selectedNode) return;
+    document.getElementById('node-speaker').value = selectedNode.speaker || '';
+    document.getElementById('node-text').value = selectedNode.text || '';
+}
+
+function deleteSelectedNode() {
+    if (!selectedNode) return;
+    nodes = nodes.filter(n => n.id !== selectedNode.id);
+    selectedNode = null;
+    renderNodes();
+}
+
+function startDrag(e, nodeId) {
+    dragging = nodeId;
+    const node = nodes.find(n => n.id === nodeId);
+    const rect = e.target.closest('.dialogue-node').getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+    
+    document.onmousemove = ev => {
+        const canvas = document.getElementById('node-canvas').getBoundingClientRect();
+        node.x = ev.clientX - canvas.left - offsetX;
+        node.y = ev.clientY - canvas.top - offsetY;
+        renderNodes();
+    };
+    
+    document.onmouseup = () => {
+        dragging = null;
+        document.onmousemove = null;
+        document.onmouseup = null;
+    };
+}
+
+function saveDialogue() {
+    if (!currentDialogue) return;
+    currentDialogue.nodes = nodes;
+    localStorage.setItem('gamemark_dialogue_' + currentDialogue.id, JSON.stringify(currentDialogue));
+    alert('对话已保存');
+}
+
+function addChoice() {
+    const list = document.getElementById('choice-list');
+    const div = document.createElement('div');
+    div.className = 'choice-item';
+    div.innerHTML = `
+        <input type="text" class="choice-input" placeholder="选项文本">
+        <button class="btn btn-sm btn-secondary">→</button>
+    `;
+    list.appendChild(div);
+}
+
+// ========== 初始化 ==========
+document.addEventListener('DOMContentLoaded', () => {
+    // 地图编辑器
+    mapCanvas = document.getElementById('map-canvas');
+    mapCtx = mapCanvas.getContext('2d');
+    initTiles();
+    mapCanvas.addEventListener('click', handleCanvasClick);
+    mapCanvas.addEventListener('mousemove', e => {
+        if (e.buttons === 1) handleCanvasClick(e);
+    });
+    
+    // 节点属性变化监听
+    document.getElementById('node-speaker').addEventListener('input', e => {
+        if (selectedNode) {
+            selectedNode.speaker = e.target.value;
+            renderNodes();
+        }
+    });
+    
+    document.getElementById('node-text').addEventListener('input', e => {
+        if (selectedNode) {
+            selectedNode.text = e.target.value;
+            renderNodes();
+        }
+    });
+    
+    // 加载保存的对话
+    Object.keys(localStorage).filter(k => k.startsWith('gamemark_dialogue_')).forEach(k => {
+        dialogues.push(JSON.parse(localStorage.getItem(k)));
+    });
+    renderDialogueList();
+});
+{% endblock %}

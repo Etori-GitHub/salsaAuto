@@ -495,6 +495,25 @@ class Database:
         conn.close()
         return affected > 0
     
+    def add_member(self, member_id: int, phone: str = "", username: str = "",
+                    balance: float = 0, member_type: str = "None") -> bool:
+        """添加新会员"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        try:
+            cursor.execute("""
+                INSERT INTO members (id, phone, username, balance, member_type, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (member_id, phone, username, balance, member_type, now))
+            conn.commit()
+            conn.close()
+            return True
+        except sqlite3.IntegrityError:
+            conn.close()
+            return False  # ID 已存在
+    
     def update_member_type(self, member_id: int, member_type: str) -> bool:
         """更新会员类型"""
         conn = sqlite3.connect(self.db_path)

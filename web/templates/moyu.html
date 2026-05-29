@@ -39,6 +39,14 @@
     .game-card .icon { font-size: 48px; margin-bottom: 12px; }
     .game-card .name { font-weight: 600; margin-bottom: 4px; }
     .game-card .desc { font-size: 13px; color: var(--muted); }
+    .game-card.external-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+    .game-card.external-link:hover {
+        text-decoration: none;
+    }
     .game-area {
         width: 100%;
         max-width: 800px;
@@ -109,6 +117,19 @@
         </div>
         <div class="game-card" onclick="startGame('findcow')">
             <div class="icon">🐄</div>
+            <div class="name">找牛</div>
+            <div class="desc">逻辑推理游戏</div>
+        </div>
+        <a href="/rpg" class="game-card external-link">
+            <div class="icon">⚔️</div>
+            <div class="name">RPG Demo</div>
+            <div class="desc">像素风冒险</div>
+        </a>
+        <a href="/editor" class="game-card external-link">
+            <div class="icon">🛠️</div>
+            <div class="name">游戏编辑器</div>
+            <div class="desc">地图+剧情</div>
+        </a>
             <div class="name">找牛</div>
             <div class="desc">逻辑推理游戏</div>
         </div>

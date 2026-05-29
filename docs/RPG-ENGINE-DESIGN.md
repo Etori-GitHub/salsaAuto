@@ -747,7 +747,7 @@ interface GlobalState {
 
 ## 开发进度记录
 
-### 2026-05-26 - Phase 1 引擎核心完成 ✅
+**2026-05-26 - Phase 1 引擎核心完成 + 编辑器完成 ✅**
 
 **已完成模块**:
 | 模块 | 文件 | 功能 |
@@ -758,6 +758,12 @@ interface GlobalState {
 | 精灵系统 | `engine/Sprite.ts` | 动画播放、方向动画、像素生成器 |
 | 地图渲染 | `engine/Map.ts` | 瓦片地图、碰撞检测、事件触发、传送点 |
 | 游戏主循环 | `engine/Game.ts` | 场景切换、玩家移动、事件系统 |
+
+**编辑器**:
+| 编辑器 | 文件 | 功能 |
+|--------|------|------|
+| 地图编辑器 | `web/templates/editor.html` | 瓦片绘制、碰撞、事件、传送点、JSON导入导出 |
+| 剧情编辑器 | `web/templates/editor.html` | 节点编辑、对话配置、分支选项 |
 
 **示例游戏**:
 - 位置: `src/game/rpg-demo/`
@@ -800,6 +806,8 @@ npm run build
 # 运行服务
 python -m src web
 
-# 访问游戏
-http://127.0.0.1:8080/rpg
+# 访问
+http://127.0.0.1:8080/moyu      # 摸鱼入口
+http://127.0.0.1:8080/editor    # 游戏编辑器
+http://127.0.0.1:8080/rpg       # RPG Demo
 ```

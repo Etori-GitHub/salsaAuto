@@ -2,7 +2,7 @@
  * 精灵系统 - 像素精灵渲染和动画
  */
 
-import { SpriteSheet, SpriteAnimation, SpriteFrame, Direction } from '../types';
+import { SpriteSheet, SpriteAnimation, Direction } from '../types';
 
 export class Sprite {
   // 精灵图
@@ -307,15 +307,10 @@ export class PixelSpriteGenerator {
     canvas.height = size * 2; // 2 帧
     const ctx = canvas.getContext('2d')!;
     
-    const directions: Direction[] = ['down', 'left', 'right', 'up'];
-    
     for (let d = 0; d < 4; d++) {
       for (let f = 0; f < 2; f++) {
         const x = d * size;
         const y = f * size;
-        
-        // 简单的行走动画（腿位置变化）
-        const legOffset = f === 0 ? 0 : 1;
         
         // 头部
         ctx.fillStyle = '#FFE4C4';

@@ -2,7 +2,7 @@
  * 输入系统 - 支持手柄和键盘
  */
 
-import { GamepadButton, GamepadAxis, InputState, KeyMapping, Direction } from '../types';
+import { GamepadButton, GamepadAxis, InputState, Direction } from '../types';
 
 // 默认键盘映射
 const DEFAULT_KEY_MAPPING: Record<GamepadButton, string> = {

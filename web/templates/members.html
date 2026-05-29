@@ -7,7 +7,10 @@
 <div class="card">
     <div class="card-header">
         <span class="card-title">会员列表</span>
-        <button class="btn btn-primary" onclick="syncMembers()">同步余额</button>
+        <div style="display: flex; gap: 8px;">
+            <button class="btn btn-secondary" onclick="showAddModal()">新增会员</button>
+            <button class="btn btn-primary" onclick="syncMembers()">同步余额</button>
+        </div>
     </div>
     <div style="margin-bottom: 16px; display: flex; gap: 12px;">
         <select id="type-filter" class="form-select" onchange="filterMembers()">
@@ -32,6 +35,47 @@
             <tr><td colspan="6" class="loading">加载中...</td></tr>
         </tbody>
     </table>
+</div>
+
+<!-- 新增会员弹窗 -->
+<div id="add-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <span class="modal-title">新增会员</span>
+            <button class="modal-close" onclick="hideAddModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="add-member-form" onsubmit="addMember(event)">
+                <div class="form-group">
+                    <label>会员 ID <span style="color: var(--error);">*</span></label>
+                    <input type="text" id="new-member-id" class="form-input" required placeholder="输入会员 ID">
+                </div>
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="new-username" class="form-input" placeholder="输入用户名">
+                </div>
+                <div class="form-group">
+                    <label>手机号</label>
+                    <input type="text" id="new-phone" class="form-input" placeholder="输入手机号">
+                </div>
+                <div class="form-group">
+                    <label>余额</label>
+                    <input type="number" id="new-balance" class="form-input" step="0.01" value="0" placeholder="初始余额">
+                </div>
+                <div class="form-group">
+                    <label>类型</label>
+                    <select id="new-type" class="form-select">
+                        <option value="None">通用</option>
+                        <option value="yizhiman">一纸满</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                    <button type="button" class="btn" onclick="hideAddModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
@@ -127,6 +171,45 @@ async function changeMemberType(memberId, currentType) {
         loadMembers();
     } else {
         showToast('修改失败', 'error');
+    }
+}
+
+function showAddModal() {
+    document.getElementById('add-modal').style.display = 'flex';
+    // 清空表单
+    document.getElementById('new-member-id').value = '';
+    document.getElementById('new-username').value = '';
+    document.getElementById('new-phone').value = '';
+    document.getElementById('new-balance').value = '0';
+    document.getElementById('new-type').value = 'None';
+    document.getElementById('new-member-id').focus();
+}
+
+function hideAddModal() {
+    document.getElementById('add-modal').style.display = 'none';
+}
+
+async function addMember(e) {
+    e.preventDefault();
+    
+    const formData = new FormData();
+    formData.append('id', document.getElementById('new-member-id').value);
+    formData.append('username', document.getElementById('new-username').value);
+    formData.append('phone', document.getElementById('new-phone').value);
+    formData.append('balance', document.getElementById('new-balance').value);
+    formData.append('type', document.getElementById('new-type').value);
+    
+    const result = await fetchAPI('/api/members/add', {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (result.success) {
+        showToast('添加成功', 'success');
+        hideAddModal();
+        loadMembers();
+    } else {
+        showToast(result.message || '添加失败', 'error');
     }
 }
 {% endblock %}

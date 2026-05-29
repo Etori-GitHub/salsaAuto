@@ -2,7 +2,7 @@
  * RPG Demo - 示例游戏
  */
 
-import { Game, GameConfig, MapGenerator } from '../../gamemark';
+import { Game, GameConfig } from '../../gamemark';
 
 class RPGDemo {
   private game: Game;

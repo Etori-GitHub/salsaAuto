@@ -458,6 +458,26 @@ async def set_member_type(member_id: str, type: str = Form(...)):
     return {"success": success}
 
 
+@app.post("/api/members/add")
+async def add_member(
+    id: str = Form(...),
+    phone: str = Form(default=""),
+    username: str = Form(default=""),
+    balance: float = Form(default=0),
+    type: str = Form(default="None")
+):
+    try:
+        member_id = int(id)
+    except ValueError:
+        return {"success": False, "message": "会员 ID 必须是数字"}
+    
+    success = member_service.add_member(member_id, phone, username, balance, type)
+    if success:
+        return {"success": True, "message": "添加成功"}
+    else:
+        return {"success": False, "message": "会员 ID 已存在"}
+
+
 @app.post("/api/token/start")
 async def start_login():
     """启动登录流程,获取验证码图片"""
@@ -1408,7 +1428,8 @@ async def analyze_products(
         order_codes.add(record.get("orderCode"))
 
         dish_name = record.get("dishName", "")
-        category = record.get("dish", {}).get("categoryName", "")
+        dish_info = record.get("dish") or {}
+        category = dish_info.get("categoryName", "")
         quantity = record.get("count", 0)
         refund_count = record.get("refundCount", 0)
         price = record.get("discountPrice", 0)
@@ -1509,8 +1530,9 @@ async def analyze_categories(
 
         order_codes.add(record.get("orderCode"))
 
-        category_name = record.get("dish", {}).get("categoryName", "未分类")
-        category_code = record.get("dish", {}).get("categoryCode", "")
+        dish_info = record.get("dish") or {}
+        category_name = dish_info.get("categoryName", "未分类")
+        category_code = dish_info.get("categoryCode", "")
         quantity = record.get("count", 0)
         refund_count = record.get("refundCount", 0)
         price = record.get("discountPrice", 0)
@@ -2497,3 +2519,8 @@ async def api_game_findcow_verify(puzzle: str = Form(...), row: int = Form(...),
 async def rpg_game():
     """RPG 游戏页面"""
     return render_template("game.html", {})
+
+@app.get("/editor", response_class=HTMLResponse)
+async def game_editor():
+    """游戏编辑器页面"""
+    return render_template("editor.html", {})

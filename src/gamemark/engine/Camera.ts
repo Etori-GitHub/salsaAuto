@@ -44,7 +44,7 @@ export class Camera {
   
   // ========== 更新 ==========
   
-  update(deltaTime: number): void {
+  update(_deltaTime: number): void {
     if (this.followTarget) {
       // 计算目标位置（居中）
       const centerX = this.followTarget.x - this.viewportWidth / 2;
