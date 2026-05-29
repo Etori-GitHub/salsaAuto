@@ -433,34 +433,30 @@ class Database:
     # ==================== 会员操作 ====================
     
     def sync_members(self, member_list: List[Dict]) -> int:
-        """同步会员数据"""
+        """同步会员数据（根据 ID 匹配，更新用户名和余额）"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # 获取现有的会员类型设置
-        cursor.execute("SELECT id, member_type FROM members WHERE member_type IS NOT NULL AND member_type != ''")
-        existing_types = {row[0]: row[1] for row in cursor.fetchall()}
+        # 构建 API 会员字典（以 id 为 key）
+        api_members = {m.get("id"): m for m in member_list}
         
-        cursor.execute("DELETE FROM members")
-        
-        for m in member_list:
-            member_id = m.get("id")
-            preserved_type = existing_types.get(member_id)
-            
+        # 更新本地会员（根据 ID 匹配）
+        for member_id, api_member in api_members.items():
             cursor.execute("""
-                INSERT INTO members (id, phone, username, balance, member_type, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                UPDATE members 
+                SET username = ?, balance = ?, updated_at = ?
+                WHERE id = ?
             """, (
-                member_id,
-                m.get("phone"),
-                m.get("username"),
-                m.get("balance", 0),
-                preserved_type or m.get("type"),
-                now
+                api_member.get("username", ""),
+                api_member.get("balance", 0),
+                now,
+                member_id
             ))
         
+        
         conn.commit()
+        # 返回更新的数量
         count = cursor.execute("SELECT COUNT(*) FROM members").fetchone()[0]
         conn.close()
         return count
@@ -519,6 +515,16 @@ class Database:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("UPDATE members SET member_type = ? WHERE id = ?", (member_type, member_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+    
+    def delete_member(self, member_id: int) -> bool:
+        """删除会员"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM members WHERE id = ?", (member_id,))
         affected = cursor.rowcount
         conn.commit()
         conn.close()

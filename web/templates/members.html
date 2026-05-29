@@ -113,6 +113,7 @@ function renderMembers(members) {
             </td>
             <td>
                 <button class="btn btn-secondary" onclick="changeMemberType('${id}', '${member.type || 'None'}')">修改类型</button>
+                <button class="btn btn-danger" onclick="deleteMember('${id}')">删除</button>
             </td>
         </tr>
     `).join('');
@@ -210,6 +211,23 @@ async function addMember(e) {
         loadMembers();
     } else {
         showToast(result.message || '添加失败', 'error');
+    }
+}
+
+async function deleteMember(memberId) {
+    if (!confirm(`确定删除会员 ${memberId} 吗？`)) {
+        return;
+    }
+    
+    const result = await fetchAPI(`/api/members/${memberId}`, {
+        method: 'DELETE'
+    });
+    
+    if (result.success) {
+        showToast('删除成功', 'success');
+        loadMembers();
+    } else {
+        showToast('删除失败', 'error');
     }
 }
 {% endblock %}

@@ -11,30 +11,49 @@ class MemberService:
     """会员服务（使用数据库）"""
     
     def sync_from_api(self, page: int = 1, page_size: int = 100) -> dict:
-        """从 API 同步会员数据"""
-        params = {
-            "page": page, "pageSize": page_size,
-            "storeCode": "", "storeName": "",
-            "memberCode": "", "username": "", "phone": "",
-        }
-        response = api_client.get("members", params=params)
+        """从 API 同步会员数据（获取所有页）"""
+        all_members = []
+        current_page = 1
         
-        if response.get("code") == 1:
-            records = response.get("data", {}).get("records", [])
-            # 转换为数据库格式
-            member_list = []
-            for record in records:
-                member_list.append({
-                    "id": record.get("id"),
-                    "phone": record.get("phone", ""),
-                    "username": record.get("username", ""),
-                    "balance": record.get("balance", 0),
-                    "type": record.get("type", "None"),
-                })
+        while True:
+            params = {
+                "page": current_page,
+                "pageSize": page_size,
+                "storeCode": "", "storeName": "",
+                "memberCode": "", "username": "", "phone": "",
+            }
+            response = api_client.get("members", params=params)
             
-            count = db.sync_members(member_list)
-            print(f"同步完成: 更新 {count} 个会员")
-        return response
+            if response.get("code") != 1:
+                break
+            
+            records = response.get("data", {}).get("records", [])
+            if not records:
+                break
+            
+            all_members.extend(records)
+            
+            # 检查是否还有下一页
+            total = response.get("data", {}).get("total", 0)
+            if len(all_members) >= total:
+                break
+            
+            current_page += 1
+        
+        # 转换为数据库格式
+        member_list = []
+        for record in all_members:
+            member_list.append({
+                "id": record.get("id"),
+                "phone": record.get("phone", ""),
+                "username": record.get("username", ""),
+                "balance": record.get("balance", 0),
+                "type": record.get("type", "None"),
+            })
+        
+        count = db.sync_members(member_list)
+        print(f"同步完成: 更新 {count} 个会员")
+        return {"code": 1, "msg": "同步成功", "data": {"total": len(all_members)}}
     
     def get_member(self, member_id: int) -> Optional[dict]:
         """获取单个会员"""
@@ -107,6 +126,13 @@ class MemberService:
         """设置会员类型"""
         if db.update_member_type(member_id, member_type):
             print(f"会员 {member_id} 类型已设置为: {member_type}")
+            return True
+        return False
+    
+    def delete_member(self, member_id: int) -> bool:
+        """删除会员"""
+        if db.delete_member(member_id):
+            print(f"会员 {member_id} 已删除")
             return True
         return False
     

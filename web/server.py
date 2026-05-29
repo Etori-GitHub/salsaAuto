@@ -478,6 +478,12 @@ async def add_member(
         return {"success": False, "message": "会员 ID 已存在"}
 
 
+@app.delete("/api/members/{member_id}")
+async def delete_member(member_id: int):
+    success = member_service.delete_member(member_id)
+    return {"success": success}
+
+
 @app.post("/api/token/start")
 async def start_login():
     """启动登录流程,获取验证码图片"""
