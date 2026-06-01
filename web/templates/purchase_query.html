@@ -8,6 +8,10 @@
 <div class="card">
     <div class="card-header">
         <span class="card-title">筛选条件</span>
+        <button class="btn btn-secondary" id="export-btn" onclick="exportData()" style="display: none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            导出Excel
+        </button>
     </div>
     <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
         <div class="form-group">
@@ -305,6 +309,13 @@ async function queryPurchaseOrders(page = 1) {
     document.getElementById('total-amount-hide').textContent = '¥' + totalHide.toFixed(2);
     document.getElementById('summary-row').style.display = 'flex';
 
+    // 显示导出按钮
+    if (filteredRecords.length > 0) {
+        document.getElementById('export-btn').style.display = 'inline-flex';
+    } else {
+        document.getElementById('export-btn').style.display = 'none';
+    }
+
     // 分页
     totalPages = Math.ceil(filteredRecords.length / pageSize) || 1;
     const startIdx = (page - 1) * pageSize;
@@ -441,5 +452,38 @@ function renderPagination() {
     if (currentPage < totalPages) {
         container.innerHTML += `<button class="btn btn-secondary" onclick="queryPurchaseOrders(${currentPage + 1})">下一页</button>`;
     }
+}
+
+async function exportData() {
+    // 获取当前筛选条件
+    const summaryEntity = document.getElementById('summary-entity').value;
+    const supplierCode = document.getElementById('supplier-name').value;
+    const productName = document.getElementById('product-name').value;
+    const purchaser = document.getElementById('purchaser').value;
+    const inboundStatus = document.getElementById('inbound-status').value;
+    const startTime = document.getElementById('start-time').value;
+    const endTime = document.getElementById('end-time').value;
+
+    // 构建 URL
+    const params = new URLSearchParams();
+    if (summaryEntity) params.append('summary_entity', summaryEntity);
+    if (supplierCode) params.append('supplier_code', supplierCode);
+    if (productName) params.append('product_name', productName);
+    if (purchaser) params.append('purchaser', purchaser);
+    if (inboundStatus) params.append('inbound_status', inboundStatus);
+    if (startTime) params.append('start_time', startTime);
+    if (endTime) params.append('end_time', endTime);
+
+    const url = '/api/purchase/export?' + params.toString();
+
+    // 使用隐藏的 a 标签下载
+    const a = document.createElement('a');
+    a.href = url;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    showToast('正在导出...', 'success');
 }
 {% endblock %}

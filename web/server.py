@@ -2099,6 +2099,132 @@ async def sync_purchase_details():
     
     return {"success": True, "message": f"已同步 {count} 条采购明细", "count": count}
 
+
+@app.get("/api/purchase/export")
+async def export_purchase_details(
+    summary_entity: Optional[str] = None,
+    supplier_code: Optional[str] = None,
+    product_name: Optional[str] = None,
+    purchaser: Optional[str] = None,
+    inbound_status: Optional[str] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+):
+    """导出采购明细为 Excel"""
+    from fastapi.responses import StreamingResponse
+    from io import BytesIO
+    import pandas as pd
+    from urllib.parse import quote
+
+    # 从本地数据库获取数据
+    records = db.get_purchase_details_local()
+
+    if not records:
+        return {"success": False, "message": "暂无数据可导出"}
+
+    # 筛选逻辑（与前端一致）
+    filtered_records = list(records)
+
+    # 按汇总主体筛选
+    if summary_entity:
+        suppliers_result = db.get_suppliers()
+        if suppliers_result:
+            entity_supplier_codes = [s.get('supplier_code') for s in suppliers_result if s.get('summary_entity') == summary_entity]
+            filtered_records = [r for r in filtered_records if r.get('supplier_code') in entity_supplier_codes]
+
+    # 按供应商筛选
+    if supplier_code:
+        filtered_records = [r for r in filtered_records if r.get('supplier_code') == supplier_code]
+
+    # 按商品名称筛选
+    if product_name:
+        keyword = product_name.lower()
+        filtered_records = [r for r in filtered_records if (r.get('product_name') or '').lower().find(keyword) >= 0]
+
+    # 按采购人筛选
+    if purchaser:
+        keyword = purchaser.lower()
+        filtered_records = [r for r in filtered_records if (r.get('purchaser') or '').lower().find(keyword) >= 0]
+
+    # 按入库状态筛选
+    if inbound_status:
+        filtered_records = [r for r in filtered_records if str(r.get('inbound_status')) == inbound_status]
+
+    # 按进货时间筛选
+    if start_time:
+        filtered_records = [r for r in filtered_records if (r.get('purchase_time') or '').split(' ')[0] >= start_time]
+    if end_time:
+        filtered_records = [r for r in filtered_records if (r.get('purchase_time') or '').split(' ')[0] <= end_time]
+
+    if not filtered_records:
+        return {"success": False, "message": "筛选后无数据可导出"}
+
+    # 计算汇总
+    total_all = sum(r.get('total_price', 0) for r in filtered_records)
+    total_show = sum(r.get('total_price', 0) for r in filtered_records if r.get('can_show') == 1)
+    total_hide = sum(r.get('total_price', 0) for r in filtered_records if r.get('can_show') != 1)
+
+    # 准备导出数据
+    data = []
+    for r in filtered_records:
+        data.append({
+            "明细编号": r.get("detail_code", ""),
+            "采购单号": r.get("purchase_code", ""),
+            "供应商": r.get("supplier_name", ""),
+            "商品名称": r.get("product_name", ""),
+            "分类": r.get("category_name", ""),
+            "子分类": r.get("sub_category_name", ""),
+            "数量": r.get("quantity", 0),
+            "单价": r.get("unit_price", 0),
+            "金额": r.get("total_price", 0),
+            "采购人": r.get("purchaser", ""),
+            "入库状态": "已入库" if r.get("inbound_status") == 1 else "未入库",
+            "创建时间": r.get("create_time", ""),
+            "进货时间": r.get("purchase_time", ""),
+            "显示": "是" if r.get("can_show") == 1 else "否",
+        })
+
+    df = pd.DataFrame(data)
+
+    # 导出 Excel
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='采购明细', index=False)
+
+        # 添加汇总行
+        summary_df = pd.DataFrame([{
+            "明细编号": "",
+            "采购单号": "",
+            "供应商": "合计",
+            "商品名称": "",
+            "分类": "",
+            "子分类": "",
+            "数量": "",
+            "单价": "",
+            "金额": total_all,
+            "采购人": "",
+            "入库状态": "",
+            "创建时间": "",
+            "进货时间": "",
+            "显示": f"显示:{total_show:.2f} 隐藏:{total_hide:.2f}",
+        }])
+        summary_df.to_excel(writer, sheet_name='采购明细', startrow=len(df) + 2, index=False)
+
+    output.seek(0)
+
+    # 生成文件名
+    time_range = f"{start_time or ''}_{end_time or ''}".strip('_') or '全部'
+    filename = f"采购明细_{summary_entity or '全部'}_{time_range}.xlsx"
+    encoded_filename = quote(filename)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename*=UTF-8''{encoded_filename}"
+        }
+    )
+
 @app.post("/api/purchase/adjust-day")
 async def adjust_purchase_day(request: Request):
     """执行单日补采购（自动同步数据）"""
