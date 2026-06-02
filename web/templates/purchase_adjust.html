@@ -56,6 +56,12 @@
     .day-table .fail {
         color: var(--danger);
     }
+    .day-table .pending {
+        color: var(--muted);
+    }
+    .day-table .running {
+        color: var(--warning);
+    }
     .action-log {
         background: var(--bg-secondary);
         border-radius: var(--radius-sm);
@@ -90,8 +96,12 @@
     <!-- 右侧详情和执行 -->
     <div>
         <div class="card" id="detail-card" style="display: none;">
-            <div class="card-header">
+            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
                 <span class="card-title">任务详情</span>
+                <button class="btn btn-primary" id="execute-all-btn" onclick="executeAll()" style="display: none;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    一键执行全部
+                </button>
             </div>
             <div id="task-detail"></div>
         </div>
@@ -110,6 +120,7 @@
 let tasks = [];
 let selectedTaskFile = null;
 let selectedTask = null;
+let executing = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadTasks();
@@ -163,6 +174,7 @@ async function selectTask(filename) {
 function renderTaskDetail(task) {
     const card = document.getElementById('detail-card');
     const container = document.getElementById('task-detail');
+    const executeAllBtn = document.getElementById('execute-all-btn');
     
     const days = task.days || [];
     
@@ -198,9 +210,9 @@ function renderTaskDetail(task) {
                         <td>¥${d.target_amount?.toFixed(2)}</td>
                         <td id="current-${i}">-</td>
                         <td id="diff-${i}">-</td>
-                        <td id="status-${i}">待执行</td>
+                        <td id="status-${i}" class="pending">待执行</td>
                         <td>
-                            <button class="btn btn-sm btn-primary" onclick="executeDay(${i})">执行</button>
+                            <button class="btn btn-sm btn-primary" id="btn-${i}" onclick="executeDay(${i})">执行</button>
                         </td>
                     </tr>
                 `).join('')}
@@ -209,17 +221,19 @@ function renderTaskDetail(task) {
     `;
     
     card.style.display = 'block';
+    executeAllBtn.style.display = days.length > 0 ? 'inline-flex' : 'none';
     document.getElementById('result-card').style.display = 'none';
 }
 
 async function executeDay(dayIndex) {
-    if (!selectedTask) return;
+    if (!selectedTask || executing) return;
     
     const day = selectedTask.days[dayIndex];
     
     // 更新状态
     document.getElementById(`status-${dayIndex}`).textContent = '执行中...';
-    document.getElementById(`status-${dayIndex}`).className = '';
+    document.getElementById(`status-${dayIndex}`).className = 'running';
+    document.getElementById(`btn-${dayIndex}`).disabled = true;
     
     try {
         const result = await fetchAPI('/api/purchase/adjust-day', {
@@ -239,16 +253,113 @@ async function executeDay(dayIndex) {
             document.getElementById(`diff-${dayIndex}`).textContent = '¥' + result.diff_amount.toFixed(2);
             document.getElementById(`status-${dayIndex}`).textContent = '成功';
             document.getElementById(`status-${dayIndex}`).className = 'success';
-            showToast(`执行成功: ${result.message}`, 'success');
+            showToast(`${day.date}: ${result.message}`, 'success');
         } else {
             document.getElementById(`status-${dayIndex}`).textContent = '失败';
             document.getElementById(`status-${dayIndex}`).className = 'fail';
-            showToast(`执行失败: ${result.message}`, 'error');
+            showToast(`${day.date}: ${result.message}`, 'error');
         }
     } catch (e) {
         document.getElementById(`status-${dayIndex}`).textContent = '失败';
         document.getElementById(`status-${dayIndex}`).className = 'fail';
-        showToast(`执行失败: ${e.message}`, 'error');
+        showToast(`${day.date}: ${e.message}`, 'error');
     }
+    
+    document.getElementById(`btn-${dayIndex}`).disabled = false;
+}
+
+async function executeAll() {
+    if (!selectedTask || executing) return;
+    
+    const days = selectedTask.days || [];
+    if (days.length === 0) return;
+    
+    if (!confirm(`确定要一键执行全部 ${days.length} 天的任务吗？`)) return;
+    
+    executing = true;
+    const executeAllBtn = document.getElementById('execute-all-btn');
+    executeAllBtn.disabled = true;
+    executeAllBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> 执行中...';
+    
+    // 禁用所有单日按钮
+    days.forEach((_, i) => {
+        document.getElementById(`btn-${i}`).disabled = true;
+    });
+    
+    let successCount = 0;
+    let failCount = 0;
+    let results = [];
+    
+    // 逐日执行
+    for (let i = 0; i < days.length; i++) {
+        const day = days[i];
+        
+        document.getElementById(`status-${i}`).textContent = '执行中...';
+        document.getElementById(`status-${i}`).className = 'running';
+        
+        try {
+            const result = await fetchAPI('/api/purchase/adjust-day', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: day.date,
+                    summary_entity: selectedTask.summary_entity,
+                    target_amount: day.target_amount,
+                    purchase_time: day.purchase_time,
+                    purchaser: selectedTask.purchaser,
+                }),
+            });
+            
+            if (result.success) {
+                successCount++;
+                document.getElementById(`current-${i}`).textContent = '¥' + result.current_amount.toFixed(2);
+                document.getElementById(`diff-${i}`).textContent = '¥' + result.diff_amount.toFixed(2);
+                document.getElementById(`status-${i}`).textContent = '成功';
+                document.getElementById(`status-${i}`).className = 'success';
+                results.push({ date: day.date, success: true, message: result.message });
+            } else {
+                failCount++;
+                document.getElementById(`status-${i}`).textContent = '失败';
+                document.getElementById(`status-${i}`).className = 'fail';
+                results.push({ date: day.date, success: false, message: result.message });
+            }
+        } catch (e) {
+            failCount++;
+            document.getElementById(`status-${i}`).textContent = '失败';
+            document.getElementById(`status-${i}`).className = 'fail';
+            results.push({ date: day.date, success: false, message: e.message });
+        }
+        
+        // 每执行完一天，稍微等待一下
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+    
+    // 显示汇总结果
+    document.getElementById('result-card').style.display = 'block';
+    document.getElementById('result-content').innerHTML = `
+        <div style="display: flex; gap: 24px; margin-bottom: 16px;">
+            <span style="color: var(--muted);">成功: <strong style="color: var(--ok);">${successCount}</strong> 天</span>
+            <span style="color: var(--muted);">失败: <strong style="color: var(--danger);">${failCount}</strong> 天</span>
+        </div>
+        <div class="action-log">
+            ${results.map(r => `
+                <div class="action-item">
+                    <span style="color: ${r.success ? 'var(--ok)' : 'var(--danger)'};">${r.success ? '✅' : '❌'}</span>
+                    <span>${r.date}: ${r.message}</span>
+                </div>
+            `).join('')}
+        </div>
+    `;
+    
+    // 恢复按钮状态
+    executing = false;
+    executeAllBtn.disabled = false;
+    executeAllBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg> 一键执行全部';
+    
+    days.forEach((_, i) => {
+        document.getElementById(`btn-${i}`).disabled = false;
+    });
+    
+    showToast(`执行完成: 成功 ${successCount} 天, 失败 ${failCount} 天`, successCount > 0 ? 'success' : 'error');
 }
 {% endblock %}

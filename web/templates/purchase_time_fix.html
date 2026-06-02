@@ -1,0 +1,901 @@
+{% extends "base.html" %}
+
+{% block title %}补全进货时间 - salsaAuto{% endblock %}
+{% block header %}补全进货时间{% endblock %}
+
+{% block content %}
+<!-- 顶部操作栏 -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">操作</span>
+        <span id="sync-status" style="color: var(--muted); font-size: 13px;"></span>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <button class="btn btn-secondary" onclick="syncData()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+            同步数据
+        </button>
+        <div style="display: flex; gap: 8px; align-items: center; margin-left: auto;">
+            <button class="btn btn-secondary btn-sm" onclick="selectAllInconsistent()">勾选不一致</button>
+            <button class="btn btn-secondary btn-sm" onclick="selectAllEmpty()">勾选空缺</button>
+            <button class="btn btn-secondary btn-sm" onclick="clearSelection()">清除勾选</button>
+        </div>
+        <button class="btn btn-primary" onclick="fillSelectedTime()" id="fill-btn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            补全选中项
+        </button>
+    </div>
+</div>
+
+<!-- 二级管理：订单 / 明细 -->
+<div class="card" style="margin-top: 16px;">
+    <div class="card-header" style="display: flex; gap: 16px;">
+        <button class="tab-btn active" onclick="switchTab('orders')" id="tab-orders">采购订单</button>
+        <button class="tab-btn" onclick="switchTab('details')" id="tab-details">采购明细</button>
+        <span id="selection-count" style="margin-left: auto; color: var(--muted); font-size: 13px;">已选中: 0</span>
+    </div>
+    
+    <!-- 订单筛选条件 -->
+    <div id="filter-orders" class="filter-section">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
+            <div class="form-group">
+                <label class="form-label">汇总主体</label>
+                <select id="order-summary-entity" class="form-select" style="width: 150px;">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">供应商</label>
+                <select id="order-supplier" class="form-select" style="width: 150px;">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">采购单号</label>
+                <input type="text" id="order-code" class="form-input" placeholder="采购单号">
+            </div>
+            <div class="form-group">
+                <label class="form-label">时间一致性</label>
+                <select id="order-time-status" class="form-select" style="width: 120px;">
+                    <option value="">全部</option>
+                    <option value="consistent">一致</option>
+                    <option value="inconsistent">不一致</option>
+                    <option value="empty">空缺</option>
+                </select>
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div class="form-group">
+                <label class="form-label">创建时间起</label>
+                <input type="date" id="order-create-start" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">创建时间止</label>
+                <input type="date" id="order-create-end" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">进货时间起</label>
+                <input type="date" id="order-purchase-start" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">进货时间止</label>
+                <input type="date" id="order-purchase-end" class="form-input">
+            </div>
+        </div>
+        <div style="margin-top: 12px;">
+            <button class="btn btn-sm btn-primary" onclick="queryOrders()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                查询
+            </button>
+        </div>
+    </div>
+    
+    <!-- 明细筛选条件 -->
+    <div id="filter-details" class="filter-section" style="display: none;">
+        <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px;">
+            <div class="form-group">
+                <label class="form-label">汇总主体</label>
+                <select id="detail-summary-entity" class="form-select" style="width: 150px;">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">供应商</label>
+                <select id="detail-supplier" class="form-select" style="width: 150px;">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">采购单号</label>
+                <input type="text" id="detail-order-code" class="form-input" placeholder="采购单号">
+            </div>
+            <div class="form-group">
+                <label class="form-label">明细编号</label>
+                <input type="text" id="detail-code" class="form-input" placeholder="明细编号">
+            </div>
+            <div class="form-group">
+                <label class="form-label">时间一致性</label>
+                <select id="detail-time-status" class="form-select" style="width: 120px;">
+                    <option value="">全部</option>
+                    <option value="consistent">一致</option>
+                    <option value="inconsistent">不一致</option>
+                    <option value="empty">空缺</option>
+                </select>
+            </div>
+        </div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <div class="form-group">
+                <label class="form-label">创建时间起</label>
+                <input type="date" id="detail-create-start" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">创建时间止</label>
+                <input type="date" id="detail-create-end" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">进货时间起</label>
+                <input type="date" id="detail-purchase-start" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">进货时间止</label>
+                <input type="date" id="detail-purchase-end" class="form-input">
+            </div>
+        </div>
+        <div style="margin-top: 12px;">
+            <button class="btn btn-sm btn-primary" onclick="queryDetails()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                查询
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 订单列表 -->
+<div class="card" style="margin-top: 16px;" id="orders-card">
+    <div class="card-header">
+        <span class="card-title">采购订单</span>
+        <span id="orders-count" style="color: var(--muted); font-size: 13px;"></span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="select-all-orders" onchange="toggleSelectAll('orders')"></th>
+                    <th>采购单号</th>
+                    <th>供应商</th>
+                    <th>创建时间</th>
+                    <th>进货时间</th>
+                    <th>解析日期</th>
+                    <th>时间状态</th>
+                    <th>明细数量</th>
+                </tr>
+            </thead>
+            <tbody id="orders-list">
+                <tr><td colspan="8" class="loading">请先同步数据</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="orders-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;"></div>
+</div>
+
+<!-- 明细列表 -->
+<div class="card" style="margin-top: 16px; display: none;" id="details-card">
+    <div class="card-header">
+        <span class="card-title">采购明细</span>
+        <span id="details-count" style="color: var(--muted); font-size: 13px;"></span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;"><input type="checkbox" id="select-all-details" onchange="toggleSelectAll('details')"></th>
+                    <th>明细编号</th>
+                    <th>采购单号</th>
+                    <th>供应商</th>
+                    <th>商品名称</th>
+                    <th>数量</th>
+                    <th>金额</th>
+                    <th>创建时间</th>
+                    <th>明细进货时间</th>
+                    <th>订单进货时间</th>
+                    <th>时间状态</th>
+                </tr>
+            </thead>
+            <tbody id="details-list">
+                <tr><td colspan="11" class="loading">请先同步数据</td></tr>
+            </tbody>
+        </table>
+    </div>
+    <div id="details-pagination" style="display: flex; justify-content: center; gap: 8px; margin-top: 16px;"></div>
+</div>
+
+<!-- 操作结果 -->
+<div class="card" style="margin-top: 16px;" id="result-card" style="display: none;">
+    <div class="card-header">
+        <span class="card-title">操作结果</span>
+    </div>
+    <div id="fill-result-summary" style="padding: 12px; background: var(--bg-elevated); border-radius: var(--radius-md); margin-bottom: 12px;"></div>
+    <div style="overflow-x: auto; max-height: 300px;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID/单号</th>
+                    <th>类型</th>
+                    <th>状态</th>
+                    <th>原进货时间</th>
+                    <th>新进货时间</th>
+                    <th>消息</th>
+                </tr>
+            </thead>
+            <tbody id="result-list"></tbody>
+        </table>
+    </div>
+</div>
+
+<style>
+.tab-btn {
+    background: transparent;
+    border: none;
+    padding: 8px 16px;
+    font-size: 14px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+.tab-btn:hover {
+    color: var(--text);
+}
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+.filter-section {
+    padding: 16px;
+    background: var(--bg-elevated);
+    border-radius: var(--radius-md);
+    margin-top: 12px;
+}
+.status-consistent {
+    color: var(--ok);
+    font-weight: 500;
+}
+.status-inconsistent {
+    color: var(--danger);
+    font-weight: 500;
+}
+.status-empty {
+    color: var(--warning);
+    font-weight: 500;
+}
+</style>
+{% endblock %}
+
+{% block script %}
+let currentTab = 'orders';
+let allOrders = [];
+let allDetails = [];
+let filteredOrders = [];  // 筛选后的订单
+let filteredDetails = [];  // 筛选后的明细
+let selectedOrders = new Set();
+let selectedDetails = new Set();
+let currentPageOrders = 1;
+let currentPageDetails = 1;
+const pageSize = 50;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    loadSummaryEntities();
+    loadSuppliers();
+    
+    // 检查本地数据
+    const localData = await fetchAPI('/api/purchase/details/local');
+    if (localData.success && localData.records && localData.records.length > 0) {
+        document.getElementById('sync-status').textContent = `本地数据: ${localData.records.length} 条明细`;
+    }
+});
+
+async function loadSummaryEntities() {
+    const result = await fetchAPI('/api/summary-entities');
+    if (result.success && result.records) {
+        const selects = ['order-summary-entity', 'detail-summary-entity'];
+        selects.forEach(id => {
+            const select = document.getElementById(id);
+            result.records.forEach(e => {
+                const option = document.createElement('option');
+                option.value = e.name || '';
+                option.textContent = e.name || '';
+                select.appendChild(option);
+            });
+        });
+    }
+}
+
+async function loadSuppliers() {
+    const result = await fetchAPI('/api/base/suppliers/local');
+    if (result.success && result.records) {
+        const selects = ['order-supplier', 'detail-supplier'];
+        selects.forEach(id => {
+            const select = document.getElementById(id);
+            result.records.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.supplier_code || '';
+                option.textContent = s.supplier_name || '';
+                select.appendChild(option);
+            });
+        });
+    }
+}
+
+async function syncData() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '同步中...';
+    
+    // 同步采购明细
+    const detailResult = await fetchAPI('/api/purchase/details/sync', { method: 'POST' });
+    
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg> 同步数据';
+    
+    if (detailResult.success) {
+        showToast(detailResult.message, 'success');
+        document.getElementById('sync-status').textContent = `本地数据: ${detailResult.count || 0} 条明细`;
+        
+        // 自动查询
+        queryOrders();
+    } else {
+        showToast('同步失败: ' + detailResult.message, 'error');
+    }
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+    
+    document.getElementById('tab-orders').classList.toggle('active', tab === 'orders');
+    document.getElementById('tab-details').classList.toggle('active', tab === 'details');
+    
+    document.getElementById('filter-orders').style.display = tab === 'orders' ? 'block' : 'none';
+    document.getElementById('filter-details').style.display = tab === 'details' ? 'block' : 'none';
+    
+    document.getElementById('orders-card').style.display = tab === 'orders' ? 'block' : 'none';
+    document.getElementById('details-card').style.display = tab === 'details' ? 'block' : 'none';
+    
+    updateSelectionCount();
+}
+
+function parsePurchaseCodeDate(code) {
+    if (!code || !code.startsWith('JH')) return null;
+    const datePart = code.substring(2, 8);
+    if (datePart.length !== 6) return null;
+    try {
+        const yy = parseInt(datePart.substring(0, 2));
+        const mm = parseInt(datePart.substring(2, 4));
+        const dd = parseInt(datePart.substring(4, 6));
+        const year = 2000 + yy;
+        return `${year}-${mm.toString().padStart(2, '0')}-${dd.toString().padStart(2, '0')}`;
+    } catch { return null; }
+}
+
+function checkTimeStatus(purchaseTime, parsedDate) {
+    if (!purchaseTime) return 'empty';
+    const dateStr = purchaseTime.split(' ')[0] || purchaseTime.substring(0, 10);
+    if (dateStr === parsedDate) return 'consistent';
+    return 'inconsistent';
+}
+
+function renderTimeStatus(status) {
+    const labels = {
+        'consistent': '<span class="status-consistent">✅ 一致</span>',
+        'inconsistent': '<span class="status-inconsistent">❌ 不一致</span>',
+        'empty': '<span class="status-empty">⚠️ 空缺</span>'
+    };
+    return labels[status] || '-';
+}
+
+async function queryOrders() {
+    const tbody = document.getElementById('orders-list');
+    tbody.innerHTML = '<tr><td colspan="8" class="loading">查询中...</td></tr>';
+    
+    // 从本地数据获取明细
+    const localData = await fetchAPI('/api/purchase/details/local');
+    if (!localData.success || !localData.records) {
+        tbody.innerHTML = '<tr><td colspan="8">无数据</td></tr>';
+        return;
+    }
+    
+    allDetails = localData.records;
+    
+    // 按采购单号分组，生成订单视图
+    const orderGroups = {};
+    allDetails.forEach(d => {
+        const code = d.purchase_code || '';
+        if (!orderGroups[code]) {
+            orderGroups[code] = {
+                purchase_code: code,
+                supplier_code: d.supplier_code,
+                supplier_name: d.supplier_name,
+                create_time: d.create_time,
+                purchase_time: d.purchase_time,
+                parsed_date: parsePurchaseCodeDate(code),
+                details: []
+            };
+        }
+        orderGroups[code].details.push(d);
+        // 取最早的进货时间作为订单进货时间
+        if (d.purchase_time) {
+            if (!orderGroups[code].purchase_time || d.purchase_time < orderGroups[code].purchase_time) {
+                orderGroups[code].purchase_time = d.purchase_time;
+            }
+        }
+    });
+    
+    allOrders = Object.values(orderGroups);
+    
+    // 筛选
+    const summaryEntity = document.getElementById('order-summary-entity').value;
+    const supplierCode = document.getElementById('order-supplier').value;
+    const orderCode = document.getElementById('order-code').value;
+    const timeStatus = document.getElementById('order-time-status').value;
+    const createStart = document.getElementById('order-create-start').value;
+    const createEnd = document.getElementById('order-create-end').value;
+    const purchaseStart = document.getElementById('order-purchase-start').value;
+    const purchaseEnd = document.getElementById('order-purchase-end').value;
+    
+    // 获取供应商汇总主体映射
+    let entitySupplierCodes = [];
+    if (summaryEntity) {
+        const suppliersResult = await fetchAPI('/api/base/suppliers/local');
+        if (suppliersResult.success && suppliersResult.records) {
+            entitySupplierCodes = suppliersResult.records
+                .filter(s => s.summary_entity === summaryEntity)
+                .map(s => s.supplier_code);
+        }
+    }
+    
+    filteredOrders = allOrders.filter(o => {
+        if (summaryEntity && !entitySupplierCodes.includes(o.supplier_code)) return false;
+        if (supplierCode && o.supplier_code !== supplierCode) return false;
+        if (orderCode && !o.purchase_code.includes(orderCode)) return false;
+        if (createStart && o.create_time && o.create_time.split(' ')[0] < createStart) return false;
+        if (createEnd && o.create_time && o.create_time.split(' ')[0] > createEnd) return false;
+        if (purchaseStart && o.purchase_time && o.purchase_time.split(' ')[0] < purchaseStart) return false;
+        if (purchaseEnd && o.purchase_time && o.purchase_time.split(' ')[0] > purchaseEnd) return false;
+        
+        const status = checkTimeStatus(o.purchase_time, o.parsed_date);
+        if (timeStatus && status !== timeStatus) return false;
+        
+        return true;
+    });
+    
+    document.getElementById('orders-count').textContent = `共 ${filteredOrders.length} 个订单`;
+    
+    // 分页
+    currentPageOrders = 1;
+    renderOrders(filteredOrders);
+}
+
+function renderOrders(orders) {
+    const totalPages = Math.ceil(orders.length / pageSize);
+    const start = (currentPageOrders - 1) * pageSize;
+    const end = start + pageSize;
+    const pageOrders = orders.slice(start, end);
+    
+    const tbody = document.getElementById('orders-list');
+    tbody.innerHTML = pageOrders.map(o => {
+        const status = checkTimeStatus(o.purchase_time, o.parsed_date);
+        const checked = selectedOrders.has(o.purchase_code) ? 'checked' : '';
+        return `
+            <tr data-code="${o.purchase_code}" data-status="${status}">
+                <td><input type="checkbox" class="order-checkbox" value="${o.purchase_code}" ${checked} onchange="updateSelection()"></td>
+                <td>${o.purchase_code || '-'}</td>
+                <td>${o.supplier_name || '-'}</td>
+                <td>${o.create_time || '-'}</td>
+                <td>${o.purchase_time || '-'}</td>
+                <td>${o.parsed_date || '-'}</td>
+                <td>${renderTimeStatus(status)}</td>
+                <td>${o.details.length}</td>
+            </tr>
+        `;
+    }).join('');
+    
+    if (pageOrders.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8">无匹配数据</td></tr>';
+    }
+    
+    // 分页
+    renderPagination('orders', totalPages, currentPageOrders, (page) => {
+        currentPageOrders = page;
+        renderOrders(orders);
+    });
+}
+
+async function queryDetails() {
+    const tbody = document.getElementById('details-list');
+    tbody.innerHTML = '<tr><td colspan="11" class="loading">查询中...</td></tr>';
+    
+    // 从本地数据获取明细
+    const localData = await fetchAPI('/api/purchase/details/local');
+    if (!localData.success || !localData.records) {
+        tbody.innerHTML = '<tr><td colspan="11">无数据</td></tr>';
+        return;
+    }
+    
+    allDetails = localData.records;
+    
+    // 构建订单进货时间映射（取每个订单下明细的进货时间作为订单时间）
+    const orderPurchaseTime = {};
+    allDetails.forEach(d => {
+        const code = d.purchase_code || '';
+        if (d.purchase_time && !orderPurchaseTime[code]) {
+            orderPurchaseTime[code] = d.purchase_time;
+        }
+    });
+    
+    // 筛选
+    const summaryEntity = document.getElementById('detail-summary-entity').value;
+    const supplierCode = document.getElementById('detail-supplier').value;
+    const orderCode = document.getElementById('detail-order-code').value;
+    const detailCode = document.getElementById('detail-code').value;
+    const timeStatus = document.getElementById('detail-time-status').value;
+    const createStart = document.getElementById('detail-create-start').value;
+    const createEnd = document.getElementById('detail-create-end').value;
+    const purchaseStart = document.getElementById('detail-purchase-start').value;
+    const purchaseEnd = document.getElementById('detail-purchase-end').value;
+    
+    // 获取供应商汇总主体映射
+    let entitySupplierCodes = [];
+    if (summaryEntity) {
+        const suppliersResult = await fetchAPI('/api/base/suppliers/local');
+        if (suppliersResult.success && suppliersResult.records) {
+            entitySupplierCodes = suppliersResult.records
+                .filter(s => s.summary_entity === summaryEntity)
+                .map(s => s.supplier_code);
+        }
+    }
+    
+    filteredDetails = allDetails.filter(d => {
+        if (summaryEntity && !entitySupplierCodes.includes(d.supplier_code)) return false;
+        if (supplierCode && d.supplier_code !== supplierCode) return false;
+        if (orderCode && !(d.purchase_code || '').includes(orderCode)) return false;
+        if (detailCode && !(d.detail_code || '').includes(detailCode)) return false;
+        if (createStart && d.create_time && d.create_time.split(' ')[0] < createStart) return false;
+        if (createEnd && d.create_time && d.create_time.split(' ')[0] > createEnd) return false;
+        if (purchaseStart && d.purchase_time && d.purchase_time.split(' ')[0] < purchaseStart) return false;
+        if (purchaseEnd && d.purchase_time && d.purchase_time.split(' ')[0] > purchaseEnd) return false;
+        
+        // 时间状态筛选
+        if (timeStatus) {
+            const orderTime = orderPurchaseTime[d.purchase_code];
+            const orderDate = orderTime ? (orderTime.split(' ')[0] || orderTime.substring(0, 10)) : null;
+            const detailDate = d.purchase_time ? (d.purchase_time.split(' ')[0] || d.purchase_time.substring(0, 10)) : null;
+            
+            let status;
+            if (!orderDate || !detailDate) {
+                status = 'empty';
+            } else if (detailDate === orderDate) {
+                status = 'consistent';
+            } else {
+                status = 'inconsistent';
+            }
+            
+            if (status !== timeStatus) return false;
+        }
+        
+        return true;
+    });
+    
+    document.getElementById('details-count').textContent = `共 ${filteredDetails.length} 条明细`;
+    
+    // 分页
+    currentPageDetails = 1;
+    renderDetails(filteredDetails, orderPurchaseTime);
+}
+
+function renderDetails(details, orderPurchaseTime) {
+    const totalPages = Math.ceil(details.length / pageSize);
+    const start = (currentPageDetails - 1) * pageSize;
+    const end = start + pageSize;
+    const pageDetails = details.slice(start, end);
+    
+    const tbody = document.getElementById('details-list');
+    tbody.innerHTML = pageDetails.map(d => {
+        // 明细的时间状态：根据订单的进货时间判断
+        const orderTime = orderPurchaseTime[d.purchase_code];
+        const orderDate = orderTime ? (orderTime.split(' ')[0] || orderTime.substring(0, 10)) : null;
+        const detailDate = d.purchase_time ? (d.purchase_time.split(' ')[0] || d.purchase_time.substring(0, 10)) : null;
+        
+        let status;
+        if (!orderDate) {
+            status = 'empty';  // 订单没有进货时间
+        } else if (!detailDate) {
+            status = 'empty';  // 明细没有进货时间
+        } else if (detailDate === orderDate) {
+            status = 'consistent';
+        } else {
+            status = 'inconsistent';
+        }
+        
+        // 存储订单时间供后续使用
+        d._orderDate = orderDate;
+        d._status = status;
+        
+        const checked = selectedDetails.has(d.id) ? 'checked' : '';
+        return `
+            <tr data-id="${d.id}" data-status="${status}" data-order-date="${orderDate || ''}">
+                <td><input type="checkbox" class="detail-checkbox" value="${d.id}" ${checked} onchange="updateSelection()"></td>
+                <td>${d.detail_code || '-'}</td>
+                <td>${d.purchase_code || '-'}</td>
+                <td>${d.supplier_name || '-'}</td>
+                <td>${d.product_name || '-'}</td>
+                <td>${d.quantity || '-'}</td>
+                <td>¥${(d.total_price || 0).toFixed(2)}</td>
+                <td>${d.create_time || '-'}</td>
+                <td>${d.purchase_time || '-'}</td>
+                <td>${orderDate || '-'}</td>
+                <td>${renderTimeStatus(status)}</td>
+            </tr>
+        `;
+    }).join('');
+    
+    if (pageDetails.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11">无匹配数据</td></tr>';
+    }
+    
+    // 分页
+    renderPagination('details', totalPages, currentPageDetails, (page) => {
+        currentPageDetails = page;
+        renderDetails(details);
+    });
+}
+
+function renderPagination(type, totalPages, currentPage, onPageChange) {
+    const container = document.getElementById(`${type}-pagination`);
+    container.innerHTML = '';
+    
+    if (totalPages <= 1) return;
+    
+    if (currentPage > 1) {
+        container.innerHTML += `<button class="btn btn-sm btn-secondary" onclick="arguments[0].target.dataset.page='${currentPage-1}'">${type === 'orders' ? 'queryOrders()' : 'queryDetails()'}">上一页</button>`;
+    }
+    
+    const start = Math.max(1, currentPage - 2);
+    const end = Math.min(totalPages, currentPage + 2);
+    
+    for (let i = start; i <= end; i++) {
+        const active = i === currentPage ? 'btn-primary' : 'btn-secondary';
+        container.innerHTML += `<button class="btn btn-sm ${active}" data-page="${i}">${i}</button>`;
+    }
+    
+    if (currentPage < totalPages) {
+        container.innerHTML += `<button class="btn btn-sm btn-secondary" data-page="${currentPage+1}">下一页</button>`;
+    }
+    
+    // 绑定分页事件
+    container.querySelectorAll('button').forEach(btn => {
+        btn.onclick = () => {
+            const page = parseInt(btn.dataset.page);
+            if (page) onPageChange(page);
+        };
+    });
+}
+
+function toggleSelectAll(type) {
+    const selectAll = document.getElementById(`select-all-${type}`);
+    const checkboxes = document.querySelectorAll(`.${type}-checkbox`);
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+    updateSelection();
+}
+
+function updateSelection() {
+    selectedOrders.clear();
+    selectedDetails.clear();
+    
+    document.querySelectorAll('.order-checkbox:checked').forEach(cb => {
+        selectedOrders.add(cb.value);
+    });
+    
+    document.querySelectorAll('.detail-checkbox:checked').forEach(cb => {
+        selectedDetails.add(parseInt(cb.value));
+    });
+    
+    updateSelectionCount();
+}
+
+function updateSelectionCount() {
+    const count = currentTab === 'orders' ? selectedOrders.size : selectedDetails.size;
+    document.getElementById('selection-count').textContent = `已选中: ${count}`;
+}
+
+function selectAllInconsistent() {
+    let count = 0;
+    
+    if (currentTab === 'orders') {
+        // 遍历所有筛选后的订单
+        filteredOrders.forEach(o => {
+            const status = checkTimeStatus(o.purchase_time, o.parsed_date);
+            if (status === 'inconsistent') {
+                selectedOrders.add(o.purchase_code);
+                count++;
+            }
+        });
+        // 更新当前页的复选框
+        document.querySelectorAll('.order-checkbox').forEach(cb => {
+            const row = cb.closest('tr');
+            if (selectedOrders.has(cb.value)) {
+                cb.checked = true;
+            }
+        });
+    } else {
+        // 遍历所有筛选后的明细
+        const orderPurchaseTime = {};
+        allDetails.forEach(d => {
+            const code = d.purchase_code || '';
+            if (d.purchase_time && !orderPurchaseTime[code]) {
+                orderPurchaseTime[code] = d.purchase_time;
+            }
+        });
+        
+        filteredDetails.forEach(d => {
+            const orderTime = orderPurchaseTime[d.purchase_code];
+            const orderDate = orderTime ? (orderTime.split(' ')[0] || orderTime.substring(0, 10)) : null;
+            const detailDate = d.purchase_time ? (d.purchase_time.split(' ')[0] || d.purchase_time.substring(0, 10)) : null;
+            
+            let status;
+            if (!orderDate || !detailDate) {
+                status = 'empty';
+            } else if (detailDate === orderDate) {
+                status = 'consistent';
+            } else {
+                status = 'inconsistent';
+            }
+            
+            if (status === 'inconsistent') {
+                selectedDetails.add(d.id);
+                count++;
+            }
+        });
+        // 更新当前页的复选框
+        document.querySelectorAll('.detail-checkbox').forEach(cb => {
+            if (selectedDetails.has(parseInt(cb.value))) {
+                cb.checked = true;
+            }
+        });
+    }
+    
+    updateSelectionCount();
+    showToast(`已勾选 ${count} 条不一致项`, 'success');
+}
+
+function selectAllEmpty() {
+    let count = 0;
+    
+    if (currentTab === 'orders') {
+        // 遍历所有筛选后的订单
+        filteredOrders.forEach(o => {
+            const status = checkTimeStatus(o.purchase_time, o.parsed_date);
+            if (status === 'empty') {
+                selectedOrders.add(o.purchase_code);
+                count++;
+            }
+        });
+        // 更新当前页的复选框
+        document.querySelectorAll('.order-checkbox').forEach(cb => {
+            if (selectedOrders.has(cb.value)) {
+                cb.checked = true;
+            }
+        });
+    } else {
+        // 遍历所有筛选后的明细
+        const orderPurchaseTime = {};
+        allDetails.forEach(d => {
+            const code = d.purchase_code || '';
+            if (d.purchase_time && !orderPurchaseTime[code]) {
+                orderPurchaseTime[code] = d.purchase_time;
+            }
+        });
+        
+        filteredDetails.forEach(d => {
+            const orderTime = orderPurchaseTime[d.purchase_code];
+            const orderDate = orderTime ? (orderTime.split(' ')[0] || orderTime.substring(0, 10)) : null;
+            const detailDate = d.purchase_time ? (d.purchase_time.split(' ')[0] || d.purchase_time.substring(0, 10)) : null;
+            
+            let status;
+            if (!orderDate || !detailDate) {
+                status = 'empty';
+            } else if (detailDate === orderDate) {
+                status = 'consistent';
+            } else {
+                status = 'inconsistent';
+            }
+            
+            if (status === 'empty') {
+                selectedDetails.add(d.id);
+                count++;
+            }
+        });
+        // 更新当前页的复选框
+        document.querySelectorAll('.detail-checkbox').forEach(cb => {
+            if (selectedDetails.has(parseInt(cb.value))) {
+                cb.checked = true;
+            }
+        });
+    }
+    
+    updateSelectionCount();
+    showToast(`已勾选 ${count} 条空缺项`, 'success');
+}
+
+function clearSelection() {
+    document.querySelectorAll('.order-checkbox, .detail-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('select-all-orders').checked = false;
+    document.getElementById('select-all-details').checked = false;
+    selectedOrders.clear();
+    selectedDetails.clear();
+    updateSelectionCount();
+    showToast('已清除所有勾选', 'success');
+}
+
+async function fillSelectedTime() {
+    const targets = currentTab === 'orders' ? Array.from(selectedOrders) : Array.from(selectedDetails);
+    
+    if (targets.length === 0) {
+        showToast('请先勾选要补全的数据', 'warning');
+        return;
+    }
+    
+    if (!confirm(`确定要补全/调整 ${targets.length} 项的进货时间吗？`)) {
+        return;
+    }
+    
+    const btn = document.getElementById('fill-btn');
+    btn.disabled = true;
+    btn.textContent = '处理中...';
+    
+    const result = await fetchAPI('/api/purchase/fill-time', {
+        method: 'POST',
+        body: JSON.stringify({
+            type: currentTab,
+            targets: targets
+        })
+    });
+    
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> 补全选中项';
+    
+    if (!result.success) {
+        showToast('操作失败: ' + result.message, 'error');
+        return;
+    }
+    
+    // 显示结果
+    document.getElementById('result-card').style.display = 'block';
+    document.getElementById('fill-result-summary').innerHTML = `
+        <div style="display: flex; gap: 24px;">
+            <span style="color: var(--muted);">成功: <strong style="color: var(--ok);">${result.updated}</strong></span>
+            <span style="color: var(--muted);">失败: <strong style="color: var(--danger);">${result.failed}</strong></span>
+            <span style="color: var(--muted);">跳过: <strong>${result.skipped || 0}</strong></span>
+        </div>
+    `;
+    
+    const tbody = document.getElementById('result-list');
+    tbody.innerHTML = result.results.map(r => `
+        <tr>
+            <td>${r.target}</td>
+            <td>${r.type}</td>
+            <td style="color: ${r.success ? 'var(--ok)' : 'var(--danger)'};">${r.success ? '✅ 成功' : '❌ 失败'}</td>
+            <td>${r.old_time || '-'}</td>
+            <td>${r.new_time || '-'}</td>
+            <td style="color: ${r.success ? 'var(--muted)' : 'var(--danger)'};">${r.message}</td>
+        </tr>
+    `).join('');
+    
+    showToast(result.message, 'success');
+    
+    // 清除勾选并刷新
+    clearSelection();
+    setTimeout(() => {
+        if (currentTab === 'orders') queryOrders();
+        else queryDetails();
+    }, 500);
+}
+{% endblock %}

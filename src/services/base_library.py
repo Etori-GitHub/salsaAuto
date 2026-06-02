@@ -782,6 +782,53 @@ class BaseLibraryService:
                 
         except Exception as e:
             return {"success": False, "message": str(e)}
+    
+    def update_purchase_order_time(self, purchase_code: str, new_purchase_time: str) -> Dict:
+        """更新采购订单的进货时间
+        
+        Args:
+            purchase_code: 采购单编号（如 JH260522987）
+            new_purchase_time: 新的进货时间（格式：2026-01-01 09:00:00）
+        
+        Returns:
+            API 响应结果
+        """
+        import json
+        
+        # 1. 查询订单详情
+        order_result = self.query_purchase_order_list(purchaseCode=purchase_code)
+        if not order_result["success"] or not order_result["records"]:
+            return {"success": False, "message": f"未找到采购订单 {purchase_code}"}
+        
+        order = order_result["records"][0]
+        
+        # 2. 构建更新数据（保留原有字段，只更新 purchaseTime）
+        data = {
+            "id": order.get("id"),
+            "supplierId": order.get("supplierId"),
+            "supplierCode": order.get("supplierCode", ""),
+            "supplierName": order.get("supplierName", ""),
+            "purchaseCode": order.get("purchaseCode"),
+            "purchaseTime": new_purchase_time,
+            "itemCount": order.get("itemCount", 0),
+            "totalAmount": order.get("totalAmount", 0),
+            "createBy": order.get("createBy", 1),
+            "thumbs": json.dumps(order.get("thumbs", [])),
+            "createTime": order.get("createTime", ""),
+            "updateTime": order.get("updateTime", ""),
+        }
+        
+        try:
+            result = api_client.post("/restful/shasha/supply/orders", data=data)
+            print(f"更新采购订单进货时间 API 响应: {result}")
+            
+            if result.get("code") == 1:
+                return {"success": True, "message": "更新成功", "purchase_time": new_purchase_time}
+            else:
+                return {"success": False, "message": result.get("msg", "更新失败")}
+                
+        except Exception as e:
+            return {"success": False, "message": str(e)}
 
 
 base_library_service = BaseLibraryService()

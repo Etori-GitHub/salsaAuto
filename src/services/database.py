@@ -670,13 +670,12 @@ class Database:
         
         # 插入新数据
         for d in details:
-            # 进货时间：优先从明细获取，否则从订单获取，最后用创建时间
+            # 进货时间：优先从明细获取，否则从订单获取（不再用创建时间兜底）
             purchase_time = d.get("purchaseTime")
             if not purchase_time:
                 orders = d.get("orders") or {}
                 purchase_time = orders.get("purchaseTime")
-            if not purchase_time:
-                purchase_time = d.get("createTime")
+            # 如果都没有，保持为空
             
             cursor.execute("""
                 INSERT INTO purchase_details (
@@ -698,7 +697,7 @@ class Database:
                 d.get("quantity"),
                 d.get("unitPrice"),
                 d.get("totalPrice"),
-                purchase_time,
+                purchase_time,  # 可能为空
                 d.get("purchaser"),
                 d.get("canShow", 1),
                 d.get("inboundStatus", 0),
@@ -782,6 +781,18 @@ class Database:
         rows = cursor.fetchall()
         conn.close()
         return [dict(row) for row in rows]
+    
+    def get_all_purchase_details(self) -> List[Dict]:
+        """获取所有采购明细（别名方法）"""
+        return self.get_purchase_details_local()
+    
+    def update_purchase_detail_time(self, detail_id: int, purchase_time: str):
+        """更新采购明细的进货时间"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE purchase_details SET purchase_time = ? WHERE id = ?", (purchase_time, detail_id))
+        conn.commit()
+        conn.close()
 
 
 db = Database()

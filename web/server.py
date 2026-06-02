@@ -194,12 +194,12 @@ def init_chrome_versions():
     chrome_version = detect_chrome_version()
     print(f"Chrome 浏览器版本: {chrome_version or '未检测到'}")
 
-    # 如果没有检测到 ChromeDriver，自动下载默认版本
+    # 如果没有检测到 ChromeDriver,自动下载默认版本
     if not chromedriver_version:
-        print("未检测到 ChromeDriver，尝试下载默认版本 148.0.7778.168...")
+        print("未检测到 ChromeDriver,尝试下载默认版本 148.0.7778.168...")
         default_version = "148.0.7778.168"
         default_url = f"https://storage.googleapis.com/chrome-for-testing-public/{default_version}/win64/chromedriver-win64.zip"
-        
+
         success, message = download_and_update_chromedriver(default_url)
         if success:
             chromedriver_version = detect_chromedriver_version()
@@ -312,6 +312,10 @@ async def purchase_task_page(request: Request):
 async def purchase_adjust_page(request: Request):
     return render_template("purchase_adjust.html", {"request": request, "page": "purchase-adjust"})
 
+@app.get("/purchase-time-fix", response_class=HTMLResponse)
+async def purchase_time_fix_page(request: Request):
+    return render_template("purchase_time_fix.html", {"request": request, "page": "purchase-time-fix"})
+
 
 # === API 路由 ===
 
@@ -341,7 +345,7 @@ async def get_status():
 
 @app.get("/api/stores")
 async def get_stores():
-    """获取门店列表，只返回可见门店"""
+    """获取门店列表,只返回可见门店"""
     all_stores = config.get_all_stores()
     # 过滤掉隐藏的门店
     visible_stores = {
@@ -357,17 +361,17 @@ async def update_store_visibility(request: Request):
     data = await request.json()
     store_id = data.get("store_id")
     visible = data.get("visible")
-    
+
     if not store_id:
         return {"success": False, "message": "缺少门店ID"}
-    
+
     stores = config._data.get("stores", {})
     if store_id not in stores:
         return {"success": False, "message": "门店不存在"}
-    
+
     stores[store_id]["visible"] = visible
     config._save()
-    
+
     return {"success": True, "message": f"已{'显示' if visible else '隐藏'}门店"}
 
 
@@ -436,7 +440,7 @@ async def get_order_statistics(start_date: str = None, end_date: str = None, sto
 @app.get("/api/members")
 async def get_members():
     members = member_service.get_all_members()
-    # 转换为字典格式（以 id 为 key）
+    # 转换为字典格式(以 id 为 key)
     members_dict = {str(m["id"]): {
         "phone": m.get("phone", ""),
         "username": m.get("username", ""),
@@ -470,7 +474,7 @@ async def add_member(
         member_id = int(id)
     except ValueError:
         return {"success": False, "message": "会员 ID 必须是数字"}
-    
+
     success = member_service.add_member(member_id, phone, username, balance, type)
     if success:
         return {"success": True, "message": "添加成功"}
@@ -956,7 +960,7 @@ def run_server(host: str = "127.0.0.1", port: int = 8080):
                     return
             except FileNotFoundError:
                 continue
-        # 找不到 Chrome，用默认浏览器
+        # 找不到 Chrome,用默认浏览器
         webbrowser.open(url)
 
     def close_browser(signum=None, frame=None):
@@ -1110,7 +1114,7 @@ async def query_supply_orders(
     page_size: int = 100
 ):
     """查询要货记录"""
-    result = supply_query_service.query_supply_orders(    
+    result = supply_query_service.query_supply_orders(
         store_code=store_code,
         cang_sub_category_name=cang_sub_category_name,
         category_name=category_name,
@@ -1156,15 +1160,15 @@ async def update_supply_can_show(id: int, value: int):
             "value": value,
             "id": id
         }
-        
+
         response = api_client.session.post(url, params=params, timeout=10, verify=False)
         result = response.json()
-        
+
         if result.get("code") == 1:
             return {"success": True, "message": "更新成功"}
         else:
             return {"success": False, "message": result.get("msg", "更新失败")}
-    
+
     except Exception as e:
         return {"success": False, "message": str(e)}
 
@@ -1339,7 +1343,7 @@ async def get_monthly_order_stats(
         return {"success": False, "message": "请选择门店"}
     if not start_time or not end_time:
         return {"success": False, "message": "请选择时间区间"}
-    
+
     result = monthly_order_service.calculate_statistics(
         store_ids=store_ids,
         start_time=start_time,
@@ -1354,15 +1358,15 @@ async def export_monthly_order(request: Request):
     from fastapi.responses import StreamingResponse
     import pandas as pd
     from urllib.parse import quote
-    
+
     data = await request.json()
-    
+
     if not data.get("store_stats"):
         return {"success": False, "message": "没有数据可导出"}
-    
+
     # 生成 Excel
     buffer = BytesIO()
-    
+
     with pd.ExcelWriter(buffer, engine='openpyxl') as wb:
         # 门店统计表
         store_df = pd.DataFrame(data["store_stats"])
@@ -1373,17 +1377,17 @@ async def export_monthly_order(request: Request):
             'non_food': '非食品',
             'drink': '饮料'
         })
-        
+
         # 选择需要的列
         export_columns = ['门店名称'] + data['cang_names'] + ['食品', '非食品', '饮料']
         store_df_export = store_df[[c for c in export_columns if c in store_df.columns]]
         store_df_export.to_excel(wb, sheet_name='门店统计', index=False)
-    
+
     buffer.seek(0)
-    
+
     filename = f"月订货统计_{data.get('start_time', '')}_{data.get('end_time', '')}.xlsx"
     encoded_filename = quote(filename)
-    
+
     return StreamingResponse(
         buffer,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1854,7 +1858,7 @@ async def sync_purchase_details():
         if len(records) < 1000:
             break
         page += 1
-    
+
     # 同步到本地数据库
     count = db.sync_purchase_details(all_records)
     return {"success": True, "message": f"已同步 {count} 条采购明细", "total": count}
@@ -1946,10 +1950,10 @@ async def add_purchase_detail(
     """增加采购明细"""
     # 解析商品 ID 列表
     pid_list = [p.strip() for p in product_ids.split(",") if p.strip()]
-    
+
     if not pid_list:
         return {"success": False, "message": "请提供商品 ID"}
-    
+
     result = base_library_service.add_purchase_detail(
         purchase_code=purchase_code,
         product_ids=pid_list,
@@ -1970,10 +1974,10 @@ async def add_inbound_detail(
     """添加采购明细并入库"""
     # 解析商品 ID 列表
     pid_list = [p.strip() for p in product_ids.split(",") if p.strip()]
-    
+
     if not pid_list:
         return {"success": False, "message": "请提供商品 ID"}
-    
+
     result = base_library_service.add_inbound_detail(
         purchase_code=purchase_code,
         product_ids=pid_list,
@@ -2010,26 +2014,26 @@ async def save_purchase_task(request: Request):
     """保存采购任务"""
     import json
     from datetime import datetime
-    
+
     data = await request.json()
-    
+
     # 生成文件名
     summary_entity = data.get("summary_entity", "unknown")
     start_date = data.get("start_date", "")
     end_date = data.get("end_date", "")
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    
+
     filename = f"{summary_entity}_{start_date}_{end_date}_{timestamp}.json"
-    
+
     # 保存到文件
     tasks_dir = Path(__file__).parent.parent / "data" / "purchase-tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
-    
+
     file_path = tasks_dir / filename
-    
+
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    
+
     return {"success": True, "message": "任务已保存", "filename": filename}
 
 @app.get("/api/purchase/task/list")
@@ -2037,12 +2041,12 @@ async def list_purchase_tasks():
     """获取采购任务列表"""
     import json
     from datetime import datetime
-    
+
     tasks_dir = Path(__file__).parent.parent / "data" / "purchase-tasks"
-    
+
     if not tasks_dir.exists():
         return {"success": True, "tasks": []}
-    
+
     tasks = []
     for file in tasks_dir.glob("*.json"):
         try:
@@ -2059,23 +2063,23 @@ async def list_purchase_tasks():
             })
         except:
             continue
-    
+
     # 按创建时间倒序
     tasks.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    
+
     return {"success": True, "tasks": tasks}
 
 @app.get("/api/purchase/task/{filename}")
 async def get_purchase_task(filename: str):
     """获取采购任务详情"""
     import json
-    
+
     tasks_dir = Path(__file__).parent.parent / "data" / "purchase-tasks"
     file_path = tasks_dir / filename
-    
+
     if not file_path.exists():
         return {"success": False, "message": "任务不存在"}
-    
+
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
@@ -2087,16 +2091,16 @@ async def get_purchase_task(filename: str):
 async def sync_purchase_details():
     """同步采购明细到本地库"""
     from src.services.database import db
-    
+
     # 拉取全部采购明细
     result = base_library_service.query_purchase_orders(page=1, page_size=10000)
-    
+
     if not result["success"]:
         return {"success": False, "message": "查询采购明细失败"}
-    
+
     records = result["records"]
     count = db.sync_purchase_details(records)
-    
+
     return {"success": True, "message": f"已同步 {count} 条采购明细", "count": count}
 
 
@@ -2122,7 +2126,7 @@ async def export_purchase_details(
     if not records:
         return {"success": False, "message": "暂无数据可导出"}
 
-    # 筛选逻辑（与前端一致）
+    # 筛选逻辑(与前端一致)
     filtered_records = list(records)
 
     # 按汇总主体筛选
@@ -2227,19 +2231,19 @@ async def export_purchase_details(
 
 @app.post("/api/purchase/adjust-day")
 async def adjust_purchase_day(request: Request):
-    """执行单日补采购（自动同步数据）"""
+    """执行单日补采购(自动同步数据)"""
     import json
     from datetime import datetime
     from src.services.database import db
-    
+
     data = await request.json()
     date_str = data.get("date")
     summary_entity = data.get("summary_entity")
     target_amount = data.get("target_amount")
     purchase_time = data.get("purchase_time")
     purchaser = data.get("purchaser")
-    
-    # 0. 先同步采购明细到本地库（分页拉取全部数据）
+
+    # 0. 先同步采购明细到本地库(分页拉取全部数据)
     print("同步采购明细...")
     all_records = []
     page = 1
@@ -2255,29 +2259,29 @@ async def adjust_purchase_day(request: Request):
         if len(records) < 1000:
             break
         page += 1
-    
+
     if all_records:
         db.sync_purchase_details(all_records)
         print(f"已同步 {len(all_records)} 条采购明细")
-    
+
     # 1. 获取属于该汇总主体的供应商
     suppliers = db.get_suppliers()
     entity_suppliers = [s for s in suppliers if s.get("summary_entity") == summary_entity]
     entity_supplier_codes = [s.get("supplier_code") for s in entity_suppliers]
-    
+
     if not entity_supplier_codes:
         return {"success": False, "message": f"汇总主体 {summary_entity} 下没有供应商"}
-    
-    # 2. 从本地库查询当天的采购明细（按进货时间筛选）
+
+    # 2. 从本地库查询当天的采购明细(按进货时间筛选)
     valid_details = db.get_purchase_details_by_date(date_str, entity_supplier_codes)
     valid_details = [d for d in valid_details if d.get("can_show", 1) == 1]
-    
+
     # 3. 计算当前总金额
     current_amount = sum(d.get("total_price", 0) or 0 for d in valid_details)
     diff_amount = target_amount - current_amount
-    
+
     print(f"目标金额: {target_amount}, 当前金额: {current_amount}, 差额: {diff_amount}")
-    
+
     result_log = {
         "date": date_str,
         "target_amount": target_amount,
@@ -2285,10 +2289,10 @@ async def adjust_purchase_day(request: Request):
         "diff_amount": diff_amount,
         "actions": [],
     }
-    
+
     # 4. 调整策略
     if diff_amount < 0:
-        # 需要关闭明细（从最接近差额的开始）
+        # 需要关闭明细(从最接近差额的开始)
         sorted_details = sorted(valid_details, key=lambda d: abs(d.get("total_price", 0) - abs(diff_amount)))
         close_amount = 0
         for d in sorted_details:
@@ -2304,23 +2308,23 @@ async def adjust_purchase_day(request: Request):
         current_amount -= close_amount
         diff_amount = target_amount - current_amount
         print(f"关闭明细后: 当前金额={current_amount}, 差额={diff_amount}")
-    
-    # 6. 如果差额 > 0，需要增加采购
+
+    # 6. 如果差额 > 0,需要增加采购
     if diff_amount > 0.01:
-        # 获取商品库中属于该汇总主体的商品（只使用贸易品）
+        # 获取商品库中属于该汇总主体的商品(只使用贸易品)
         goods_result = base_library_service.query_all_goods()
         if not goods_result["success"]:
             return {"success": False, "message": "查询商品库失败"}
-        
+
         # 排除的供应商代码
         excluded_supplier_codes = ["G00003", "G00004"]
-        
+
         entity_goods = []
         for g in goods_result["records"]:
             supplier_code = g.get("supplierCode", "")
             category_name = g.get("categoryName", "")
             cang_sub_category_name = g.get("cangSubCategoryName", "")
-            
+
             # 排除现采和加工品
             if category_name in ["现采", "加工品"]:
                 continue
@@ -2333,30 +2337,30 @@ async def adjust_purchase_day(request: Request):
             # 只取上架状态的商品
             if g.get("status", 1) != 1:
                 continue
-            
+
             if supplier_code in entity_supplier_codes:
                 entity_goods.append(g)
-        
+
         print(f"筛选商品: 总数 {len(goods_result['records'])}, 符合条件 {len(entity_goods)}")
-        
+
         if not entity_goods:
             return {"success": False, "message": f"汇总主体 {summary_entity} 下没有可用的商品"}
-        
-        # 7. 贪心算法选择商品（返回商品ID和数量）
+
+        # 7. 贪心算法选择商品(返回商品ID和数量)
         selected_goods_map = greedy_select_goods(diff_amount, entity_goods)
-        print(f"贪心选择商品: {len(selected_goods_map)} 种，目标差额: {diff_amount}")
-        
+        print(f"贪心选择商品: {len(selected_goods_map)} 种,目标差额: {diff_amount}")
+
         # 打印选择的商品详情
         for pid, item in selected_goods_map.items():
             g = item["goods"]
             print(f"  - {g.get('productName')}: {item['quantity']} x {g.get('unitPrice') or g.get('inPrice')} = {(g.get('unitPrice') or g.get('inPrice') or 0) * item['quantity']}")
-        
+
         if not selected_goods_map:
             return {"success": False, "message": f"无法找到合适的商品组合来填补差额 ¥{diff_amount:.2f}"}
-        
+
         # 8. 按供应商分组处理商品
         add_amount = 0
-        
+
         # 先按供应商分组
         supplier_groups = {}
         for product_id, item in selected_goods_map.items():
@@ -2365,12 +2369,12 @@ async def adjust_purchase_day(request: Request):
             if supplier_code not in supplier_groups:
                 supplier_groups[supplier_code] = []
             supplier_groups[supplier_code].append({"product_id": product_id, "item": item})
-        
+
         print(f"按供应商分组: {len(supplier_groups)} 个供应商")
         for sc, items in supplier_groups.items():
             total_amount = sum((it["item"]["goods"].get("unitPrice") or it["item"]["goods"].get("inPrice") or 0) * it["item"]["quantity"] for it in items)
             print(f"  {sc}: {len(items)} 个商品, 金额 {total_amount:.2f}")
-        
+
         # 按供应商处理
         for supplier_code, items in supplier_groups.items():
             # 找到供应商 ID
@@ -2379,13 +2383,13 @@ async def adjust_purchase_day(request: Request):
                 if s.get("supplier_code") == supplier_code:
                     supplier_id = s.get("id")
                     break
-            
+
             print(f"\n处理供应商: {supplier_code}, ID={supplier_id}")
-            
+
             if not supplier_id:
-                print(f"  未找到供应商ID，跳过")
+                print(f"  未找到供应商ID,跳过")
                 continue
-            
+
             # 查询该供应商今天的采购单
             existing_order = None
             existing_orders = base_library_service.query_purchase_order_list(
@@ -2400,8 +2404,8 @@ async def adjust_purchase_day(request: Request):
                         existing_order = order
                         print(f"  找到现有采购单: {order.get('purchaseCode')}")
                         break
-            
-            # 如果没有现有采购单，创建新的
+
+            # 如果没有现有采购单,创建新的
             if not existing_order:
                 order_result = base_library_service.create_purchase_order(
                     supplier_id=supplier_id,
@@ -2409,11 +2413,11 @@ async def adjust_purchase_day(request: Request):
                     purchaser=purchaser,
                 )
                 print(f"  创建采购订单: {order_result}")
-                
+
                 if not order_result["success"]:
                     result_log["actions"].append({"action": "create_order_failed", "supplier_code": supplier_code, "message": order_result["message"]})
                     continue
-                
+
                 # 获取新创建的采购单
                 new_orders = base_library_service.query_purchase_order_list(
                     supplierCode=supplier_code,
@@ -2426,19 +2430,19 @@ async def adjust_purchase_day(request: Request):
                 else:
                     print(f"  未找到新创建的订单")
                     continue
-            
+
             purchase_code = existing_order.get("purchaseCode")
-            
+
             # 处理该供应商的所有商品
             for entry in items:
                 product_id = entry["product_id"]
                 item = entry["item"]
                 g = item["goods"]
                 quantity = item["quantity"]
-                
+
                 print(f"  处理商品: {g.get('productName')}, 数量={quantity}")
-                
-                # 添加采购明细并入库（add_inbound_detail 内部会调用 add_purchase_detail）
+
+                # 添加采购明细并入库(add_inbound_detail 内部会调用 add_purchase_detail)
                 inbound_result = base_library_service.add_inbound_detail(
                     purchase_code=purchase_code,
                     product_ids=[product_id],
@@ -2447,16 +2451,16 @@ async def adjust_purchase_day(request: Request):
                     purchase_time=purchase_time,
                 )
                 print(f"    添加明细并入库: {inbound_result}")
-                
+
                 if inbound_result["success"]:
                     price = g.get("unitPrice") or g.get("inPrice") or 0
                     item_amount = price * quantity
                     add_amount += item_amount
                     result_log["actions"].append({
-                        "action": "add", 
-                        "purchase_code": purchase_code, 
+                        "action": "add",
+                        "purchase_code": purchase_code,
                         "product_id": product_id,
-                        "name": g.get("productName"), 
+                        "name": g.get("productName"),
                         "price": price,
                         "quantity": quantity,
                         "amount": item_amount,
@@ -2464,11 +2468,11 @@ async def adjust_purchase_day(request: Request):
                     })
                 else:
                     print(f"    添加明细失败: {inbound_result.get('message')}")
-        
-        
+
+
         current_amount += add_amount
         diff_amount = target_amount - current_amount
-    
+
     # 9. 验算: 重新查询采购明细并计算总金额
     print("=== 开始验算 ===")
     all_verify_records = []
@@ -2484,25 +2488,25 @@ async def adjust_purchase_day(request: Request):
         if len(records) < 1000:
             break
         page += 1
-    
+
     if all_verify_records:
         db.sync_purchase_details(all_verify_records)
         print(f"验算同步: {len(all_verify_records)} 条采购明细")
-    
+
     verify_details = db.get_purchase_details_by_date(date_str, entity_supplier_codes)
     verify_details = [d for d in verify_details if d.get("can_show", 1) == 1]
     verify_amount = sum(d.get("total_price", 0) or 0 for d in verify_details)
     verify_diff = target_amount - verify_amount
     print(f"验算结果: 目标={target_amount:.2f}, 实际={verify_amount:.2f}, 差额={verify_diff:.2f}")
     print("=== 验算完成 ===")
-    
+
     result_log["final_current_amount"] = verify_amount
     result_log["final_diff_amount"] = verify_diff
     result_log["verify_details_count"] = len(verify_details)
-    
+
     return {
         "success": True,
-        "message": f"调整完成，验算金额 ¥{verify_amount:.2f}，差额 ¥{verify_diff:.2f}",
+        "message": f"调整完成,验算金额 ¥{verify_amount:.2f},差额 ¥{verify_diff:.2f}",
         "current_amount": verify_amount,
         "diff_amount": verify_diff,
         "log": result_log,
@@ -2510,67 +2514,67 @@ async def adjust_purchase_day(request: Request):
 
 
 def greedy_select_goods(target_amount: float, goods_list: list) -> dict:
-    """贪心算法选择商品组合（精确补齐到 0.01 元级别）
-    
+    """贪心算法选择商品组合(精确补齐到 0.01 元级别)
+
     算法流程:
-    1. 按价格排序（从大到小）
+    1. 按价格排序(从大到小)
     2. 用大金额商品填满大部分差额
-    3. 用小金额商品精确补齐零头（0.1 元、0.01 元）
-    
+    3. 用小金额商品精确补齐零头(0.1 元、0.01 元)
+
     Args:
         target_amount: 目标差额金额
         goods_list: 可用商品列表
-    
+
     Returns:
         dict: {商品ID: {"goods": 商品对象, "quantity": 数量}}
     """
-    # 按价格排序（从大到小）
+    # 按价格排序(从大到小)
     sorted_goods = sorted(goods_list, key=lambda g: g.get("unitPrice") or g.get("inPrice") or 0, reverse=True)
-    
+
     # 过滤掉价格为 0 的商品
     valid_goods = [g for g in sorted_goods if (g.get("unitPrice") or g.get("inPrice") or 0) > 0]
-    
+
     if not valid_goods:
         return {}
-    
-    # 分离大金额商品和小金额商品（用于补零头）
-    # 小金额商品: 价格 <= 1 元的（如 1 元、0.1 元、0.01 元）
+
+    # 分离大金额商品和小金额商品(用于补零头)
+    # 小金额商品: 价格 <= 1 元的(如 1 元、0.1 元、0.01 元)
     big_goods = [g for g in valid_goods if (g.get("unitPrice") or g.get("inPrice") or 0) > 1]
     small_goods = [g for g in valid_goods if (g.get("unitPrice") or g.get("inPrice") or 0) <= 1]
-    
+
     selected = {}  # {商品ID: {"goods": 商品对象, "quantity": 数量}}
     remaining = target_amount
-    
+
     # 第一阶段: 用大金额商品填满大部分差额
     for g in big_goods:
         price = g.get("unitPrice") or g.get("inPrice") or 0
         product_id = str(g.get("id"))
-        
-        # 计算可以选多少个（整数）
+
+        # 计算可以选多少个(整数)
         count = int(remaining / price)
-        
+
         if count > 0:
             selected[product_id] = {
                 "goods": g,
                 "quantity": count
             }
             remaining -= price * count
-        
-        # 如果剩余已经小于最小大金额商品，可以切换到小金额商品
+
+        # 如果剩余已经小于最小大金额商品,可以切换到小金额商品
         if remaining <= 1.01:
             break
-    
+
     # 第二阶段: 用小金额商品精确补齐零头
-    # 按价格排序（从大到小），确保能精确补齐
+    # 按价格排序(从大到小),确保能精确补齐
     small_goods_sorted = sorted(small_goods, key=lambda g: g.get("unitPrice") or g.get("inPrice") or 0, reverse=True)
-    
+
     for g in small_goods_sorted:
         price = g.get("unitPrice") or g.get("inPrice") or 0
         product_id = str(g.get("id"))
-        
+
         # 计算可以选多少个
         count = int(remaining / price)
-        
+
         if count > 0:
             if product_id in selected:
                 selected[product_id]["quantity"] += count
@@ -2580,17 +2584,17 @@ def greedy_select_goods(target_amount: float, goods_list: list) -> dict:
                     "quantity": count
                 }
             remaining -= price * count
-        
-        # 如果已经精确补齐（剩余 <= 0.005），退出
+
+        # 如果已经精确补齐(剩余 <= 0.005),退出
         if remaining <= 0.005:
             break
-    
-    # 第三阶段: 如果还有极小剩余（如 0.003），用最小价格商品补一个
+
+    # 第三阶段: 如果还有极小剩余(如 0.003),用最小价格商品补一个
     if remaining > 0.005 and small_goods_sorted:
         min_price_goods = small_goods_sorted[-1]  # 最小价格商品
         min_price = min_price_goods.get("unitPrice") or min_price_goods.get("inPrice") or 0
         min_product_id = str(min_price_goods.get("id"))
-        
+
         if min_product_id in selected:
             selected[min_product_id]["quantity"] += 1
         else:
@@ -2599,18 +2603,330 @@ def greedy_select_goods(target_amount: float, goods_list: list) -> dict:
                 "quantity": 1
             }
         remaining -= min_price
-    
+
     # 计算最终总金额
     total_selected = sum(
         (item["goods"].get("unitPrice") or item["goods"].get("inPrice") or 0) * item["quantity"]
         for item in selected.values()
     )
     print(f"贪心算法完成: 选择金额={total_selected:.2f}, 剩余差额={remaining:.2f}")
-    
+
     return selected
 
 
-# ========== 摸鱼游戏 API ==========
+# ========== 补全进货时间 API ========== 
+import random
+
+def parse_purchase_code_date(purchase_code: str) -> str | None:
+    """从采购单号解析日期
+    
+    例如: JH260202262 -> 2026-02-02
+    格式: JH + YYMMDD + 序号
+    """
+    if not purchase_code or not purchase_code.startswith('JH'): 
+        return None
+    
+    # 提取日期部分 (JH 后的 6 位)
+    date_part = purchase_code[2:8]
+    if len(date_part) != 6:
+        return None
+    
+    try:
+        yy = int(date_part[0:2])
+        mm = int(date_part[2:4])
+        dd = int(date_part[4:6])
+        # 年份处理: 26 -> 2026
+        year = 2000 + yy if yy >= 0 else 1900 + yy
+        return f"{year:04d}-{mm:02d}-{dd:02d}"
+    except:
+        return None
+
+def generate_random_work_time() -> str:
+    """生成随机工作时间 (08:00-20:00)"""
+    hour = random.randint(8, 19)  # 8点到19点（20点不算在内）
+    minute = random.randint(0, 59)
+    second = random.randint(0, 59)
+    return f"{hour:02d}:{minute:02d}:{second:02d}"
+
+@app.get("/api/purchase/validate-time")
+async def validate_purchase_time():
+    """检验采购订单与明细的进货时间是否一致
+    
+    返回:
+    - orders_with_mismatch: 订单进货时间与明细进货时间不在同一天的列表
+    - details_without_time: 没有进货时间的明细列表
+    """
+    # 从本地库获取所有采购明细
+    all_details = db.get_all_purchase_details()
+    
+    if not all_details:
+        return {
+            "success": False,
+            "message": "本地库没有采购明细数据，请先同步数据",
+            "orders_with_mismatch": [],
+            "details_without_time": []
+        }
+    
+    # 按采购单号分组
+    order_groups = {}
+    for d in all_details:
+        purchase_code = d.get("purchase_code") or ""
+        if purchase_code not in order_groups:
+            order_groups[purchase_code] = []
+        order_groups[purchase_code].append(d)
+    
+    # 检验结果
+    orders_with_mismatch = []
+    details_without_time = []
+    
+    for purchase_code, details in order_groups.items():
+        if not purchase_code:
+            # 没有采购单号的明细，检查是否有进货时间
+            for d in details:
+                if not d.get("purchase_time"):
+                    details_without_time.append({
+                        "id": d.get("id"),
+                        "detail_code": d.get("detail_code"),
+                        "purchase_code": purchase_code,
+                        "supplier_name": d.get("supplier_name"),
+                        "product_name": d.get("product_name"),
+                        "total_price": d.get("total_price"),
+                        "purchase_time": d.get("purchase_time"),
+                        "create_time": d.get("create_time"),
+                    })
+            continue
+        
+        # 从采购单号解析日期
+        parsed_date = parse_purchase_code_date(purchase_code)
+        if not parsed_date:
+            continue
+        
+        # 检查每条明细
+        for d in details:
+            purchase_time = d.get("purchase_time")
+            
+            if not purchase_time:
+                # 没有进货时间
+                details_without_time.append({
+                    "id": d.get("id"),
+                    "detail_code": d.get("detail_code"),
+                    "purchase_code": purchase_code,
+                    "supplier_name": d.get("supplier_name"),
+                    "product_name": d.get("product_name"),
+                    "total_price": d.get("total_price"),
+                    "purchase_time": purchase_time,
+                    "create_time": d.get("create_time"),
+                    "parsed_date": parsed_date,  # 解析出的日期
+                })
+            else:
+                # 检查日期是否一致
+                detail_date = purchase_time.split(" ")[0] if " " in purchase_time else purchase_time[:10]
+                if detail_date != parsed_date:
+                    orders_with_mismatch.append({
+                        "id": d.get("id"),
+                        "detail_code": d.get("detail_code"),
+                        "purchase_code": purchase_code,
+                        "supplier_name": d.get("supplier_name"),
+                        "product_name": d.get("product_name"),
+                        "total_price": d.get("total_price"),
+                        "purchase_time": purchase_time,
+                        "parsed_date": parsed_date,
+                    })
+    
+    return {
+        "success": True,
+        "message": f"检验完成: {len(orders_with_mismatch)} 条时间不一致, {len(details_without_time)} 条缺失进货时间",
+        "orders_with_mismatch": orders_with_mismatch,
+        "details_without_time": details_without_time,
+        "total_details": len(all_details),
+        "total_orders": len(order_groups),
+    }
+
+@app.post("/api/purchase/fill-time")
+async def fill_purchase_time(request: Request):
+    """补全采购明细的进货时间
+    
+    支持两种模式:
+    - type=orders, targets=[purchase_code, ...] - 按采购单号补全（根据订单号解析日期）
+    - type=details, targets=[detail_id, ...] - 按明细ID补全（根据订单的进货时间）
+    """
+    import random
+    
+    def generate_random_work_time() -> str:
+        """生成随机工作时间 (08:00-20:00)"""
+        hour = random.randint(8, 19)
+        minute = random.randint(0, 59)
+        second = random.randint(0, 59)
+        return f"{hour:02d}:{minute:02d}:{second:02d}"
+    
+    data = await request.json()
+    fill_type = data.get("type", "details")  # orders 或 details
+    targets = data.get("targets", [])
+    
+    # 获取所有明细
+    all_details = db.get_all_purchase_details()
+    detail_map = {d.get("id"): d for d in all_details}
+    
+    # 构建订单进货时间映射（订单 -> 该订单下第一条有进货时间的明细的时间）
+    order_purchase_time = {}
+    for d in all_details:
+        code = d.get("purchase_code") or ""
+        if d.get("purchase_time") and code not in order_purchase_time:
+            order_purchase_time[code] = d.get("purchase_time")
+    
+    success_count = 0
+    fail_count = 0
+    skip_count = 0
+    results = []
+    
+    if fill_type == "orders":
+        # 订单模式：根据订单号解析日期，更新订单的进货时间
+        for purchase_code in targets:
+            parsed_date = parse_purchase_code_date(purchase_code)
+            if not parsed_date:
+                fail_count += 1
+                results.append({
+                    "target": purchase_code,
+                    "type": "订单",
+                    "success": False,
+                    "message": f"无法解析采购单号 {purchase_code}"
+                })
+                continue
+            
+            # 生成随机工作时间
+            random_time = generate_random_work_time()
+            new_time = f"{parsed_date} {random_time}"
+            
+            # 调用 API 更新订单进货时间
+            try:
+                update_result = base_library_service.update_purchase_order_time(purchase_code, new_time)
+                
+                if update_result["success"]:
+                    success_count += 1
+                    results.append({
+                        "target": purchase_code,
+                        "type": "订单",
+                        "success": True,
+                        "new_time": new_time,
+                        "message": "订单进货时间更新成功"
+                    })
+                else:
+                    fail_count += 1
+                    results.append({
+                        "target": purchase_code,
+                        "type": "订单",
+                        "success": False,
+                        "message": update_result.get("message", "更新失败")
+                    })
+            except Exception as e:
+                fail_count += 1
+                results.append({
+                    "target": purchase_code,
+                    "type": "订单",
+                    "success": False,
+                    "message": str(e)
+                })
+    
+    else:
+        # 明细模式：根据订单的进货时间补全明细
+        for detail_id in targets:
+            detail_id = int(detail_id)
+            detail = detail_map.get(detail_id)
+            if not detail:
+                fail_count += 1
+                results.append({
+                    "target": detail_id,
+                    "type": "明细",
+                    "success": False,
+                    "message": "明细不存在"
+                })
+                continue
+            
+            purchase_code = detail.get("purchase_code") or ""
+            old_time = detail.get("purchase_time")
+            
+            # 获取订单的进货时间
+            order_time = order_purchase_time.get(purchase_code)
+            if not order_time:
+                fail_count += 1
+                results.append({
+                    "target": purchase_code or detail_id,
+                    "type": "明细",
+                    "success": False,
+                    "old_time": old_time,
+                    "message": "订单没有进货时间，请先整理订单"
+                })
+                continue
+            
+            # 提取日期部分
+            order_date = order_time.split(" ")[0] if " " in order_time else order_time[:10]
+            
+            # 如果明细已有进货时间且日期一致，跳过
+            if old_time:
+                old_date = old_time.split(" ")[0] if " " in old_time else old_time[:10]
+                if old_date == order_date:
+                    skip_count += 1
+                    results.append({
+                        "target": purchase_code,
+                        "type": "明细",
+                        "success": True,
+                        "skipped": True,
+                        "old_time": old_time,
+                        "new_time": old_time,
+                        "message": "日期已一致，跳过"
+                    })
+                    continue
+            
+            # 生成随机工作时间
+            random_time = generate_random_work_time()
+            new_time = f"{order_date} {random_time}"
+            
+            # 调用 API 更新
+            try:
+                update_url = f"/restful/shasha/supply/ordersDetail/updateField?field=purchaseTime&value={new_time}&id={detail_id}"
+                api_result = api_client.post(update_url, data={})
+                
+                if api_result.get("code") == 1:
+                    db.update_purchase_detail_time(detail_id, new_time)
+                    success_count += 1
+                    results.append({
+                        "target": purchase_code,
+                        "type": "明细",
+                        "success": True,
+                        "old_time": old_time,
+                        "new_time": new_time,
+                        "message": "更新成功"
+                    })
+                else:
+                    fail_count += 1
+                    results.append({
+                        "target": purchase_code,
+                        "type": "明细",
+                        "success": False,
+                        "old_time": old_time,
+                        "new_time": new_time,
+                        "message": api_result.get("msg", "API 返回错误")
+                    })
+            except Exception as e:
+                fail_count += 1
+                results.append({
+                    "target": purchase_code,
+                    "type": "明细",
+                    "success": False,
+                    "old_time": old_time,
+                    "message": str(e)
+                })
+    
+    return {
+        "success": True,
+        "message": f"处理完成: 成功 {success_count}, 失败 {fail_count}, 跳过 {skip_count}",
+        "updated": success_count,
+        "failed": fail_count,
+        "skipped": skip_count,
+        "results": results,
+    }
+
+# ========== 摸鱼游戏 API ========== 
 from src.game import typing as typing_game
 from src.game import findcow as findcow_game
 
