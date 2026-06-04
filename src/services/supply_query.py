@@ -100,7 +100,7 @@ class SupplyQueryService:
         product_name: Optional[str] = None,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
-        page_size: int = 100
+        page_size: int = 10000
     ) -> Dict:
         """分页查询所有要货记录"""
         # 第一次查询获取总数

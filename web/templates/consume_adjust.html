@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}补耗用 - salsaAuto{% endblock %}
+{% block header %}补耗用{% endblock %}
+
+{% block content %}
+<!-- 任务选择 -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">选择任务</span>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">耗用任务</label>
+            <select id="task-select" class="form-select" onchange="loadTaskDetail()">
+                <option value="">请选择任务</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- 任务详情 -->
+<div id="task-detail-card" class="card" style="margin-top: 24px; display: none;">
+    <div class="card-header">
+        <span class="card-title">任务详情</span>
+        <button class="btn btn-primary" onclick="executeAllDays()" style="margin-left: auto;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            一键执行全部
+        </button>
+    </div>
+    <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div>
+            <span style="color: var(--muted); font-size: 13px;">门店：</span>
+            <span id="detail-store" style="font-weight: 600;"></span>
+        </div>
+        <div>
+            <span style="color: var(--muted); font-size: 13px;">日期范围：</span>
+            <span id="detail-range" style="font-weight: 600;"></span>
+        </div>
+        <div>
+            <span style="color: var(--muted); font-size: 13px;">目标金额：</span>
+            <span id="detail-amount" style="font-weight: 600; color: var(--text);"></span>
+        </div>
+        <div>
+            <span style="color: var(--muted); font-size: 13px;">每日浮动：</span>
+            <span id="detail-float" style="font-weight: 600;"></span>
+        </div>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>目标金额</th>
+                    <th>当日库存</th>
+                    <th>状态</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="day-list">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 执行进度 -->
+<div id="progress-card" class="card" style="margin-top: 24px; display: none;">
+    <div class="card-header">
+        <span class="card-title">执行进度</span>
+    </div>
+    <div id="progress-content" style="padding: 16px;">
+    </div>
+</div>
+
+<!-- 单日执行详情 -->
+<div id="day-detail-card" class="card" style="margin-top: 24px; display: none;">
+    <div class="card-header">
+        <span class="card-title">耗用详情</span>
+        <span id="day-detail-date" style="color: var(--muted); font-size: 13px;"></span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>商品ID</th>
+                    <th>耗用数量</th>
+                    <th>单价</th>
+                    <th>金额</th>
+                    <th>执行时间</th>
+                    <th>状态</th>
+                </tr>
+            </thead>
+            <tbody id="day-detail-list">
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+let currentTask = null;
+let dailyPlan = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadTaskList();
+    
+    // 检查 URL 参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const taskId = urlParams.get('task');
+    if (taskId) {
+        document.getElementById('task-select').value = taskId;
+        loadTaskDetail();
+    }
+});
+
+async function loadTaskList() {
+    const result = await fetchAPI('/api/consume-tasks/list');
+    
+    if (!result.success || !result.tasks) {
+        return;
+    }
+    
+    const tasks = result.tasks;
+    const select = document.getElementById('task-select');
+    
+    tasks.forEach(t => {
+        const option = document.createElement('option');
+        option.value = t.task_id;
+        option.textContent = `${t.store_name} | ${t.start_date}~${t.end_date} | ¥${t.total_amount.toFixed(2)}`;
+        select.appendChild(option);
+    });
+}
+
+async function loadTaskDetail() {
+    const taskId = document.getElementById('task-select').value;
+    if (!taskId) {
+        document.getElementById('task-detail-card').style.display = 'none';
+        return;
+    }
+    
+    document.getElementById('task-detail-card').style.display = 'block';
+    document.getElementById('day-list').innerHTML = '<tr><td colspan="5" class="loading">加载中...</td></tr>';
+    
+    // 获取任务详情
+    const taskResult = await fetchAPI('/api/consume-tasks/' + taskId);
+    if (!taskResult.success) {
+        document.getElementById('day-list').innerHTML = `<tr><td colspan="5" class="loading" style="color: var(--danger);">加载失败</td></tr>`;
+        return;
+    }
+    
+    currentTask = taskResult.task;
+    
+    document.getElementById('detail-store').textContent = currentTask.store_name;
+    document.getElementById('detail-range').textContent = `${currentTask.start_date} ~ ${currentTask.end_date}`;
+    document.getElementById('detail-amount').textContent = `¥${currentTask.total_amount.toFixed(2)}`;
+    document.getElementById('detail-float').textContent = `${(currentTask.daily_float_percent || 0.1) * 100}%`;
+    
+    // 计算每日计划
+    const planResult = await fetchAPI('/api/consume-task/preview?store_id=' + currentTask.store_id + 
+        '&start_date=' + currentTask.start_date + 
+        '&end_date=' + currentTask.end_date + 
+        '&total_amount=' + currentTask.total_amount + 
+        '&daily_float_percent=' + (currentTask.daily_float_percent || 0.1));
+    
+    if (!planResult.success) {
+        document.getElementById('day-list').innerHTML = `<tr><td colspan="5" class="loading" style="color: var(--danger);">${planResult.message}</td></tr>`;
+        return;
+    }
+    
+    dailyPlan = planResult.daily_plan || [];
+    
+    // 加载每日库存和状态
+    let dayHtml = '';
+    for (const day of dailyPlan) {
+        const stockResult = await fetchAPI(`/api/consume-task/day-stock?store_id=${currentTask.store_id}&date=${day.date}`);
+        const stockAmount = stockResult.total_amount || 0;
+        const canExecute = stockAmount >= day.target_amount;
+        
+        dayHtml += `
+            <tr id="day-row-${day.date}" data-date="${day.date}" data-target="${day.target_amount}" data-stock="${stockAmount}">
+                <td style="font-family: var(--mono);">${day.date}</td>
+                <td style="font-family: var(--mono);">¥${day.target_amount.toFixed(2)}</td>
+                <td style="font-family: var(--mono); ${canExecute ? 'color: var(--ok);' : 'color: var(--danger);'}">¥${stockAmount.toFixed(2)}</td>
+                <td id="day-status-${day.date}">
+                    ${canExecute ? '<span style="color: var(--muted);">待执行</span>' : '<span style="color: var(--danger);">库存不足</span>'}
+                </td>
+                <td>
+                    ${canExecute ? `<button class="btn btn-sm btn-primary" onclick="executeDay('${day.date}')">执行</button>` : '-'}
+                </td>
+            </tr>
+        `;
+    }
+    
+    document.getElementById('day-list').innerHTML = dayHtml;
+}
+
+async function executeDay(date) {
+    const row = document.getElementById(`day-row-${date}`);
+    const targetAmount = parseFloat(row.dataset.target);
+    
+    // 更新状态
+    document.getElementById(`day-status-${date}`).innerHTML = '<span style="color: var(--muted);">执行中...</span>';
+    
+    // 计算耗用方案
+    const consumeResult = await fetchAPI(`/api/consume-task/day-consume?store_id=${currentTask.store_id}&date=${date}&target_amount=${targetAmount}`);
+    
+    if (!consumeResult.success) {
+        document.getElementById(`day-status-${date}`).innerHTML = `<span style="color: var(--danger);">失败: ${consumeResult.message}</span>`;
+        return;
+    }
+    
+    // 执行耗用
+    const execResult = await fetchAPI('/api/consume-task/execute-day', {
+        method: 'POST',
+        body: JSON.stringify({
+            store_id: currentTask.store_id,
+            date: date,
+            consume_plan: consumeResult.consume_plan
+        })
+    });
+    
+    if (execResult.success) {
+        document.getElementById(`day-status-${date}`).innerHTML = `<span style="color: var(--ok);">✓ 完成 (${execResult.success_count}条)</span>`;
+        // 更新按钮
+        row.querySelector('button').disabled = true;
+        row.querySelector('button').textContent = '已执行';
+        row.querySelector('button').className = 'btn btn-sm btn-secondary';
+        
+        // 显示详情
+        showDayDetail(date, execResult);
+        showToast(`执行成功: ${execResult.success_count} 条耗用记录`, 'success');
+    } else {
+        document.getElementById(`day-status-${date}`).innerHTML = `<span style="color: var(--danger);">失败</span>`;
+        showToast('执行失败: ' + execResult.message, 'error');
+    }
+}
+
+function showDayDetail(date, execResult) {
+    document.getElementById('day-detail-card').style.display = 'block';
+    document.getElementById('day-detail-date').textContent = date;
+    
+    const results = execResult.results || [];
+    
+    document.getElementById('day-detail-list').innerHTML = results.map(r => `
+        <tr>
+            <td style="font-family: var(--mono);">${r.product_id}</td>
+            <td style="font-family: var(--mono);">${r.quantity}</td>
+            <td style="font-family: var(--mono);">-</td>
+            <td style="font-family: var(--mono);">-</td>
+            <td style="font-size: 12px;">${execResult.execute_time || '-'}</td>
+            <td>
+                ${r.status === 'success' ? '<span style="color: var(--ok);">✓ 成功</span>' : `<span style="color: var(--danger);">失败: ${r.error}</span>`}
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function executeAllDays() {
+    if (!currentTask) {
+        showToast('请先选择任务', 'error');
+        return;
+    }
+    
+    document.getElementById('progress-card').style.display = 'block';
+    document.getElementById('progress-content').innerHTML = '<div class="loading">正在执行全部任务...</div>';
+    
+    const result = await fetchAPI('/api/consume-task/execute-all?task_id=' + currentTask.task_id, {
+        method: 'POST'
+    });
+    
+    if (result.success) {
+        let progressHtml = `
+            <div style="color: var(--ok); margin-bottom: 16px;">✓ 执行完成</div>
+            <div style="margin-bottom: 8px;">成功: ${result.total_success} 条耗用记录</div>
+            <div style="margin-bottom: 16px;">失败: ${result.total_failed} 条</div>
+            <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; max-height: 300px; overflow-y: auto;">
+        `;
+        
+        result.execution_results.forEach(r => {
+            const statusColor = r.status === 'success' ? 'var(--ok)' : (r.status === 'partial' ? 'var(--warning)' : 'var(--danger)');
+            progressHtml += `
+                <div style="padding: 4px 0; border-bottom: 1px solid var(--border-light);">
+                    <span style="font-family: var(--mono);">${r.date}</span>
+                    <span style="margin-left: 12px;">目标: ¥${r.target_amount?.toFixed(2) || 0}</span>
+                    <span style="margin-left: 12px;">实际: ¥${r.actual_amount?.toFixed(2) || 0}</span>
+                    <span style="margin-left: 12px; color: ${statusColor};">${r.status === 'success' ? '✓' : (r.status === 'partial' ? '△' : '✗')}</span>
+                </div>
+            `;
+        });
+        
+        progressHtml += '</div>';
+        document.getElementById('progress-content').innerHTML = progressHtml;
+        
+        // 刷新列表状态
+        loadTaskDetail();
+        
+        showToast('任务执行完成', 'success');
+    } else {
+        document.getElementById('progress-content').innerHTML = `<div style="color: var(--danger);">执行失败: ${result.message}</div>`;
+        showToast('执行失败', 'error');
+    }
+}
+{% endblock %}

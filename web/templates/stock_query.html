@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}库存查询 - salsaAuto{% endblock %}
+{% block header %}库存查询{% endblock %}
+
+{% block content %}
+<!-- 筛选条件 -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">筛选条件</span>
+        <button class="btn btn-secondary" onclick="syncData()" style="margin-left: auto;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            同步数据
+        </button>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">门店</label>
+            <select id="query-store" class="form-select">
+                <option value="">全部门店</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">商品名称</label>
+            <input type="text" id="query-product" class="form-input" placeholder="模糊匹配">
+        </div>
+    </div>
+    <div style="display: flex; gap: 12px;">
+        <button class="btn btn-primary" onclick="queryStock()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            查询库存
+        </button>
+    </div>
+</div>
+
+<!-- 库存结果 -->
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <span class="card-title">当前库存</span>
+        <span id="result-count" style="color: var(--muted); font-size: 13px;"></span>
+    </div>
+    <div id="summary-row" style="display: none; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 12px; display: flex; gap: 24px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--muted); font-size: 13px;">总数量：</span>
+            <span id="total-quantity" style="font-size: 18px; font-weight: 700; color: var(--text);">0</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--muted); font-size: 13px;">总金额：</span>
+            <span id="total-amount" style="font-size: 18px; font-weight: 700; color: var(--ok);">¥0.00</span>
+        </div>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>门店</th>
+                    <th>商品ID</th>
+                    <th>品名</th>
+                    <th>分类</th>
+                    <th>档口</th>
+                    <th>规格</th>
+                    <th>单位</th>
+                    <th>库存数量</th>
+                    <th>库存金额</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="stock-list">
+                <tr><td colspan="10" class="loading">点击查询库存</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+document.addEventListener('DOMContentLoaded', () => {
+    loadStores();
+});
+
+async function loadStores() {
+    const data = await fetchAPI('/api/stores');
+    const stores = data.stores || {};
+    const select = document.getElementById('query-store');
+    
+    Object.entries(stores).forEach(([id, store]) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = store.name;
+        select.appendChild(option);
+    });
+}
+
+async function queryStock() {
+    const storeId = document.getElementById('query-store').value || null;
+    const productName = document.getElementById('query-product').value || null;
+    
+    const tbody = document.getElementById('stock-list');
+    tbody.innerHTML = '<tr><td colspan="10" class="loading">查询中...</td></tr>';
+    document.getElementById('summary-row').style.display = 'none';
+    
+    const params = new URLSearchParams();
+    if (storeId) params.append('store_id', storeId);
+    
+    const result = await fetchAPI('/api/stock/current?' + params.toString());
+    
+    if (!result.success) {
+        tbody.innerHTML = `<tr><td colspan="10" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
+        return;
+    }
+    
+    let stocks = result.stocks || [];
+    
+    // 按商品名称过滤
+    if (productName) {
+        stocks = stocks.filter(s => (s.product_name || '').includes(productName));
+    }
+    
+    document.getElementById('result-count').textContent = `共 ${stocks.length} 个商品`;
+    
+    if (stocks.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">暂无库存数据</td></tr>';
+        return;
+    }
+    
+    // 显示汇总
+    document.getElementById('total-quantity').textContent = result.total_quantity || 0;
+    document.getElementById('total-amount').textContent = '¥' + (result.total_amount || 0).toFixed(2);
+    document.getElementById('summary-row').style.display = 'flex';
+    
+    // 获取门店名称
+    const storesData = await fetchAPI('/api/stores');
+    const stores = storesData.stores || {};
+    
+    tbody.innerHTML = stocks.map(s => {
+        const storeName = s.store_name || stores[s.store_id]?.name || s.store_id || '-';
+        const quantityClass = s.quantity >= 0 ? 'color: var(--ok);' : 'color: var(--danger);';
+        
+        return `
+        <tr>
+            <td>${storeName}</td>
+            <td style="font-family: var(--mono);">${s.product_id || '-'}</td>
+            <td>${s.product_name || '-'}</td>
+            <td>${s.category_name || '-'}</td>
+            <td>${s.cang_sub_category_name || '-'}</td>
+            <td>${s.spec_name || '-'}</td>
+            <td>${s.unit || '-'}</td>
+            <td style="font-family: var(--mono); font-weight: 600; ${quantityClass}">${(s.quantity || 0).toFixed(2)}</td>
+            <td style="font-family: var(--mono); font-weight: 600;">¥${(s.amount || 0).toFixed(2)}</td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="viewFlows(${s.store_id}, ${s.product_id})">流水</button>
+            </td>
+        </tr>
+    `}).join('');
+}
+
+function viewFlows(storeId, productId) {
+    window.location.href = `/stock-flow?store_id=${storeId}&product_id=${productId}`;
+}
+
+async function syncData() {
+    showToast('开始同步数据...', 'info');
+    
+    const result = await fetchAPI('/api/sync/all');
+    
+    if (result.success) {
+        const supply = result.supply || {};
+        const consume = result.consume || {};
+        showToast(`同步完成：要货 ${supply.synced || 0} 条，耗用 ${consume.synced || 0} 条`, 'success');
+    } else {
+        showToast('同步失败: ' + result.message, 'error');
+    }
+}
+{% endblock %}

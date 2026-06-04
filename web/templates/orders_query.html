@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
-{% block title %}订单明细查询 - salsaAuto{% endblock %}
-{% block header %}订单明细查询{% endblock %}
+{% block title %}订单查询 - salsaAuto{% endblock %}
+{% block header %}订单查询{% endblock %}
 
 {% block content %}
 <!-- 查询条件 -->
@@ -21,28 +21,14 @@
             </select>
         </div>
         <div class="form-group">
+            <label class="form-label">支付渠道</label>
+            <select id="query-channel" class="form-select">
+                <option value="">全部渠道</option>
+            </select>
+        </div>
+        <div class="form-group">
             <label class="form-label">订单号</label>
             <input type="text" id="query-order-code" class="form-input" placeholder="精确匹配">
-        </div>
-        <div class="form-group">
-            <label class="form-label">菜品名称</label>
-            <input type="text" id="query-dish-name" class="form-input" placeholder="模糊匹配">
-        </div>
-    </div>
-    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
-        <div class="form-group">
-            <label class="form-label">开始时间</label>
-            <input type="datetime-local" id="query-start-time" class="form-input">
-        </div>
-        <div class="form-group">
-            <label class="form-label">结束时间</label>
-            <input type="datetime-local" id="query-end-time" class="form-input">
-        </div>
-        <div class="form-group" style="display: flex; align-items: flex-end; gap: 8px;">
-            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('today')">今日</button>
-            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('yesterday')">昨日</button>
-            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('week')">近7天</button>
-            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('month')">本月</button>
         </div>
     </div>
     <div style="display: flex; gap: 12px;">
@@ -64,13 +50,13 @@
             <thead>
                 <tr>
                     <th>订单号</th>
-                    <th>菜品</th>
-                    <th>分类</th>
                     <th>门店</th>
-                    <th>数量</th>
-                    <th>金额</th>
-                    <th>时间</th>
+                    <th>支付渠道</th>
+                    <th>原价</th>
+                    <th>实付金额</th>
+                    <th>创建时间</th>
                     <th>状态</th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody id="order-list">
@@ -86,22 +72,19 @@
 {% block script %}
 let currentPage = 1;
 let totalPages = 1;
-let pageSize = 50;
-let currentQueryParams = {}; // 保存当前查询参数
+let pageSize = 15;
+let currentQueryParams = {};
 
 document.addEventListener('DOMContentLoaded', () => {
     loadStores();
-    // 默认查询今天
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('query-start-time').value = today + 'T00:00';
-    document.getElementById('query-end-time').value = today + 'T23:59';
+    loadPayChannels();
 });
 
 async function loadStores() {
     const data = await fetchAPI('/api/stores');
     const stores = data.stores || {};
     const select = document.getElementById('query-store');
-    
+
     Object.entries(stores).forEach(([id, store]) => {
         const option = document.createElement('option');
         option.value = id;
@@ -110,138 +93,118 @@ async function loadStores() {
     });
 }
 
-function setQuickTime(range) {
-    const now = new Date();
-    let start, end;
-    
-    switch (range) {
-        case 'today':
-            start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-            break;
-        case 'yesterday':
-            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0);
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59);
-            break;
-        case 'week':
-            start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0);
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-            break;
-        case 'month':
-            start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
-            end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-            break;
-    }
-    
-    const formatDateTime = (d) => {
-        return d.getFullYear() + '-' + 
-            String(d.getMonth() + 1).padStart(2, '0') + '-' + 
-            String(d.getDate()).padStart(2, '0') + 'T' + 
-            String(d.getHours()).padStart(2, '0') + ':' + 
-            String(d.getMinutes()).padStart(2, '0');
-    }; 
-    
-    document.getElementById('query-start-time').value = formatDateTime(start);
-    document.getElementById('query-end-time').value = formatDateTime(end);
+async function loadPayChannels() {
+    const data = await fetchAPI('/api/orders/pay-channels');
+    const channels = data.channels || [];
+    const select = document.getElementById('query-channel');
+
+    channels.forEach(ch => {
+        const option = document.createElement('option');
+        option.value = ch.value;
+        option.textContent = ch.key;
+        select.appendChild(option);
+    });
 }
 
 async function queryOrders(page = 1) {
     currentPage = page;
-    
+
     const storeId = document.getElementById('query-store').value || null;
-    const startTime = document.getElementById('query-start-time').value.replace('T', ' ') + ':00' || null;
-    const endTime = document.getElementById('query-end-time').value.replace('T', ' ') + ':59' || null;
+    const payChannel = document.getElementById('query-channel').value || null;
     const orderCode = document.getElementById('query-order-code').value || null;
-    const dishName = document.getElementById('query-dish-name').value || null;
-    
-    // 保存查询参数
-    currentQueryParams = { storeId, startTime, endTime, orderCode, dishName };
-    
+
+    currentQueryParams = { storeId, payChannel, orderCode };
+
     const tbody = document.getElementById('order-list');
     tbody.innerHTML = '<tr><td colspan="8" class="loading">查询中...</td></tr>';
-    
+
     const params = new URLSearchParams();
     if (storeId) params.append('store_id', storeId);
-    if (startTime) params.append('start_time', startTime);
-    if (endTime) params.append('end_time', endTime);
+    if (payChannel) params.append('pay_channel', payChannel);
     if (orderCode) params.append('order_code', orderCode);
-    if (dishName) params.append('dish_name', dishName);
     params.append('page', page);
     params.append('page_size', pageSize);
-    
-    const result = await fetchAPI('/api/orders/query?' + params.toString());
-    
+
+    const result = await fetchAPI('/api/orders/list?' + params.toString());
+
     if (!result.success) {
         tbody.innerHTML = `<tr><td colspan="8" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
         return;
     }
-    
+
     const records = result.records || [];
     totalPages = result.pages || 1;
-    
-    document.getElementById('result-count').textContent = 
+
+    document.getElementById('result-count').textContent =
         `共 ${result.total} 条，第 ${page}/${totalPages} 页`;
-    
+
     if (records.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="loading">暂无数据</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = records.map(r => `
         <tr>
-            <td style="font-family: var(--mono); font-size: 12px;">${r.orderCode}</td>
-            <td>${r.dishName}</td>
-            <td>${r.dish?.categoryName || '-'}</td>
+            <td style="font-family: var(--mono); font-size: 12px;">${r.orderCode || '-'}</td>
             <td>${r.storeName || '-'}</td>
-            <td>${r.count}</td>
-            <td style="font-family: var(--mono);">¥${r.discountPrice}</td>
-            <td style="font-size: 12px;">${r.createTime}</td>
-            <td>${r.refund ? '<span class="tag danger">已退款</span>' : '<span class="tag success">正常</span>'}</td>
+            <td>${r.payChannel || '-'}</td>
+            <td style="font-family: var(--mono);">¥${(r.originalPrice || 0).toFixed(2)}</td>
+            <td style="font-family: var(--mono);">¥${(r.discountPrice || 0).toFixed(2)}</td>
+            <td style="font-size: 12px;">${r.createTime || '-'}</td>
+            <td>${getStatusTag(r)}</td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="viewDetail('${r.orderCode}')">明细</button>
+            </td>
         </tr>
     `).join('');
-    
-    // 显示导出按钮
+
     document.getElementById('export-btn').style.display = 'inline-flex';
-    
     renderPagination();
+}
+
+function getStatusTag(r) {
+    if (r.refund) {
+        return '<span class="tag danger">已退款</span>';
+    }
+    return '<span class="tag success">正常</span>';
 }
 
 function renderPagination() {
     const container = document.getElementById('pagination');
     container.innerHTML = '';
-    
+
     if (totalPages <= 1) return;
-    
-    // 上一页
+
     if (currentPage > 1) {
         container.innerHTML += `<button class="btn btn-secondary" onclick="queryOrders(${currentPage - 1})">上一页</button>`;
     }
-    
-    // 页码
+
     const start = Math.max(1, currentPage - 2);
     const end = Math.min(totalPages, currentPage + 2);
-    
+
     for (let i = start; i <= end; i++) {
         const active = i === currentPage ? 'btn-primary' : 'btn-secondary';
         container.innerHTML += `<button class="btn ${active}" onclick="queryOrders(${i})">${i}</button>`;
     }
-    
-    // 下一页
+
     if (currentPage < totalPages) {
         container.innerHTML += `<button class="btn btn-secondary" onclick="queryOrders(${currentPage + 1})">下一页</button>`;
     }
 }
 
+function viewDetail(orderCode) {
+    // 跳转到订单明细查询页面，带上订单号
+    window.location.href = `/order-query?order_code=${encodeURIComponent(orderCode)}`;
+}
+
 function exportToExcel() {
-    const { storeId, startTime, endTime, orderCode, dishName } = currentQueryParams;
-    
+    const { storeId, payChannel, orderCode } = currentQueryParams;
+
     const params = new URLSearchParams();
     if (storeId) params.append('store_id', storeId);
-    if (startTime) params.append('start_time', startTime);
-    if (endTime) params.append('end_time', endTime);
+    if (payChannel) params.append('pay_channel', payChannel);
     if (orderCode) params.append('order_code', orderCode);
-    if (dishName) params.append('dish_name', dishName);
-    
+
     window.location.href = '/api/orders/export?' + params.toString();
 }
 {% endblock %}

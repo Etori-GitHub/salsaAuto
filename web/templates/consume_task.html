@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+
+{% block title %}耗用任务 - salsaAuto{% endblock %}
+{% block header %}耗用任务{% endblock %}
+
+{% block content %}
+<!-- 新建任务 -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">新建耗用任务</span>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">门店</label>
+            <select id="task-store" class="form-select">
+                <option value="">请选择门店</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">开始日期</label>
+            <input type="date" id="task-start-date" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">结束日期</label>
+            <input type="date" id="task-end-date" class="form-input">
+        </div>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">目标耗用金额</label>
+            <input type="number" id="task-amount" class="form-input" placeholder="例如：10000" step="0.01">
+        </div>
+        <div class="form-group">
+            <label class="form-label">每日浮动百分比</label>
+            <input type="number" id="task-float" class="form-input" value="0.1" step="0.01" min="0" max="0.5" style="width: 100px;">
+            <span style="color: var(--muted); font-size: 12px; margin-left: 8px;">（0-0.5，默认0.1）</span>
+        </div>
+    </div>
+    <div style="display: flex; gap: 12px;">
+        <button class="btn btn-primary" onclick="calculatePreview()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="16" y1="6" x2="16" y2="6.01"/></svg>
+            计算预览
+        </button>
+        <button class="btn btn-secondary" onclick="saveTask()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 13 7 8 15 8"/></svg>
+            保存任务
+        </button>
+    </div>
+</div>
+
+<!-- 预览结果 -->
+<div id="preview-card" class="card" style="margin-top: 24px; display: none;">
+    <div class="card-header">
+        <span class="card-title">预览结果</span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>日期</th>
+                    <th>目标金额</th>
+                    <th>当日库存</th>
+                    <th>耗用方案</th>
+                    <th>实际耗用</th>
+                </tr>
+            </thead>
+            <tbody id="preview-list">
+            </tbody>
+        </table>
+    </div>
+    <div id="preview-summary" style="margin-top: 16px; padding: 12px; background: var(--bg-elevated); border-radius: var(--radius-md);">
+    </div>
+</div>
+
+<!-- 任务列表 -->
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <span class="card-title">已保存任务</span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>任务ID</th>
+                    <th>门店</th>
+                    <th>日期范围</th>
+                    <th>目标金额</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="task-list">
+                <tr><td colspan="6" class="loading">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+let currentPreview = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadStores();
+    loadTaskList();
+    setDefaultTime();
+});
+
+async function loadStores() {
+    const data = await fetchAPI('/api/stores');
+    const stores = data.stores || {};
+    const select = document.getElementById('task-store');
+    
+    Object.entries(stores).forEach(([id, store]) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = store.name;
+        select.appendChild(option);
+    });
+}
+
+function setDefaultTime() {
+    const today = new Date();
+    // 默认本月
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    document.getElementById('task-start-date').value = formatDate(startOfMonth);
+    document.getElementById('task-end-date').value = formatDate(endOfMonth);
+}
+
+function formatDate(date) {
+    return date.toISOString().split('T')[0];
+}
+
+async function loadTaskList() {
+    const result = await fetchAPI('/api/consume-tasks/list');
+    
+    if (!result.success || !result.tasks) {
+        document.getElementById('task-list').innerHTML = '<tr><td colspan="6" class="loading">暂无任务</td></tr>';
+        return;
+    }
+    
+    const tasks = result.tasks;
+    
+    if (tasks.length === 0) {
+        document.getElementById('task-list').innerHTML = '<tr><td colspan="6" class="loading">暂无任务</td></tr>';
+        return;
+    }
+    
+    document.getElementById('task-list').innerHTML = tasks.map(t => `
+        <tr>
+            <td style="font-family: var(--mono); font-size: 12px;">${t.task_id}</td>
+            <td>${t.store_name}</td>
+            <td>${t.start_date} ~ ${t.end_date}</td>
+            <td style="font-family: var(--mono); font-weight: 600;">¥${t.total_amount.toFixed(2)}</td>
+            <td style="font-size: 12px;">${t.created_at}</td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="viewTask('${t.task_id}')">查看</button>
+                <button class="btn btn-sm btn-primary" onclick="goToAdjust('${t.task_id}')">补耗用</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function calculatePreview() {
+    const storeId = document.getElementById('task-store').value;
+    if (!storeId) {
+        showToast('请选择门店', 'error');
+        return;
+    }
+    
+    const startDate = document.getElementById('task-start-date').value;
+    const endDate = document.getElementById('task-end-date').value;
+    const totalAmount = parseFloat(document.getElementById('task-amount').value);
+    const dailyFloat = parseFloat(document.getElementById('task-float').value) || 0.1;
+    
+    if (!startDate || !endDate) {
+        showToast('请选择日期范围', 'error');
+        return;
+    }
+    
+    if (!totalAmount || totalAmount <= 0) {
+        showToast('请输入目标耗用金额', 'error');
+        return;
+    }
+    
+    // 显示预览卡片
+    document.getElementById('preview-card').style.display = 'block';
+    document.getElementById('preview-list').innerHTML = '<tr><td colspan="5" class="loading">计算中...</td></tr>';
+    
+    const params = new URLSearchParams();
+    params.append('store_id', storeId);
+    params.append('start_date', startDate);
+    params.append('end_date', endDate);
+    params.append('total_amount', totalAmount);
+    params.append('daily_float_percent', dailyFloat);
+    
+    const result = await fetchAPI('/api/consume-task/preview?' + params.toString());
+    
+    if (!result.success) {
+        document.getElementById('preview-list').innerHTML = `<tr><td colspan="5" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
+        return;
+    }
+    
+    currentPreview = result;
+    const dailyPlan = result.daily_plan || [];
+    
+    // 逐日计算耗用方案（异步）
+    let previewHtml = '';
+    let totalConsume = 0;
+    let skippedDays = 0;
+    
+    for (const day of dailyPlan) {
+        const stockResult = await fetchAPI(`/api/consume-task/day-stock?store_id=${storeId}&date=${day.date}`);
+        const stockAmount = stockResult.total_amount || 0;
+        
+        if (stockAmount < day.target_amount) {
+            previewHtml += `
+                <tr style="background: rgba(255,100,100,0.1);">
+                    <td>${day.date}</td>
+                    <td style="font-family: var(--mono);">¥${day.target_amount.toFixed(2)}</td>
+                    <td style="font-family: var(--mono); color: var(--danger);">¥${stockAmount.toFixed(2)} (不足)</td>
+                    <td>-</td>
+                    <td style="color: var(--danger);">跳过</td>
+                </tr>
+            `;
+            skippedDays++;
+        } else {
+            const consumeResult = await fetchAPI(`/api/consume-task/day-consume?store_id=${storeId}&date=${day.date}&target_amount=${day.target_amount}`);
+            const consumeAmount = consumeResult.consume_amount || 0;
+            totalConsume += consumeAmount;
+            
+            previewHtml += `
+                <tr>
+                    <td>${day.date}</td>
+                    <td style="font-family: var(--mono);">¥${day.target_amount.toFixed(2)}</td>
+                    <td style="font-family: var(--mono); color: var(--ok);">¥${stockAmount.toFixed(2)}</td>
+                    <td>${consumeResult.consume_plan?.length || 0} 个商品</td>
+                    <td style="font-family: var(--mono); font-weight: 600;">¥${consumeAmount.toFixed(2)}</td>
+                </tr>
+            `;
+        }
+    }
+    
+    document.getElementById('preview-list').innerHTML = previewHtml;
+    document.getElementById('preview-summary').innerHTML = `
+        <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+            <div><span style="color: var(--muted);">目标金额：</span> <strong>¥${totalAmount.toFixed(2)}</strong></div>
+            <div><span style="color: var(--muted);">预计耗用：</span> <strong style="color: var(--ok);">¥${totalConsume.toFixed(2)}</strong></div>
+            <div><span style="color: var(--muted);">跳过天数：</span> <strong style="color: var(--danger);">${skippedDays}</strong></div>
+        </div>
+    `;
+}
+
+async function saveTask() {
+    const storeSelect = document.getElementById('task-store');
+    const storeId = storeSelect.value;
+    const storeName = storeSelect.options[storeSelect.selectedIndex]?.text || '';
+    
+    const startDate = document.getElementById('task-start-date').value;
+    const endDate = document.getElementById('task-end-date').value;
+    const totalAmount = parseFloat(document.getElementById('task-amount').value);
+    const dailyFloat = parseFloat(document.getElementById('task-float').value) || 0.1;
+    
+    if (!storeId || !startDate || !endDate || !totalAmount) {
+        showToast('请填写完整信息', 'error');
+        return;
+    }
+    
+    const result = await fetchAPI('/api/consume-tasks/save', {
+        method: 'POST',
+        body: JSON.stringify({
+            store_id: parseInt(storeId),
+            store_name: storeName,
+            start_date: startDate,
+            end_date: endDate,
+            total_amount: totalAmount,
+            daily_float_percent: dailyFloat
+        })
+    });
+    
+    if (result.success) {
+        showToast('任务保存成功', 'success');
+        loadTaskList();
+    } else {
+        showToast('保存失败: ' + result.message, 'error');
+    }
+}
+
+async function viewTask(taskId) {
+    const result = await fetchAPI('/api/consume-tasks/' + taskId);
+    
+    if (!result.success) {
+        showToast('加载失败', 'error');
+        return;
+    }
+    
+    const task = result.task;
+    alert(`任务详情：
+门店：${task.store_name}
+日期范围：${task.start_date} ~ ${task.end_date}
+目标金额：¥${task.total_amount.toFixed(2)}
+每日浮动：${task.daily_float_percent * 100}%
+创建时间：${task.created_at}`);
+}
+
+function goToAdjust(taskId) {
+    window.location.href = '/consume-adjust?task=' + taskId;
+}
+{% endblock %}

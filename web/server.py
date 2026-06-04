@@ -30,6 +30,7 @@ from src.services.order import order_service
 from src.services.member import member_service
 from src.services.supply_adjust import supply_adjust_service
 from src.services.order_query import order_query_service
+from src.services.order_service import order_service_v2
 from src.services.store_query import store_query_service
 from src.services.supply_query import supply_query_service
 from src.services.base_library import base_library_service
@@ -57,6 +58,9 @@ captcha_id_cache: Optional[str] = None
 
 # 浏览器实例(保持打开)
 login_driver = None
+
+# 启动时加载 Token
+auth_service.load_token()
 
 
 def render_template(name: str, context: dict) -> str:
@@ -259,6 +263,10 @@ async def moyu_page(request: Request):
 @app.get("/order-query", response_class=HTMLResponse)
 async def order_query_page(request: Request):
     return render_template("order_query.html", {"request": request, "page": "order-query"})
+
+@app.get("/orders-query", response_class=HTMLResponse)
+async def orders_query_page(request: Request):
+    return render_template("orders_query.html", {"request": request, "page": "orders-query"})
 
 @app.get("/product-analysis", response_class=HTMLResponse)
 async def product_analysis_page(request: Request):
@@ -726,6 +734,34 @@ async def batch_by_quantity(
         today_orders[store_name] = estimated_amount
 
     return {"success": True, "order_count": count}
+
+
+# === 订单查询 API ===
+
+@app.get("/api/orders/list")
+async def api_orders_list(
+    page: int = Query(default=1),
+    page_size: int = Query(default=15),
+    order_code: Optional[str] = Query(default=None),
+    store_id: Optional[int] = Query(default=None),
+    pay_channel: Optional[str] = Query(default=None)
+):
+    """查询订单列表"""
+    result = order_service_v2.query_orders(
+        page=page,
+        page_size=page_size,
+        order_code=order_code,
+        store_id=store_id,
+        pay_channel=pay_channel
+    )
+    return result
+
+
+@app.get("/api/orders/pay-channels")
+async def api_pay_channels():
+    """获取支付渠道列表"""
+    channels = order_service_v2.get_pay_channels()
+    return {"channels": channels}
 
 
 @app.get("/api/supply-tasks/list")
@@ -2972,3 +3008,199 @@ async def rpg_game():
 async def game_editor():
     """游戏编辑器页面"""
     return render_template("editor.html", {})
+
+
+# ========== 耗用管理 API ==========
+
+from src.services.consume_query import consume_query_service
+from src.services.stock_flow import stock_flow_service
+from src.services.consume_task import consume_task_service
+from src.services.data_sync import data_sync_service
+
+@app.get("/consume-query", response_class=HTMLResponse)
+async def consume_query_page():
+    """耗用查询页面"""
+    return render_template("consume_query.html", {})
+
+@app.get("/stock-flow", response_class=HTMLResponse)
+async def stock_flow_page():
+    """库存流水页面"""
+    return render_template("stock_flow.html", {})
+
+@app.get("/stock-query", response_class=HTMLResponse)
+async def stock_query_page():
+    """库存查询页面"""
+    return render_template("stock_query.html", {})
+
+@app.get("/consume-task", response_class=HTMLResponse)
+async def consume_task_page():
+    """耗用任务页面"""
+    return render_template("consume_task.html", {})
+
+@app.get("/consume-adjust", response_class=HTMLResponse)
+async def consume_adjust_page(task: str = None):
+    """补耗用页面"""
+    return render_template("consume_adjust.html", {})
+
+# ========== 数据同步 API ==========
+
+@app.get("/api/sync/status")
+async def api_sync_status():
+    """获取同步状态"""
+    return stock_flow_service.get_sync_status()
+
+@app.get("/api/sync/supply")
+async def api_sync_supply(store_id: Optional[int] = None):
+    """同步要货数据到本地"""
+    return stock_flow_service.sync_supply_orders(store_id)
+
+@app.get("/api/sync/consume")
+async def api_sync_consume(store_id: Optional[int] = None):
+    """同步耗用数据到本地"""
+    return stock_flow_service.sync_consume_records(store_id)
+
+@app.get("/api/sync/all")
+async def api_sync_all(store_id: Optional[int] = None):
+    """同步全部数据（要货 + 耗用）"""
+    return stock_flow_service.sync_all(store_id)
+
+# ========== 耗用查询 API ==========
+
+@app.get("/api/consume/query")
+async def api_consume_query(
+    store_id: Optional[int] = None,
+    category_name: Optional[str] = None,
+    product_name: Optional[str] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 50
+):
+    """查询耗用记录（从平台API）"""
+    result = consume_query_service.query_consume_records(
+        store_id=store_id,
+        store_name=None,
+        category_name=category_name,
+        product_name=product_name,
+        start_time=start_time,
+        end_time=end_time,
+        page=page,
+        page_size=page_size
+    )
+    
+    if not result["success"]:
+        return result
+    
+    # 计算汇总
+    records = result["records"]
+    total_quantity = 0
+    total_amount = 0
+    
+    for r in records:
+        parsed = consume_query_service.parse_consume_record(r)
+        total_quantity += parsed["quantity"]
+        total_amount += parsed["total_amount"]
+    
+    return {
+        "success": True,
+        "total": result["total"],
+        "pages": result["pages"],
+        "current": result["current"],
+        "records": records,
+        "total_quantity": total_quantity,
+        "total_amount": total_amount
+    }
+
+# ========== 库存流水 API ==========
+
+@app.get("/api/stock/flows")
+async def api_stock_flows(
+    store_id: Optional[int] = None,
+    product_id: Optional[int] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = 500
+):
+    """获取库存流水（从本地缓存）"""
+    return stock_flow_service.get_stock_flows(
+        store_id=store_id,
+        product_id=product_id,
+        start_date=start_date,
+        end_date=end_date,
+        limit=limit
+    )
+
+@app.get("/api/stock/current")
+async def api_stock_current(store_id: Optional[int] = None):
+    """获取当前库存"""
+    return stock_flow_service.get_current_stock(store_id)
+
+@app.post("/api/stock/snapshot")
+async def api_stock_snapshot(store_id: Optional[int] = None):
+    """保存库存快照"""
+    return stock_flow_service.save_snapshot(store_id)
+
+# ========== 耗用任务 API ==========
+
+@app.get("/api/consume-tasks/list")
+async def api_consume_tasks_list():
+    """获取耗用任务列表"""
+    tasks = consume_task_service.get_task_list()
+    return {"success": True, "tasks": tasks}
+
+@app.get("/api/consume-tasks/{task_id}")
+async def api_consume_task_get(task_id: str):
+    """获取单个耗用任务"""
+    task = consume_task_service.get_task(task_id)
+    if task:
+        return {"success": True, "task": task}
+    return {"success": False, "message": "任务不存在"}
+
+@app.post("/api/consume-tasks/save")
+async def api_consume_task_save(request: Request):
+    """保存耗用任务"""
+    data = await request.json()
+    return consume_task_service.save_task(data)
+
+@app.get("/api/consume-task/preview")
+async def api_consume_task_preview(
+    store_id: int,
+    start_date: str,
+    end_date: str,
+    total_amount: float,
+    daily_float_percent: float = 0.1
+):
+    """预览耗用任务"""
+    task = {
+        "store_id": store_id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "total_amount": total_amount,
+        "daily_float_percent": daily_float_percent
+    }
+    return consume_task_service.calculate_daily_plan(task)
+
+@app.get("/api/consume-task/day-stock")
+async def api_consume_task_day_stock(store_id: int, date: str):
+    """获取指定日期的库存"""
+    return consume_task_service.get_daily_stock(store_id, date)
+
+@app.get("/api/consume-task/day-consume")
+async def api_consume_task_day_consume(store_id: int, date: str, target_amount: float):
+    """计算单日耗用方案"""
+    return consume_task_service.calculate_day_consume(store_id, date, target_amount)
+
+@app.post("/api/consume-task/execute-day")
+async def api_consume_task_execute_day(request: Request):
+    """执行单日耗用"""
+    data = await request.json()
+    return consume_task_service.execute_day_consume(
+        store_id=data["store_id"],
+        date=data["date"],
+        consume_plan=data["consume_plan"]
+    )
+
+@app.post("/api/consume-task/execute-all")
+async def api_consume_task_execute_all(task_id: str):
+    """执行完整耗用任务"""
+    return consume_task_service.execute_task(task_id)

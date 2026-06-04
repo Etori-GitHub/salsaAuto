@@ -152,6 +152,92 @@ class Database:
             )
         """)
         
+        # 耗用记录表（本地缓存）
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS consume_records (
+                id INTEGER PRIMARY KEY,
+                store_id INTEGER,
+                store_name TEXT,
+                product_id INTEGER,
+                product_code TEXT,
+                product_name TEXT,
+                category_code TEXT,
+                category_name TEXT,
+                sub_category_code TEXT,
+                sub_category_name TEXT,
+                cang_sub_category_code TEXT,
+                cang_sub_category_name TEXT,
+                spec_name TEXT,
+                unit TEXT,
+                unit_price REAL,
+                quantity REAL,
+                total_amount REAL,
+                used_time TEXT,
+                used_source TEXT,
+                used_by INTEGER,
+                create_time TEXT,
+                updated_at TEXT
+            )
+        """)
+        
+        # 库存快照表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_snapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                store_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                snapshot_date TEXT NOT NULL,
+                stock_quantity REAL DEFAULT 0,
+                stock_amount REAL DEFAULT 0,
+                created_at TEXT,
+                UNIQUE(store_id, product_id, snapshot_date)
+            )
+        """)
+        
+        # 库存流水表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS stock_flows (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                store_id INTEGER NOT NULL,
+                product_id INTEGER NOT NULL,
+                flow_date TEXT NOT NULL,
+                flow_type TEXT NOT NULL,
+                quantity REAL NOT NULL,
+                unit_price REAL,
+                amount REAL,
+                balance_quantity REAL,
+                balance_amount REAL,
+                ref_type TEXT,
+                ref_id INTEGER,
+                remark TEXT,
+                created_at TEXT
+            )
+        """)
+        
+        # 要货明细缓存表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS supply_order_details (
+                id INTEGER PRIMARY KEY,
+                store_id INTEGER,
+                store_name TEXT,
+                product_id INTEGER,
+                product_code TEXT,
+                product_name TEXT,
+                category_name TEXT,
+                sub_category_name TEXT,
+                cang_sub_category_name TEXT,
+                spec_name TEXT,
+                unit TEXT,
+                unit_price REAL,
+                quantity REAL,
+                total_amount REAL,
+                create_time TEXT,
+                delivery_code TEXT,
+                can_show INTEGER DEFAULT 1,
+                synced_at TEXT
+            )
+        """)
+        
         conn.commit()
         conn.close()
     
@@ -791,6 +877,453 @@ class Database:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("UPDATE purchase_details SET purchase_time = ? WHERE id = ?", (purchase_time, detail_id))
+        conn.commit()
+        conn.close()
+    
+    # ==================== 耗用记录操作 ====================
+    
+    def sync_consume_records(self, records: List[Dict]) -> int:
+        """同步耗用记录到本地库（覆盖模式：先清空再插入）"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 先清空旧数据
+        cursor.execute("DELETE FROM consume_records")
+        
+        count = 0
+        for r in records:
+            try:
+                cursor.execute("""
+                    INSERT INTO consume_records (
+                        id, store_id, store_name, product_id, product_code, product_name,
+                        category_code, category_name, sub_category_code, sub_category_name,
+                        cang_sub_category_code, cang_sub_category_name, spec_name, unit,
+                        unit_price, quantity, total_amount, used_time, used_source,
+                        used_by, create_time, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    r.get("id"),
+                    r.get("store_id"),
+                    r.get("store_name"),
+                    r.get("product_id"),
+                    r.get("product_code"),
+                    r.get("product_name"),
+                    r.get("category_code"),
+                    r.get("category_name"),
+                    r.get("sub_category_code"),
+                    r.get("sub_category_name"),
+                    r.get("cang_sub_category_code"),
+                    r.get("cang_sub_category_name"),
+                    r.get("spec_name"),
+                    r.get("unit"),
+                    r.get("unit_price"),
+                    r.get("quantity"),
+                    r.get("total_amount"),
+                    r.get("used_time"),
+                    r.get("used_source"),
+                    r.get("used_by"),
+                    r.get("create_time"),
+                    now
+                ))
+                if cursor.rowcount > 0:
+                    count += 1
+            except Exception as e:
+                print(f"同步耗用记录失败: {e}")
+        
+        conn.commit()
+        conn.close()
+        return count
+    
+    def get_consume_records(
+        self,
+        store_id: Optional[int] = None,
+        product_id: Optional[int] = None,
+        product_name: Optional[str] = None,
+        start_time: Optional[str] = None,
+        end_time: Optional[str] = None,
+        limit: int = 1000
+    ) -> List[Dict]:
+        """查询耗用记录"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        sql = "SELECT * FROM consume_records WHERE 1=1"
+        params = []
+        
+        if store_id:
+            sql += " AND store_id = ?"
+            params.append(store_id)
+        if product_id:
+            sql += " AND product_id = ?"
+            params.append(product_id)
+        if product_name:
+            sql += " AND product_name LIKE ?"
+            params.append(f"%{product_name}%")
+        if start_time:
+            sql += " AND used_time >= ?"
+            params.append(f"{start_time} 00:00:00")
+        if end_time:
+            sql += " AND used_time <= ?"
+            params.append(f"{end_time} 23:59:59")
+        
+        sql += " ORDER BY used_time DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def get_consume_summary(
+        self,
+        store_id: Optional[int] = None,
+        start_time: Optional[str] = None,
+        end_time: Optional[str] = None
+    ) -> Dict:
+        """获取耗用汇总"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT 
+                COUNT(*) as total_records,
+                SUM(quantity) as total_quantity,
+                SUM(total_amount) as total_amount
+            FROM consume_records WHERE 1=1
+        """
+        params = []
+        
+        if store_id:
+            sql += " AND store_id = ?"
+            params.append(store_id)
+        if start_time:
+            sql += " AND used_time >= ?"
+            params.append(f"{start_time} 00:00:00")
+        if end_time:
+            sql += " AND used_time <= ?"
+            params.append(f"{end_time} 23:59:59")
+        
+        cursor.execute(sql, params)
+        row = cursor.fetchone()
+        conn.close()
+        
+        return {
+            "total_records": row[0] or 0,
+            "total_quantity": row[1] or 0,
+            "total_amount": row[2] or 0
+        }
+    
+    # ==================== 库存快照操作 ====================
+    
+    def get_latest_stock_snapshot(self, store_id: int, product_id: int) -> Optional[Dict]:
+        """获取最近的库存快照"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT * FROM stock_snapshots 
+            WHERE store_id = ? AND product_id = ?
+            ORDER BY snapshot_date DESC LIMIT 1
+        """, (store_id, product_id))
+        
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+    
+    def save_stock_snapshot(self, store_id: int, product_id: int, snapshot_date: str,
+                              stock_quantity: float, stock_amount: float) -> bool:
+        """保存库存快照"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        try:
+            cursor.execute("""
+                INSERT OR REPLACE INTO stock_snapshots 
+                (store_id, product_id, snapshot_date, stock_quantity, stock_amount, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (store_id, product_id, snapshot_date, stock_quantity, stock_amount, now))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"保存快照失败: {e}")
+            conn.close()
+            return False
+    
+    def get_all_stock_snapshots(self, snapshot_date: str = None) -> List[Dict]:
+        """获取所有库存快照"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        if snapshot_date:
+            cursor.execute("SELECT * FROM stock_snapshots WHERE snapshot_date = ?", (snapshot_date,))
+        else:
+            cursor.execute("SELECT * FROM stock_snapshots ORDER BY snapshot_date DESC")
+        
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    # ==================== 库存流水操作 ====================
+    
+    def add_stock_flow(self, flow: Dict) -> int:
+        """添加库存流水记录"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        cursor.execute("""
+            INSERT INTO stock_flows (
+                store_id, product_id, flow_date, flow_type, quantity,
+                unit_price, amount, balance_quantity, balance_amount,
+                ref_type, ref_id, remark, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            flow.get("store_id"),
+            flow.get("product_id"),
+            flow.get("flow_date"),
+            flow.get("flow_type"),
+            flow.get("quantity"),
+            flow.get("unit_price"),
+            flow.get("amount"),
+            flow.get("balance_quantity"),
+            flow.get("balance_amount"),
+            flow.get("ref_type"),
+            flow.get("ref_id"),
+            flow.get("remark"),
+            now
+        ))
+        
+        flow_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        return flow_id
+    
+    def get_stock_flows(
+        self,
+        store_id: Optional[int] = None,
+        product_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        flow_type: Optional[str] = None,
+        limit: int = 1000
+    ) -> List[Dict]:
+        """查询库存流水"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        sql = "SELECT * FROM stock_flows WHERE 1=1"
+        params = []
+        
+        if store_id:
+            sql += " AND store_id = ?"
+            params.append(store_id)
+        if product_id:
+            sql += " AND product_id = ?"
+            params.append(product_id)
+        if start_date:
+            sql += " AND flow_date >= ?"
+            params.append(start_date)
+        if end_date:
+            sql += " AND flow_date <= ?"
+            params.append(end_date)
+        if flow_type:
+            sql += " AND flow_type = ?"
+            params.append(flow_type)
+        
+        sql += " ORDER BY flow_date DESC, id DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def get_stock_flow_summary(
+        self,
+        store_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict:
+        """获取库存流水汇总"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        sql = """
+            SELECT 
+                flow_type,
+                COUNT(*) as flow_count,
+                SUM(quantity) as total_quantity,
+                SUM(amount) as total_amount
+            FROM stock_flows WHERE 1=1
+        """
+        params = []
+        
+        if store_id:
+            sql += " AND store_id = ?"
+            params.append(store_id)
+        if start_date:
+            sql += " AND flow_date >= ?"
+            params.append(start_date)
+        if end_date:
+            sql += " AND flow_date <= ?"
+            params.append(end_date)
+        
+        sql += " GROUP BY flow_type"
+        
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        result = {
+            "supply_in": {"count": 0, "quantity": 0, "amount": 0},
+            "consume_out": {"count": 0, "quantity": 0, "amount": 0}
+        }
+        
+        for row in rows:
+            flow_type = row[0]
+            if flow_type == "supply":
+                result["supply_in"] = {
+                    "count": row[1],
+                    "quantity": row[2] or 0,
+                    "amount": row[3] or 0
+                }
+            elif flow_type == "consume":
+                result["consume_out"] = {
+                    "count": row[1],
+                    "quantity": row[2] or 0,
+                    "amount": row[3] or 0
+                }
+        
+        return result
+    
+    def clear_stock_flows(self, store_id: int = None):
+        """清除库存流水（用于重新计算）"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if store_id:
+            cursor.execute("DELETE FROM stock_flows WHERE store_id = ?", (store_id,))
+        else:
+            cursor.execute("DELETE FROM stock_flows")
+        
+        conn.commit()
+        conn.close()
+    
+    # ==================== 要货明细缓存操作 ====================
+    
+    def sync_supply_order_details(self, records: List[Dict]) -> int:
+        """同步要货明细到本地缓存（覆盖模式：先清空再插入）"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 先清空旧数据
+        cursor.execute("DELETE FROM supply_order_details")
+        
+        count = 0
+        for r in records:
+            try:
+                cursor.execute("""
+                    INSERT INTO supply_order_details (
+                        id, store_id, store_name, product_id, product_code, product_name,
+                        category_name, sub_category_name, cang_sub_category_name,
+                        spec_name, unit, unit_price, quantity, total_amount,
+                        create_time, delivery_code, can_show, synced_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    r.get("id"),
+                    r.get("store_id"),
+                    r.get("store_name"),
+                    r.get("product_id"),
+                    r.get("product_code"),
+                    r.get("product_name"),
+                    r.get("category_name"),
+                    r.get("sub_category_name"),
+                    r.get("cang_sub_category_name"),
+                    r.get("spec_name"),
+                    r.get("unit"),
+                    r.get("unit_price"),
+                    r.get("quantity"),
+                    r.get("total_amount"),
+                    r.get("create_time"),
+                    r.get("delivery_code"),
+                    r.get("can_show", 1),
+                    now
+                ))
+                count += 1
+            except Exception as e:
+                print(f"同步要货明细失败: {e}")
+        
+        conn.commit()
+        conn.close()
+        return count
+    
+    def get_supply_order_details(
+        self,
+        store_id: Optional[int] = None,
+        product_id: Optional[int] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        limit: int = 10000
+    ) -> List[Dict]:
+        """查询要货明细缓存"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        sql = "SELECT * FROM supply_order_details WHERE can_show = 1"
+        params = []
+        
+        if store_id:
+            sql += " AND store_id = ?"
+            params.append(store_id)
+        if product_id:
+            sql += " AND product_id = ?"
+            params.append(product_id)
+        if start_date:
+            sql += " AND create_time >= ?"
+            params.append(f"{start_date} 00:00:00")
+        if end_date:
+            sql += " AND create_time <= ?"
+            params.append(f"{end_date} 23:59:59")
+        
+        sql += " ORDER BY create_time DESC LIMIT ?"
+        params.append(limit)
+        
+        cursor.execute(sql, params)
+        rows = cursor.fetchall()
+        conn.close()
+        return [dict(row) for row in rows]
+    
+    def get_supply_order_count(self, store_id: Optional[int] = None) -> int:
+        """获取要货明细数量"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        sql = "SELECT COUNT(*) FROM supply_order_details WHERE can_show = 1"
+        params = []
+        
+        if store_id:
+            sql += " AND store_id = ?"
+            params.append(store_id)
+        
+        cursor.execute(sql, params)
+        count = cursor.fetchone()[0]
+        conn.close()
+        return count
+    
+    def clear_supply_order_details(self):
+        """清空要货明细缓存"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM supply_order_details")
         conn.commit()
         conn.close()
 

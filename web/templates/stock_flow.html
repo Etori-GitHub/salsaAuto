@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}库存流水 - salsaAuto{% endblock %}
+{% block header %}库存流水{% endblock %}
+
+{% block content %}
+<!-- 筛选条件 -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">筛选条件</span>
+        <button class="btn btn-secondary" onclick="syncData()" style="margin-left: auto;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            同步数据
+        </button>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">门店</label>
+            <select id="query-store" class="form-select">
+                <option value="">全部门店</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">商品ID</label>
+            <input type="text" id="query-product-id" class="form-input" placeholder="精确匹配">
+        </div>
+        <div class="form-group">
+            <label class="form-label">商品名称</label>
+            <input type="text" id="query-product-name" class="form-input" placeholder="模糊匹配">
+        </div>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">开始日期</label>
+            <input type="date" id="query-start-date" class="form-input">
+        </div>
+        <div class="form-group">
+            <label class="form-label">结束日期</label>
+            <input type="date" id="query-end-date" class="form-input">
+        </div>
+        <div class="form-group" style="display: flex; align-items: flex-end; gap: 8px;">
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('today')">今日</button>
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('month')">本月</button>
+            <button class="btn btn-sm btn-secondary" onclick="setQuickTime('year')">今年</button>
+        </div>
+    </div>
+    <div style="display: flex; gap: 12px;">
+        <button class="btn btn-primary" onclick="queryFlows()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            查询流水
+        </button>
+        <button class="btn btn-secondary" onclick="exportToExcel()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            导出 Excel
+        </button>
+    </div>
+</div>
+
+<!-- 查询结果 -->
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <span class="card-title">库存流水</span>
+        <span id="result-count" style="color: var(--muted); font-size: 13px;"></span>
+    </div>
+    <!-- 汇总行 -->
+    <div id="summary-row" style="display: none; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 12px; display: flex; gap: 24px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--muted); font-size: 13px;">要货入库：</span>
+            <span id="supply-amount" style="font-size: 18px; font-weight: 700; color: var(--ok);">¥0.00</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: var(--muted); font-size: 13px;">耗用出库：</span>
+            <span id="consume-amount" style="font-size: 18px; font-weight: 700; color: var(--danger);">¥0.00</span>
+        </div>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>门店</th>
+                    <th>商品ID</th>
+                    <th>品名</th>
+                    <th>分类</th>
+                    <th>档口</th>
+                    <th>规格</th>
+                    <th>单位</th>
+                    <th>单价</th>
+                    <th>数量</th>
+                    <th>金额</th>
+                    <th>库存</th>
+                    <th>库存金额</th>
+                </tr>
+            </thead>
+            <tbody id="flow-list">
+                <tr><td colspan="13" class="loading">点击同步数据，然后查询</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+let currentFlows = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadStores();
+    setDefaultTime();
+    
+    // 检查 URL 参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const storeId = urlParams.get('store_id');
+    const productId = urlParams.get('product_id');
+    
+    if (storeId) document.getElementById('query-store').value = storeId;
+    if (productId) document.getElementById('query-product-id').value = productId;
+    
+    if (storeId || productId) {
+        queryFlows();
+    }
+});
+
+async function loadStores() {
+    const data = await fetchAPI('/api/stores');
+    const stores = data.stores || {};
+    const select = document.getElementById('query-store');
+    
+    Object.entries(stores).forEach(([id, store]) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = store.name;
+        select.appendChild(option);
+    });
+}
+
+function setDefaultTime() {
+    const today = new Date();
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    document.getElementById('query-start-date').value = formatDate(startOfMonth);
+    document.getElementById('query-end-date').value = formatDate(today);
+}
+
+function formatDate(date) {
+    return date.toISOString().split('T')[0];
+}
+
+function setQuickTime(type) {
+    const today = new Date();
+    let start, end;
+    
+    switch (type) {
+        case 'today':
+            start = end = today;
+            break;
+        case 'month':
+            end = today;
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            break;
+        case 'year':
+            end = today;
+            start = new Date(today.getFullYear(), 0, 1);
+            break;
+    }
+    
+    document.getElementById('query-start-date').value = formatDate(start);
+    document.getElementById('query-end-date').value = formatDate(end);
+}
+
+async function syncData() {
+    const storeId = document.getElementById('query-store').value || null;
+    
+    showToast('开始同步数据...', 'info');
+    
+    const params = new URLSearchParams();
+    if (storeId) params.append('store_id', storeId);
+    
+    const result = await fetchAPI('/api/sync/all?' + params.toString());
+    
+    if (result.success) {
+        const supply = result.supply || {};
+        const consume = result.consume || {};
+        showToast(`同步完成：要货 ${supply.synced || 0} 条，耗用 ${consume.synced || 0} 条`, 'success');
+    } else {
+        showToast('同步失败: ' + result.message, 'error');
+    }
+}
+
+async function queryFlows() {
+    const storeId = document.getElementById('query-store').value || null;
+    const productId = document.getElementById('query-product-id').value || null;
+    const productName = document.getElementById('query-product-name').value || null;
+    const startDate = document.getElementById('query-start-date').value || null;
+    const endDate = document.getElementById('query-end-date').value || null;
+    
+    const tbody = document.getElementById('flow-list');
+    tbody.innerHTML = '<tr><td colspan="13" class="loading">查询中...</td></tr>';
+    document.getElementById('summary-row').style.display = 'none';
+    
+    const params = new URLSearchParams();
+    if (storeId) params.append('store_id', storeId);
+    if (productId) params.append('product_id', productId);
+    if (startDate) params.append('start_date', startDate);
+    if (endDate) params.append('end_date', endDate);
+    params.append('limit', 500);
+    
+    const result = await fetchAPI('/api/stock/flows?' + params.toString());
+    
+    if (!result.success) {
+        tbody.innerHTML = `<tr><td colspan="13" class="loading" style="color: var(--danger);">${result.message}</td></tr>`;
+        return;
+    }
+    
+    currentFlows = result.flows || [];
+    const summary = result.summary || {};
+    
+    // 过滤商品名称
+    if (productName) {
+        currentFlows = currentFlows.filter(f => (f.product_name || '').includes(productName));
+    }
+    
+    document.getElementById('result-count').textContent = `共 ${currentFlows.length} 条记录`;
+    
+    if (currentFlows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="13" class="loading">暂无数据，请先同步数据</td></tr>';
+        return;
+    }
+    
+    // 显示汇总
+    document.getElementById('supply-amount').textContent = '¥' + (summary.supply_amount || 0).toFixed(2);
+    document.getElementById('consume-amount').textContent = '¥' + (summary.consume_amount || 0).toFixed(2);
+    document.getElementById('summary-row').style.display = 'flex';
+    
+    // 显示流水
+    tbody.innerHTML = currentFlows.map(f => {
+        const storeName = f.store_name || f.store_id || '-';
+        const isSupply = f.flow_type === 'supply';
+        const quantitySign = isSupply ? '+' : '-';
+        const quantityColor = isSupply ? 'var(--ok)' : 'var(--danger)';
+        
+        return `
+        <tr>
+            <td style="font-size: 12px;">${f.flow_time || f.flow_date || '-'}</td>
+            <td>${storeName}</td>
+            <td style="font-family: var(--mono);">${f.product_id || '-'}</td>
+            <td>${f.product_name || '-'}</td>
+            <td>${f.category_name || '-'}</td>
+            <td>${f.cang_sub_category_name || '-'}</td>
+            <td>${f.spec_name || '-'}</td>
+            <td>${f.unit || '-'}</td>
+            <td style="font-family: var(--mono);">¥${(f.unit_price || 0).toFixed(2)}</td>
+            <td style="font-family: var(--mono); color: ${quantityColor}; font-weight: 600;">${quantitySign}${f.quantity || 0}</td>
+            <td style="font-family: var(--mono); color: ${quantityColor};">${quantitySign}¥${(f.amount || 0).toFixed(2)}</td>
+            <td style="font-family: var(--mono);">${f.balance_quantity || 0}</td>
+            <td style="font-family: var(--mono);">¥${(f.balance_amount || 0).toFixed(2)}</td>
+        </tr>
+    `}).join('');
+}
+
+function exportToExcel() {
+    if (currentFlows.length === 0) {
+        showToast('没有数据可导出', 'error');
+        return;
+    }
+    
+    const headers = ['时间', '门店', '商品ID', '品名', '分类', '档口', '规格', '单位', '单价', '数量', '金额', '库存', '库存金额'];
+    const rows = currentFlows.map(f => [
+        f.flow_time || f.flow_date || '',
+        f.store_name || f.store_id || '',
+        f.product_id || '',
+        f.product_name || '',
+        f.category_name || '',
+        f.cang_sub_category_name || '',
+        f.spec_name || '',
+        f.unit || '',
+        f.unit_price || 0,
+        (f.flow_type === 'supply' ? '+' : '-') + (f.quantity || 0),
+        (f.flow_type === 'supply' ? '+' : '-') + (f.amount || 0),
+        f.balance_quantity || 0,
+        f.balance_amount || 0
+    ]);
+    
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `库存流水_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    showToast('导出成功', 'success');
+}
+{% endblock %}

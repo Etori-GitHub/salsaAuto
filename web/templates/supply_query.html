@@ -8,6 +8,10 @@
 <div class="card">
     <div class="card-header">
         <span class="card-title">筛选条件</span>
+        <button class="btn btn-secondary" onclick="syncSupplyOrders()" style="margin-left: auto;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            同步到本地
+        </button>
         <button class="btn btn-secondary" id="export-btn" onclick="exportToExcel()" style="display: none;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             导出 Excel
@@ -384,5 +388,17 @@ function exportToExcel() {
     if (currentQueryParams.endTime) params.append('end_time', currentQueryParams.endTime);
     
     window.location.href = '/api/supply/export?' + params.toString();
+}
+
+async function syncSupplyOrders() {
+    showToast('开始同步要货数据...', 'info');
+    
+    const result = await fetchAPI('/api/sync/supply');
+    
+    if (result.success) {
+        showToast(`同步完成：${result.synced || 0} 条记录`, 'success');
+    } else {
+        showToast('同步失败: ' + result.message, 'error');
+    }
 }
 {% endblock %}
