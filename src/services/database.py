@@ -54,6 +54,7 @@ class Database:
                 cang_sub_category_name TEXT,
                 unit_price REAL,
                 true_price REAL,
+                distribution_price REAL,
                 unit TEXT,
                 spec_name TEXT,
                 status INTEGER DEFAULT 1,
@@ -61,11 +62,13 @@ class Database:
             )
         """)
         
-        # 检查并添加 status 字段
+        # 检查并添加字段
         cursor.execute("PRAGMA table_info(goods)")
         columns = [row[1] for row in cursor.fetchall()]
         if 'status' not in columns:
             cursor.execute("ALTER TABLE goods ADD COLUMN status INTEGER DEFAULT 1")
+        if 'distribution_price' not in columns:
+            cursor.execute("ALTER TABLE goods ADD COLUMN distribution_price REAL")
         
         # 商品分类表
         cursor.execute("""
@@ -76,9 +79,16 @@ class Database:
                 category_id INTEGER,
                 category_name TEXT,
                 type TEXT,
+                distribution_ratio REAL DEFAULT 0,
                 updated_at TEXT
             )
         """)
+        
+        # 检查并添加 distribution_ratio 字段
+        cursor.execute("PRAGMA table_info(goods_sub_cate)")
+        columns = [row[1] for row in cursor.fetchall()]
+        if 'distribution_ratio' not in columns:
+            cursor.execute("ALTER TABLE goods_sub_cate ADD COLUMN distribution_ratio REAL DEFAULT 0")
         
         # 档口分类表
         cursor.execute("""
@@ -357,33 +367,44 @@ class Database:
     # ==================== 商品库操作 ====================
     
     def sync_goods(self, goods_list: List[Dict]) -> int:
-        """同步商品库"""
+        """同步商品库，并计算配销价格"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # 获取所有分类的配销比例
+        cursor.execute("SELECT id, distribution_ratio FROM goods_sub_cate")
+        ratio_map = {row[0]: row[1] or 0 for row in cursor.fetchall()}
         
         # 清空旧数据
         cursor.execute("DELETE FROM goods")
         
         # 插入新数据
         for g in goods_list:
+            # 计算配销价格
+            unit_price = g.get("unitPrice") or g.get("truePrice") or 0
+            sub_category_id = g.get("subCategoryId")
+            ratio = ratio_map.get(sub_category_id, 0) or 0
+            distribution_price = round(unit_price * (1 + ratio / 100), 2) if unit_price else 0
+            
             cursor.execute("""
                 INSERT INTO goods (id, product_code, product_name, category_id, category_name,
                     sub_category_id, sub_category_name, cang_sub_category_id, cang_sub_category_name,
-                    unit_price, true_price, unit, spec_name, status, supplier_code, supplier_name, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    unit_price, true_price, distribution_price, unit, spec_name, status, supplier_code, supplier_name, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 g.get("id"),
                 g.get("productCode"),
                 g.get("productName"),
                 g.get("categoryId"),
                 g.get("categoryName"),
-                g.get("subCategoryId"),
+                sub_category_id,
                 g.get("subCategoryName"),
                 g.get("cangSubCategoryId"),
                 g.get("cangSubCategoryName"),
-                g.get("unitPrice"),
+                unit_price,
                 g.get("truePrice"),
+                distribution_price,
                 g.get("unit"),
                 g.get("specName"),
                 g.get("status", 1),  # 默认上架
@@ -397,6 +418,22 @@ class Database:
         count = cursor.execute("SELECT COUNT(*) FROM goods").fetchone()[0]
         conn.close()
         return count
+    
+    def get_goods_by_ids(self, product_ids: List[int]) -> Dict[int, Dict]:
+        """根据商品ID批量查询商品信息"""
+        if not product_ids:
+            return {}
+        
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # 使用 IN 查询
+        cursor.execute(f"SELECT * FROM goods WHERE id IN ({','.join(['?' for _ in product_ids])})", product_ids)
+        rows = cursor.fetchall()
+        conn.close()
+        
+        return {row['id']: dict(row) for row in rows}
     
     def get_goods(self, search: str = None, category: str = None) -> List[Dict]:
         """查询商品库"""
@@ -422,25 +459,27 @@ class Database:
     # ==================== 商品分类操作 ====================
     
     def sync_goods_sub_cate(self, cate_list: List[Dict]) -> int:
-        """同步商品分类（保留已设定的类型）"""
+        """同步商品分类（保留已设定的类型和配销比例）"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
-        # 先获取现有的类型设置
-        cursor.execute("SELECT id, type FROM goods_sub_cate WHERE type IS NOT NULL AND type != ''")
-        existing_types = {row[0]: row[1] for row in cursor.fetchall()}
+        # 先获取现有的类型和配销比例设置
+        cursor.execute("SELECT id, type, distribution_ratio FROM goods_sub_cate")
+        existing_data = {row[0]: {'type': row[1], 'distribution_ratio': row[2]} for row in cursor.fetchall()}
         
         cursor.execute("DELETE FROM goods_sub_cate")
         
         for c in cate_list:
             cate_id = c.get("id")
-            # 如果之前有设定类型，保留
-            preserved_type = existing_types.get(cate_id)
+            # 如果之前有设定，保留
+            preserved = existing_data.get(cate_id, {})
+            preserved_type = preserved.get('type')
+            preserved_ratio = preserved.get('distribution_ratio', 0)
             
             cursor.execute("""
-                INSERT INTO goods_sub_cate (id, sub_category_code, sub_category_name, category_id, category_name, type, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO goods_sub_cate (id, sub_category_code, sub_category_name, category_id, category_name, type, distribution_ratio, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 cate_id,
                 c.get("subCategoryCode"),
@@ -448,6 +487,7 @@ class Database:
                 c.get("categoryId"),
                 c.get("categoryName"),
                 preserved_type,
+                preserved_ratio,
                 now
             ))
         
@@ -462,7 +502,7 @@ class Database:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        cursor.execute("SELECT id, sub_category_code, sub_category_name, type FROM goods_sub_cate")
+        cursor.execute("SELECT id, sub_category_code, sub_category_name, type, distribution_ratio FROM goods_sub_cate")
         rows = cursor.fetchall()
         conn.close()
         return [dict(row) for row in rows]
@@ -476,6 +516,25 @@ class Database:
         conn.commit()
         conn.close()
         return affected > 0
+    
+    def update_goods_sub_cate_ratio(self, cate_id: int, ratio: float) -> bool:
+        """更新商品分类配销比例"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("UPDATE goods_sub_cate SET distribution_ratio = ? WHERE id = ?", (ratio, cate_id))
+        affected = cursor.rowcount
+        conn.commit()
+        conn.close()
+        return affected > 0
+    
+    def get_distribution_ratio(self, sub_category_id: int) -> float:
+        """获取商品分类的配销比例"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT distribution_ratio FROM goods_sub_cate WHERE id = ?", (sub_category_id,))
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row and row[0] is not None else 0
     
     # ==================== 档口分类操作 ====================
     
@@ -935,6 +994,45 @@ class Database:
         conn.close()
         return count
     
+    def add_consume_record(self, record: Dict) -> bool:
+        """追加单条耗用记录到本地库"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        try:
+            cursor.execute("""
+                INSERT INTO consume_records (
+                    store_id, store_name, product_id, product_code, product_name,
+                    category_name, cang_sub_category_name, spec_name, unit,
+                    unit_price, quantity, total_amount, used_time, used_source, create_time, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                record.get("store_id"),
+                record.get("store_name"),
+                record.get("product_id"),
+                record.get("product_code"),
+                record.get("product_name"),
+                record.get("category_name"),
+                record.get("cang_sub_category_name"),
+                record.get("spec_name"),
+                record.get("unit"),
+                record.get("unit_price"),
+                record.get("quantity"),
+                record.get("total_amount"),
+                record.get("used_time"),
+                record.get("used_source", "手工补录"),
+                record.get("create_time"),
+                now
+            ))
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"追加耗用记录失败: {e}")
+            conn.close()
+            return False
+    
     def get_consume_records(
         self,
         store_id: Optional[int] = None,
@@ -1227,8 +1325,17 @@ class Database:
         # 先清空旧数据
         cursor.execute("DELETE FROM supply_order_details")
         
-        count = 0
+        # 去重：按 id 去重，只保留第一条
+        seen_ids = set()
+        unique_records = []
         for r in records:
+            rid = r.get("id")
+            if rid and rid not in seen_ids:
+                seen_ids.add(rid)
+                unique_records.append(r)
+        
+        count = 0
+        for r in unique_records:
             try:
                 cursor.execute("""
                     INSERT INTO supply_order_details (

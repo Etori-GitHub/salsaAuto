@@ -214,26 +214,23 @@ async function queryConsumeRecords(page = 1) {
     }
     
     tbody.innerHTML = records.map(r => {
-        const stores = r.stores || {};
-        const product = r.supProduct || {};
-        const used = r.used || {};
-        const usedQuantity = used.parsedValue || parseFloat(used.source || '0') || 0;
-        const unitPrice = product.unitPrice || 0;
-        const totalAmount = usedQuantity * unitPrice;
+        const usedQuantity = r.quantity || 0;
+        const unitPrice = r.unit_price || 0;
+        const totalAmount = r.total_amount || 0;
         
         return `
         <tr>
-            <td>${stores.storeName || '-'}</td>
-            <td>${product.productName || '-'}</td>
-            <td>${product.categoryName || '-'}</td>
-            <td>${product.cangSubCategoryName || '-'}</td>
-            <td>${product.specName || '-'}</td>
-            <td>${product.unit || '-'}</td>
+            <td>${r.store_name || '-'}</td>
+            <td>${r.product_name || '-'}</td>
+            <td>${r.category_name || '-'}</td>
+            <td>${r.cang_sub_category_name || '-'}</td>
+            <td>${r.spec_name || '-'}</td>
+            <td>${r.unit || '-'}</td>
             <td style="font-family: var(--mono);">¥${unitPrice.toFixed(2)}</td>
             <td style="font-family: var(--mono);">${usedQuantity}</td>
             <td style="font-family: var(--mono); font-weight: 600; color: var(--danger);">¥${totalAmount.toFixed(2)}</td>
-            <td style="font-size: 12px;">${r.usedTime || '-'}</td>
-            <td>${r.usedSource || '-'}</td>
+            <td style="font-size: 12px;">${r.used_time || '-'}</td>
+            <td>${r.used_source || '-'}</td>
         </tr>
     `}).join('');
     

@@ -9,10 +9,12 @@
         <span class="card-title">商品分类管理</span>
         <div class="card-actions">
             <button class="btn btn-primary" onclick="syncFromPlatform()">从平台同步</button>
+            <button class="btn btn-secondary" onclick="updateAllDistributionPrice()">更新配销价格</button>
         </div>
     </div>
     <div class="stats-row">
         <span class="stat-item">共 <strong id="total-count">0</strong> 条分类</span>
+        <span class="stat-item" style="margin-left: 24px;">配销比例说明：成本价 × (1 + 配销比例%) = 配销价格</span>
     </div>
     <table class="data-table">
         <thead>
@@ -21,11 +23,12 @@
                 <th>分类编码</th>
                 <th>分类名称</th>
                 <th>类型</th>
+                <th>配销比例</th>
                 <th>操作</th>
             </tr>
         </thead>
         <tbody id="cate-list">
-            <tr><td colspan="5" class="loading">加载中...</td></tr>
+            <tr><td colspan="6" class="loading">加载中...</td></tr>
         </tbody>
     </table>
 </div>
@@ -55,6 +58,28 @@
         </div>
     </div>
 </div>
+
+<!-- 配销比例编辑模态框 -->
+<div class="modal-overlay" id="ratio-modal" style="display:none;">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">设置配销比例</span>
+            <button class="modal-close" onclick="closeRatioModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <p id="ratio-cate-name" style="margin-bottom: 16px;"></p>
+            <div class="form-group">
+                <label class="form-label">配销比例 (%)</label>
+                <input type="number" id="ratio-input" class="form-input" value="0" step="0.1" min="0" max="100">
+                <p style="color: var(--muted); font-size: 12px; margin-top: 8px;">例如：输入 5 表示加价 5%，配销价格 = 成本价 × 1.05</p>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeRatioModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveRatio()">保存</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block script %}
@@ -79,8 +104,10 @@ async function loadCategories() {
                 <td>${c.sub_category_code || '-'}</td>
                 <td>${c.sub_category_name || '-'}</td>
                 <td><span class="type-tag ${getTypeClass(c.type)}">${c.type || '未设置'}</span></td>
+                <td style="font-weight: 600; color: ${c.distribution_ratio > 0 ? 'var(--ok)' : 'var(--muted)'};">${c.distribution_ratio || 0}%</td>
                 <td>
-                    <button class="btn btn-sm btn-secondary" onclick="openTypeModal(${c.id}, '${c.sub_category_name}', '${c.type || ''}')">设置类型</button>
+                    <button class="btn btn-sm btn-secondary" onclick="openTypeModal(${c.id}, '${c.sub_category_name}', '${c.type || ''}')">类型</button>
+                    <button class="btn btn-sm btn-primary" onclick="openRatioModal(${c.id}, '${c.sub_category_name}', ${c.distribution_ratio || 0})">配销比例</button>
                 </td>
             </tr>
         `).join('');
@@ -91,7 +118,7 @@ async function loadCategories() {
     result = await fetchAPI('/api/base/goods-sub-cate');
     
     if (!result.success) {
-        document.getElementById('cate-list').innerHTML = `<tr><td colspan="5" class="loading">加载失败: ${result.message}</td></tr>`;
+        document.getElementById('cate-list').innerHTML = `<tr><td colspan="6" class="loading">加载失败: ${result.message}</td></tr>`;
         return;
     }
     
@@ -101,7 +128,7 @@ async function loadCategories() {
     const tbody = document.getElementById('cate-list');
     
     if (records.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="loading">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="loading">暂无数据</td></tr>';
         return;
     }
     
@@ -111,8 +138,10 @@ async function loadCategories() {
             <td>${c.subCategoryCode || '-'}</td>
             <td>${c.subCategoryName || '-'}</td>
             <td><span class="type-tag empty">未设置</span></td>
+            <td style="font-weight: 600; color: var(--muted);">0%</td>
             <td>
-                <button class="btn btn-sm btn-secondary" onclick="openTypeModal(${c.id}, '${c.subCategoryName}', '')">设置类型</button>
+                <button class="btn btn-sm btn-secondary" onclick="openTypeModal(${c.id}, '${c.subCategoryName}', '')">类型</button>
+                <button class="btn btn-sm btn-primary" onclick="openRatioModal(${c.id}, '${c.subCategoryName}', 0)">配销比例</button>
             </td>
         </tr>
     `).join('');
@@ -158,6 +187,38 @@ async function saveType() {
     }
 }
 
+function openRatioModal(cateId, cateName, currentRatio) {
+    currentCateId = cateId;
+    document.getElementById('ratio-cate-name').textContent = `分类：${cateName}`;
+    document.getElementById('ratio-input').value = currentRatio || 0;
+    document.getElementById('ratio-modal').style.display = 'flex';
+}
+
+function closeRatioModal() {
+    document.getElementById('ratio-modal').style.display = 'none';
+    currentCateId = null;
+}
+
+async function saveRatio() {
+    const newRatio = parseFloat(document.getElementById('ratio-input').value) || 0;
+    
+    const formData = new FormData();
+    formData.append('ratio', newRatio);
+    
+    const result = await fetchAPI(`/api/base/goods-sub-cate/${currentCateId}/ratio`, {
+        method: 'POST',
+        body: formData
+    });
+    
+    if (result.success) {
+        showToast('配销比例已更新', 'success');
+        closeRatioModal();
+        loadCategories();
+    } else {
+        showToast('更新失败: ' + result.message, 'error');
+    }
+}
+
 async function syncFromPlatform() {
     showToast('正在从平台同步商品分类...', 'warning');
     
@@ -168,6 +229,18 @@ async function syncFromPlatform() {
         loadCategories();
     } else {
         showToast('同步失败: ' + result.message, 'error');
+    }
+}
+
+async function updateAllDistributionPrice() {
+    showToast('正在更新所有商品的配销价格...', 'warning');
+    
+    const result = await fetchAPI('/api/base/goods/update-distribution-price', { method: 'POST' });
+    
+    if (result.success) {
+        showToast(result.message, 'success');
+    } else {
+        showToast('更新失败: ' + result.message, 'error');
     }
 }
 {% endblock %}

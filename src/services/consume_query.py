@@ -3,6 +3,7 @@
 从平台 API 查询门店耗用记录。
 """
 
+import json
 from typing import Optional, Dict, List
 
 from src.api.client import api_client
@@ -82,6 +83,12 @@ class ConsumeQueryService:
             
             # 打印 API 响应
             print(f"[DEBUG] 耗用 API 响应: {result}")
+            
+            # 打印第一条记录的结构
+            data = result.get("data", {})
+            records = data.get("records", [])
+            if records:
+                print(f"[DEBUG] 第一条耗用记录: {json.dumps(records[0], ensure_ascii=False, indent=2)}")
             
             if result.get("code") != 1:
                 return {
@@ -214,6 +221,9 @@ class ConsumeQueryService:
         product = record.get("supProduct", {})
         used = record.get("used", {})
         
+        # 打印调试信息
+        print(f"[DEBUG] 耗用记录原始数据: used={used}, product={product}")
+        
         # 解析 used 数量
         used_quantity = 0
         if isinstance(used, dict):
@@ -222,6 +232,8 @@ class ConsumeQueryService:
             used_quantity = used
         
         unit_price = product.get("unitPrice", 0) or 0
+        
+        print(f"[DEBUG] 解析结果: used_quantity={used_quantity}, unit_price={unit_price}")
         
         return {
             "id": record.get("id"),

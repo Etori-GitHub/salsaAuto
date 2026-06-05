@@ -22,13 +22,13 @@
 <!-- 任务详情 -->
 <div id="task-detail-card" class="card" style="margin-top: 24px; display: none;">
     <div class="card-header">
-        <span class="card-title">任务详情</span>
-        <button class="btn btn-primary" onclick="executeAllDays()" style="margin-left: auto;">
+        <span class="card-title">耗用方案</span>
+        <button class="btn btn-primary" onclick="executeAll()" style="margin-left: auto;" id="execute-btn">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            一键执行全部
+            一键执行
         </button>
     </div>
-    <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px;">
+    <div id="summary-row" style="display: none; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 12px; display: flex; gap: 24px; flex-wrap: wrap;">
         <div>
             <span style="color: var(--muted); font-size: 13px;">门店：</span>
             <span id="detail-store" style="font-weight: 600;"></span>
@@ -39,11 +39,15 @@
         </div>
         <div>
             <span style="color: var(--muted); font-size: 13px;">目标金额：</span>
-            <span id="detail-amount" style="font-weight: 600; color: var(--text);"></span>
+            <span id="detail-amount" style="font-weight: 700; color: var(--text);"></span>
         </div>
         <div>
-            <span style="color: var(--muted); font-size: 13px;">每日浮动：</span>
-            <span id="detail-float" style="font-weight: 600;"></span>
+            <span style="color: var(--muted); font-size: 13px;">计划总额：</span>
+            <span id="detail-planned" style="font-weight: 700; color: var(--ok);"></span>
+        </div>
+        <div>
+            <span style="color: var(--muted); font-size: 13px;">差额：</span>
+            <span id="detail-diff" style="font-weight: 700;"></span>
         </div>
     </div>
     <div style="overflow-x: auto;">
@@ -52,12 +56,13 @@
                 <tr>
                     <th>日期</th>
                     <th>目标金额</th>
-                    <th>当日库存</th>
+                    <th>计划金额</th>
+                    <th>耗用商品数</th>
                     <th>状态</th>
-                    <th>操作</th>
                 </tr>
             </thead>
             <tbody id="day-list">
+                <tr><td colspan="5" class="loading">请选择任务</td></tr>
             </tbody>
         </table>
     </div>
@@ -72,34 +77,35 @@
     </div>
 </div>
 
-<!-- 单日执行详情 -->
-<div id="day-detail-card" class="card" style="margin-top: 24px; display: none;">
+<!-- 执行结果 -->
+<div id="result-card" class="card" style="margin-top: 24px; display: none;">
     <div class="card-header">
-        <span class="card-title">耗用详情</span>
-        <span id="day-detail-date" style="color: var(--muted); font-size: 13px;"></span>
+        <span class="card-title">执行结果</span>
+        <button class="btn btn-secondary" onclick="downloadResult()" style="margin-left: auto;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            下载结果
+        </button>
     </div>
-    <div style="overflow-x: auto;">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>商品ID</th>
-                    <th>耗用数量</th>
-                    <th>单价</th>
-                    <th>金额</th>
-                    <th>执行时间</th>
-                    <th>状态</th>
-                </tr>
-            </thead>
-            <tbody id="day-detail-list">
-            </tbody>
-        </table>
+    <div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div>
+            <span style="color: var(--muted); font-size: 13px;">成功：</span>
+            <span id="result-success" style="font-weight: 700; color: var(--ok);"></span>
+        </div>
+        <div>
+            <span style="color: var(--muted); font-size: 13px;">失败：</span>
+            <span id="result-failed" style="font-weight: 700;"></span>
+        </div>
+        <div>
+            <span style="color: var(--muted); font-size: 13px;">总记录数：</span>
+            <span id="result-total" style="font-weight: 700;"></span>
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block script %}
 let currentTask = null;
-let dailyPlan = [];
+let consumePlan = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     loadTaskList();
@@ -139,7 +145,12 @@ async function loadTaskDetail() {
     }
     
     document.getElementById('task-detail-card').style.display = 'block';
-    document.getElementById('day-list').innerHTML = '<tr><td colspan="5" class="loading">加载中...</td></tr>';
+    document.getElementById('summary-row').style.display = 'none';
+    document.getElementById('execute-btn').disabled = false;
+    document.getElementById('execute-btn').textContent = '一键执行';
+    document.getElementById('day-list').innerHTML = '<tr><td colspan="5" class="loading">计算耗用方案...</td></tr>';
+    document.getElementById('progress-card').style.display = 'none';
+    document.getElementById('result-card').style.display = 'none';
     
     // 获取任务详情
     const taskResult = await fetchAPI('/api/consume-tasks/' + taskId);
@@ -150,12 +161,7 @@ async function loadTaskDetail() {
     
     currentTask = taskResult.task;
     
-    document.getElementById('detail-store').textContent = currentTask.store_name;
-    document.getElementById('detail-range').textContent = `${currentTask.start_date} ~ ${currentTask.end_date}`;
-    document.getElementById('detail-amount').textContent = `¥${currentTask.total_amount.toFixed(2)}`;
-    document.getElementById('detail-float').textContent = `${(currentTask.daily_float_percent || 0.1) * 100}%`;
-    
-    // 计算每日计划
+    // 计算耗用方案
     const planResult = await fetchAPI('/api/consume-task/preview?store_id=' + currentTask.store_id + 
         '&start_date=' + currentTask.start_date + 
         '&end_date=' + currentTask.end_date + 
@@ -167,25 +173,34 @@ async function loadTaskDetail() {
         return;
     }
     
-    dailyPlan = planResult.daily_plan || [];
+    consumePlan = planResult;
     
-    // 加载每日库存和状态
+    // 显示汇总
+    document.getElementById('detail-store').textContent = currentTask.store_name;
+    document.getElementById('detail-range').textContent = `${currentTask.start_date} ~ ${currentTask.end_date}`;
+    document.getElementById('detail-amount').textContent = `¥${planResult.total_amount.toFixed(2)}`;
+    document.getElementById('detail-planned').textContent = `¥${planResult.total_planned.toFixed(2)}`;
+    
+    const diff = planResult.diff || 0;
+    const diffEl = document.getElementById('detail-diff');
+    diffEl.textContent = `¥${diff.toFixed(2)}`;
+    diffEl.style.color = Math.abs(diff) < 0.01 ? 'var(--ok)' : 'var(--danger)';
+    
+    document.getElementById('summary-row').style.display = 'flex';
+    
+    // 显示每日方案
+    const dailyPlans = planResult.daily_plans || [];
+    
     let dayHtml = '';
-    for (const day of dailyPlan) {
-        const stockResult = await fetchAPI(`/api/consume-task/day-stock?store_id=${currentTask.store_id}&date=${day.date}`);
-        const stockAmount = stockResult.total_amount || 0;
-        const canExecute = stockAmount >= day.target_amount;
-        
+    for (const day of dailyPlans) {
         dayHtml += `
-            <tr id="day-row-${day.date}" data-date="${day.date}" data-target="${day.target_amount}" data-stock="${stockAmount}">
+            <tr id="day-row-${day.date}" data-date="${day.date}">
                 <td style="font-family: var(--mono);">${day.date}</td>
                 <td style="font-family: var(--mono);">¥${day.target_amount.toFixed(2)}</td>
-                <td style="font-family: var(--mono); ${canExecute ? 'color: var(--ok);' : 'color: var(--danger);'}">¥${stockAmount.toFixed(2)}</td>
+                <td style="font-family: var(--mono);">¥${day.consume_amount.toFixed(2)}</td>
+                <td style="font-family: var(--mono);">${day.consume_plan?.length || 0} 个品</td>
                 <td id="day-status-${day.date}">
-                    ${canExecute ? '<span style="color: var(--muted);">待执行</span>' : '<span style="color: var(--danger);">库存不足</span>'}
-                </td>
-                <td>
-                    ${canExecute ? `<button class="btn btn-sm btn-primary" onclick="executeDay('${day.date}')">执行</button>` : '-'}
+                    <span style="color: var(--muted);">待执行</span>
                 </td>
             </tr>
         `;
@@ -194,110 +209,100 @@ async function loadTaskDetail() {
     document.getElementById('day-list').innerHTML = dayHtml;
 }
 
-async function executeDay(date) {
-    const row = document.getElementById(`day-row-${date}`);
-    const targetAmount = parseFloat(row.dataset.target);
-    
-    // 更新状态
-    document.getElementById(`day-status-${date}`).innerHTML = '<span style="color: var(--muted);">执行中...</span>';
-    
-    // 计算耗用方案
-    const consumeResult = await fetchAPI(`/api/consume-task/day-consume?store_id=${currentTask.store_id}&date=${date}&target_amount=${targetAmount}`);
-    
-    if (!consumeResult.success) {
-        document.getElementById(`day-status-${date}`).innerHTML = `<span style="color: var(--danger);">失败: ${consumeResult.message}</span>`;
+async function executeAll() {
+    if (!currentTask || !consumePlan) {
+        showToast('请先加载任务', 'error');
         return;
     }
     
-    // 执行耗用
-    const execResult = await fetchAPI('/api/consume-task/execute-day', {
-        method: 'POST',
-        body: JSON.stringify({
-            store_id: currentTask.store_id,
-            date: date,
-            consume_plan: consumeResult.consume_plan
-        })
-    });
+    const taskId = currentTask.task_id;
     
-    if (execResult.success) {
-        document.getElementById(`day-status-${date}`).innerHTML = `<span style="color: var(--ok);">✓ 完成 (${execResult.success_count}条)</span>`;
-        // 更新按钮
-        row.querySelector('button').disabled = true;
-        row.querySelector('button').textContent = '已执行';
-        row.querySelector('button').className = 'btn btn-sm btn-secondary';
-        
-        // 显示详情
-        showDayDetail(date, execResult);
-        showToast(`执行成功: ${execResult.success_count} 条耗用记录`, 'success');
-    } else {
-        document.getElementById(`day-status-${date}`).innerHTML = `<span style="color: var(--danger);">失败</span>`;
-        showToast('执行失败: ' + execResult.message, 'error');
-    }
-}
-
-function showDayDetail(date, execResult) {
-    document.getElementById('day-detail-card').style.display = 'block';
-    document.getElementById('day-detail-date').textContent = date;
-    
-    const results = execResult.results || [];
-    
-    document.getElementById('day-detail-list').innerHTML = results.map(r => `
-        <tr>
-            <td style="font-family: var(--mono);">${r.product_id}</td>
-            <td style="font-family: var(--mono);">${r.quantity}</td>
-            <td style="font-family: var(--mono);">-</td>
-            <td style="font-family: var(--mono);">-</td>
-            <td style="font-size: 12px;">${execResult.execute_time || '-'}</td>
-            <td>
-                ${r.status === 'success' ? '<span style="color: var(--ok);">✓ 成功</span>' : `<span style="color: var(--danger);">失败: ${r.error}</span>`}
-            </td>
-        </tr>
-    `).join('');
-}
-
-async function executeAllDays() {
-    if (!currentTask) {
-        showToast('请先选择任务', 'error');
-        return;
-    }
-    
+    // 禁用按钮，显示进度
+    document.getElementById('execute-btn').disabled = true;
+    document.getElementById('execute-btn').textContent = '执行中...';
     document.getElementById('progress-card').style.display = 'block';
-    document.getElementById('progress-content').innerHTML = '<div class="loading">正在执行全部任务...</div>';
+    document.getElementById('progress-content').innerHTML = '<div class="loading">正在调用 API 创建耗用记录...</div>';
     
-    const result = await fetchAPI('/api/consume-task/execute-all?task_id=' + currentTask.task_id, {
+    // 调用执行 API
+    const result = await fetchAPI('/api/consume-task/execute-all?task_id=' + taskId, {
         method: 'POST'
     });
     
-    if (result.success) {
-        let progressHtml = `
-            <div style="color: var(--ok); margin-bottom: 16px;">✓ 执行完成</div>
-            <div style="margin-bottom: 8px;">成功: ${result.total_success} 条耗用记录</div>
-            <div style="margin-bottom: 16px;">失败: ${result.total_failed} 条</div>
-            <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; max-height: 300px; overflow-y: auto;">
-        `;
-        
-        result.execution_results.forEach(r => {
-            const statusColor = r.status === 'success' ? 'var(--ok)' : (r.status === 'partial' ? 'var(--warning)' : 'var(--danger)');
-            progressHtml += `
-                <div style="padding: 4px 0; border-bottom: 1px solid var(--border-light);">
-                    <span style="font-family: var(--mono);">${r.date}</span>
-                    <span style="margin-left: 12px;">目标: ¥${r.target_amount?.toFixed(2) || 0}</span>
-                    <span style="margin-left: 12px;">实际: ¥${r.actual_amount?.toFixed(2) || 0}</span>
-                    <span style="margin-left: 12px; color: ${statusColor};">${r.status === 'success' ? '✓' : (r.status === 'partial' ? '△' : '✗')}</span>
-                </div>
-            `;
-        });
-        
-        progressHtml += '</div>';
-        document.getElementById('progress-content').innerHTML = progressHtml;
-        
-        // 刷新列表状态
-        loadTaskDetail();
-        
-        showToast('任务执行完成', 'success');
-    } else {
+    if (!result.success) {
         document.getElementById('progress-content').innerHTML = `<div style="color: var(--danger);">执行失败: ${result.message}</div>`;
-        showToast('执行失败', 'error');
+        document.getElementById('execute-btn').disabled = false;
+        document.getElementById('execute-btn').textContent = '一键执行';
+        showToast('执行失败: ' + result.message, 'error');
+        return;
     }
+    
+    // 更新进度
+    const execution = result.execution || {};
+    const executionResults = execution.execution_results || [];
+    
+    // 更新每日状态
+    for (const dayResult of executionResults) {
+        const statusEl = document.getElementById(`day-status-${dayResult.date}`);
+        if (statusEl) {
+            if (dayResult.status === 'success') {
+                statusEl.innerHTML = `<span style="color: var(--ok);">✓ 完成 (${dayResult.success_count}条)</span>`;
+            } else if (dayResult.status === 'partial') {
+                statusEl.innerHTML = `<span style="color: var(--warning);">部分成功 (${dayResult.success_count}/${dayResult.success_count + dayResult.failed_count})</span>`;
+            } else {
+                statusEl.innerHTML = `<span style="color: var(--danger);">跳过: ${dayResult.message}</span>`;
+            }
+        }
+    }
+    
+    // 显示结果汇总
+    document.getElementById('progress-content').innerHTML = `<div style="color: var(--ok);">执行完成</div>`;
+    document.getElementById('result-card').style.display = 'block';
+    document.getElementById('result-success').textContent = execution.total_success || 0;
+    document.getElementById('result-failed').textContent = execution.total_failed || 0;
+    document.getElementById('result-total').textContent = execution.total_records || 0;
+    
+    document.getElementById('execute-btn').textContent = '已完成';
+    
+    showToast(`执行完成: ${execution.total_success} 条成功`, 'success');
+}
+
+function downloadResult() {
+    if (!consumePlan || !consumePlan.daily_plans) {
+        showToast('没有可下载的结果', 'error');
+        return;
+    }
+    
+    // 构建 CSV 内容
+    let csv = '\uFEFF'; // BOM for Excel
+    csv += '日期,商品ID,商品名称,分类,档口,规格,单位,单价,数量,金额\n';
+    
+    for (const day of consumePlan.daily_plans) {
+        const date = day.date;
+        for (const item of day.consume_plan || []) {
+            csv += `${date},`;
+            csv += `${item.product_id || ''},`;
+            csv += `"${item.product_name || ''}",`;
+            csv += `"${item.category_name || ''}",`;
+            csv += `"${item.cang_sub_category_name || ''}",`;
+            csv += `"${item.spec_name || ''}",`;
+            csv += `"${item.unit || ''}",`;
+            csv += `${item.unit_price || 0},`;
+            csv += `${item.quantity || 0},`;
+            csv += `${item.amount || 0}\n`;
+        }
+    }
+    
+    // 创建下载链接
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `耗用方案_${currentTask.store_name}_${currentTask.start_date}_${currentTask.end_date}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('已下载', 'success');
 }
 {% endblock %}

@@ -33,13 +33,14 @@
                 <th>分类</th>
                 <th>档口</th>
                 <th>供应商</th>
-                <th>单价</th>
+                <th>成本价</th>
+                <th>配销价</th>
                 <th>规格</th>
                 <th>单位</th>
             </tr>
         </thead>
         <tbody id="goods-list">
-            <tr><td colspan="9" class="loading">加载中...</td></tr>
+            <tr><td colspan="10" class="loading">加载中...</td></tr>
         </tbody>
     </table>
     <div class="pagination" id="pagination"></div>
@@ -133,7 +134,7 @@ function renderTable() {
     const tbody = document.getElementById('goods-list');
     
     if (pageData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="loading">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="loading">暂无数据</td></tr>';
         return;
     }
     
@@ -146,6 +147,7 @@ function renderTable() {
             <td>${g.cang_sub_category_name || g.cangSubCategoryName || '-'}</td>
             <td>${g.supplier_name || g.supplierName || '-'}</td>
             <td>¥${((g.unit_price || g.unitPrice || g.true_price || g.truePrice || 0)).toFixed(2)}</td>
+            <td style="font-weight: 600; color: var(--ok);">¥${(g.distribution_price || 0).toFixed(2)}</td>
             <td>${g.spec_name || g.specName || '-'}</td>
             <td>${g.unit || '-'}</td>
         </tr>

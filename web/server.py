@@ -1366,6 +1366,34 @@ async def update_goods_sub_cate_type(cate_id: int, cate_type: str = Form(...)):
     return {"success": success, "message": "更新成功" if success else "更新失败"}
 
 
+@app.post("/api/base/goods-sub-cate/{cate_id}/ratio")
+async def update_goods_sub_cate_ratio(cate_id: int, ratio: float = Form(...)):
+    """更新商品分类配销比例"""
+    from src.services.database import db
+    success = db.update_goods_sub_cate_ratio(cate_id, ratio)
+    if not success:
+        records = db.get_goods_sub_cate()
+        if not any(r.get('id') == cate_id for r in records):
+            return {"success": False, "message": "记录不存在,请先同步数据"}
+    return {"success": success, "message": "更新成功" if success else "更新失败"}
+
+
+@app.post("/api/base/goods/update-distribution-price")
+async def update_goods_distribution_price():
+    """重新计算所有商品的配销价格"""
+    from src.services.database import db
+    from src.services.base_library import base_library_service
+    
+    # 获取所有商品
+    result = base_library_service.query_all_goods()
+    if not result["success"]:
+        return result
+    
+    # 同步商品（会自动计算配销价格）
+    count = db.sync_goods(result["records"])
+    return {"success": True, "message": f"已更新 {count} 条商品的配销价格"}
+
+
 # ==================== 月订货统计 API ====================
 
 @app.get("/api/monthly-order/stats")
@@ -3091,13 +3119,15 @@ async def api_consume_query(
     if not result["success"]:
         return result
     
-    # 计算汇总
+    # 解析记录并计算汇总
     records = result["records"]
+    parsed_records = []
     total_quantity = 0
     total_amount = 0
     
     for r in records:
         parsed = consume_query_service.parse_consume_record(r)
+        parsed_records.append(parsed)
         total_quantity += parsed["quantity"]
         total_amount += parsed["total_amount"]
     
@@ -3106,7 +3136,7 @@ async def api_consume_query(
         "total": result["total"],
         "pages": result["pages"],
         "current": result["current"],
-        "records": records,
+        "records": parsed_records,
         "total_quantity": total_quantity,
         "total_amount": total_amount
     }
@@ -3170,7 +3200,7 @@ async def api_consume_task_preview(
     total_amount: float,
     daily_float_percent: float = 0.1
 ):
-    """预览耗用任务"""
+    """预览耗用方案"""
     task = {
         "store_id": store_id,
         "start_date": start_date,
@@ -3178,27 +3208,7 @@ async def api_consume_task_preview(
         "total_amount": total_amount,
         "daily_float_percent": daily_float_percent
     }
-    return consume_task_service.calculate_daily_plan(task)
-
-@app.get("/api/consume-task/day-stock")
-async def api_consume_task_day_stock(store_id: int, date: str):
-    """获取指定日期的库存"""
-    return consume_task_service.get_daily_stock(store_id, date)
-
-@app.get("/api/consume-task/day-consume")
-async def api_consume_task_day_consume(store_id: int, date: str, target_amount: float):
-    """计算单日耗用方案"""
-    return consume_task_service.calculate_day_consume(store_id, date, target_amount)
-
-@app.post("/api/consume-task/execute-day")
-async def api_consume_task_execute_day(request: Request):
-    """执行单日耗用"""
-    data = await request.json()
-    return consume_task_service.execute_day_consume(
-        store_id=data["store_id"],
-        date=data["date"],
-        consume_plan=data["consume_plan"]
-    )
+    return consume_task_service.generate_consume_plan(task)
 
 @app.post("/api/consume-task/execute-all")
 async def api_consume_task_execute_all(task_id: str):
