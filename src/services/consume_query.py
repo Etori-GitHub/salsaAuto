@@ -239,7 +239,7 @@ class ConsumeQueryService:
             "id": record.get("id"),
             "store_id": stores.get("id"),
             "store_name": stores.get("storeName", ""),
-            "product_id": product.get("id"),
+            "product_id": record.get("productId"),  # 从 record 顶层获取
             "product_code": product.get("productCode", ""),
             "product_name": product.get("productName", ""),
             "category_code": product.get("categoryCode", ""),

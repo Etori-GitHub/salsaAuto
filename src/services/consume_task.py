@@ -95,6 +95,7 @@ class ConsumeTaskService:
         
         Args:
             task: 任务配置
+                - excluded_dates: 排除的日期列表（这些日期不耗用，金额均分到其他日期）
         
         Returns:
             耗用方案
@@ -104,11 +105,24 @@ class ConsumeTaskService:
         end_date = datetime.strptime(task["end_date"], "%Y-%m-%d")
         total_amount = task["total_amount"]
         daily_float = task.get("daily_float_percent", 0.1)
+        excluded_dates = set(task.get("excluded_dates", []))
         
-        # 计算天数
-        days = (end_date - start_date).days + 1
-        if days <= 0:
+        # 生成所有日期列表（包括排除的日期）
+        all_dates = []
+        current = start_date
+        while current <= end_date:
+            all_dates.append(current)
+            current += timedelta(days=1)
+        
+        if not all_dates:
             return {"success": False, "message": "日期范围无效"}
+        
+        # 计算有效日期（非排除日期）
+        effective_dates = [d for d in all_dates if d.strftime("%Y-%m-%d") not in excluded_dates]
+        effective_days = len(effective_dates)
+        
+        if effective_days <= 0:
+            return {"success": False, "message": "所有日期都被排除，没有有效的执行日期"}
         
         # 1. 获取日期范围内所有要货数据
         supply_records = db.get_supply_order_details(
@@ -133,35 +147,32 @@ class ConsumeTaskService:
                 supply_by_date[date_str].append(r)
         
         # 4. 初始化库存 dict
-        # stock = {product_id: {"quantity": float, "unit_price": float, "product_name": str}}
         stock = {}
         
-        # 5. 计算每日平均耗用金额
-        base_daily_amount = total_amount / days
+        # 5. 计算有效日期的每日平均耗用金额（目标金额均分到有效日期）
+        base_daily_amount = total_amount / effective_days
         
-        # 6. 逐日计算耗用方案
+        # 6. 逐日计算耗用方案（遍历所有日期）
         daily_plans = []
         accumulated_amount = 0.0
+        effective_date_index = 0  # 有效日期计数器
         
-        date_range = [start_date + timedelta(days=i) for i in range(days)]
-        
-        for i, date in enumerate(date_range):
+        for date in all_dates:
             date_str = date.strftime("%Y-%m-%d")
-            is_last_day = (i == days - 1)
+            is_excluded = date_str in excluded_dates
             
-            # 加上当天的要货
+            # 加上当天的要货（所有日期都要加库存）
             day_supply = supply_by_date.get(date_str, [])
             for item in day_supply:
                 pid = item["product_id"]
                 quantity = item.get("quantity", 0) or 0
                 goods = goods_info.get(pid, {})
-                # 从商品库取价格（成本价）
                 goods_unit_price = goods.get("unit_price") or goods.get("true_price") or 0
                 
                 if pid not in stock:
                     stock[pid] = {
                         "quantity": 0.0,
-                        "unit_price": goods_unit_price,  # 用商品库的价格
+                        "unit_price": goods_unit_price,
                         "product_name": goods.get("product_name", item.get("product_name", "")),
                         "product_code": goods.get("product_code", item.get("product_code", "")),
                         "category_name": goods.get("category_name", ""),
@@ -172,9 +183,24 @@ class ConsumeTaskService:
                 
                 stock[pid]["quantity"] += quantity
             
+            # 排除的日期：耗用为 0
+            if is_excluded:
+                daily_plans.append({
+                    "date": date_str,
+                    "target_amount": 0,
+                    "consume_plan": [],
+                    "consume_amount": 0,
+                    "is_excluded": True,
+                })
+                continue
+            
+            # 有效日期：计算耗用
+            effective_date_index += 1
+            is_last_effective_day = (effective_date_index == effective_days)
+            
             # 计算当日目标耗用金额
-            if is_last_day:
-                # 最后一天：精确补差
+            if is_last_effective_day:
+                # 最后一个有效日期：精确补差
                 target_amount = round(total_amount - accumulated_amount, 2)
             else:
                 # 带浮动
@@ -185,13 +211,14 @@ class ConsumeTaskService:
                 target_amount = min(target_amount, remaining * 0.9)  # 留一些给后面
             
             # 贪心算法计算当日耗用方案
-            consume_plan, consume_amount = self._greedy_consume(stock, target_amount, is_last_day)
+            consume_plan, consume_amount = self._greedy_consume(stock, target_amount, is_last_effective_day)
             
             daily_plans.append({
                 "date": date_str,
                 "target_amount": round(target_amount, 2),
                 "consume_plan": consume_plan,
                 "consume_amount": round(consume_amount, 2),
+                "is_excluded": False,
             })
             
             accumulated_amount += consume_amount
@@ -201,13 +228,13 @@ class ConsumeTaskService:
                 pid = item["product_id"]
                 stock[pid]["quantity"] -= item["quantity"]
         
-        # 验算
-        total_planned = sum(p["consume_amount"] for p in daily_plans)
+        # 验算（只计算有效日期的金额）
+        total_planned = sum(p["consume_amount"] for p in daily_plans if not p.get("is_excluded"))
         diff = round(total_amount - total_planned, 2)
         
         return {
             "success": True,
-            "days": days,
+            "days": effective_days,
             "total_amount": total_amount,
             "total_planned": round(total_planned, 2),
             "diff": diff,

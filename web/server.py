@@ -61,6 +61,10 @@ login_driver = None
 
 # 启动时加载 Token
 auth_service.load_token()
+# 同步 Token 到 api_client
+token = auth_service.get_token()
+if token:
+    api_client.set_token(token)
 
 
 def render_template(name: str, context: dict) -> str:
@@ -3104,10 +3108,19 @@ async def api_consume_query(
     page: int = 1,
     page_size: int = 50
 ):
-    """查询耗用记录（从平台API）"""
-    result = consume_query_service.query_consume_records(
+    """查询耗用记录（从本地数据库）"""
+    # 获取全部数据的汇总
+    summary = db.get_consume_summary(
         store_id=store_id,
-        store_name=None,
+        category_name=category_name,
+        product_name=product_name,
+        start_time=start_time,
+        end_time=end_time
+    )
+    
+    # 获取分页数据
+    records = db.get_consume_records(
+        store_id=store_id,
         category_name=category_name,
         product_name=product_name,
         start_time=start_time,
@@ -3116,29 +3129,17 @@ async def api_consume_query(
         page_size=page_size
     )
     
-    if not result["success"]:
-        return result
-    
-    # 解析记录并计算汇总
-    records = result["records"]
-    parsed_records = []
-    total_quantity = 0
-    total_amount = 0
-    
-    for r in records:
-        parsed = consume_query_service.parse_consume_record(r)
-        parsed_records.append(parsed)
-        total_quantity += parsed["quantity"]
-        total_amount += parsed["total_amount"]
+    total = summary["total_records"]
+    total_pages = max(1, (total + page_size - 1) // page_size)
     
     return {
         "success": True,
-        "total": result["total"],
-        "pages": result["pages"],
-        "current": result["current"],
-        "records": parsed_records,
-        "total_quantity": total_quantity,
-        "total_amount": total_amount
+        "total": total,
+        "pages": total_pages,
+        "current": page,
+        "records": records,
+        "total_quantity": summary["total_quantity"],
+        "total_amount": summary["total_amount"]
     }
 
 # ========== 库存流水 API ==========
@@ -3198,15 +3199,22 @@ async def api_consume_task_preview(
     start_date: str,
     end_date: str,
     total_amount: float,
-    daily_float_percent: float = 0.1
+    daily_float_percent: float = 0.1,
+    excluded_dates: str = None
 ):
     """预览耗用方案"""
+    # 解析排除日期
+    excluded_list = []
+    if excluded_dates:
+        excluded_list = [d.strip() for d in excluded_dates.split(',') if d.strip()]
+    
     task = {
         "store_id": store_id,
         "start_date": start_date,
         "end_date": end_date,
         "total_amount": total_amount,
-        "daily_float_percent": daily_float_percent
+        "daily_float_percent": daily_float_percent,
+        "excluded_dates": excluded_list
     }
     return consume_task_service.generate_consume_plan(task)
 

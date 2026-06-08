@@ -1038,11 +1038,14 @@ class Database:
         store_id: Optional[int] = None,
         product_id: Optional[int] = None,
         product_name: Optional[str] = None,
+        category_name: Optional[str] = None,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None,
+        page: int = 1,
+        page_size: int = 50,
         limit: int = 1000
     ) -> List[Dict]:
-        """查询耗用记录"""
+        """查询耗用记录（支持分页）"""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -1059,6 +1062,9 @@ class Database:
         if product_name:
             sql += " AND product_name LIKE ?"
             params.append(f"%{product_name}%")
+        if category_name:
+            sql += " AND category_name = ?"
+            params.append(category_name)
         if start_time:
             sql += " AND used_time >= ?"
             params.append(f"{start_time} 00:00:00")
@@ -1066,8 +1072,17 @@ class Database:
             sql += " AND used_time <= ?"
             params.append(f"{end_time} 23:59:59")
         
-        sql += " ORDER BY used_time DESC LIMIT ?"
-        params.append(limit)
+        sql += " ORDER BY used_time DESC"
+        
+        # 分页
+        if page and page_size:
+            offset = (page - 1) * page_size
+            sql += " LIMIT ? OFFSET ?"
+            params.append(page_size)
+            params.append(offset)
+        else:
+            sql += " LIMIT ?"
+            params.append(limit)
         
         cursor.execute(sql, params)
         rows = cursor.fetchall()
@@ -1077,6 +1092,8 @@ class Database:
     def get_consume_summary(
         self,
         store_id: Optional[int] = None,
+        category_name: Optional[str] = None,
+        product_name: Optional[str] = None,
         start_time: Optional[str] = None,
         end_time: Optional[str] = None
     ) -> Dict:
@@ -1096,6 +1113,12 @@ class Database:
         if store_id:
             sql += " AND store_id = ?"
             params.append(store_id)
+        if category_name:
+            sql += " AND category_name = ?"
+            params.append(category_name)
+        if product_name:
+            sql += " AND product_name LIKE ?"
+            params.append(f"%{product_name}%")
         if start_time:
             sql += " AND used_time >= ?"
             params.append(f"{start_time} 00:00:00")

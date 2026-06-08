@@ -54,6 +54,7 @@
         <table class="data-table">
             <thead>
                 <tr>
+                    <th><input type="checkbox" id="select-all-days" onchange="toggleAllDays()"></th>
                     <th>日期</th>
                     <th>目标金额</th>
                     <th>计划金额</th>
@@ -62,9 +63,13 @@
                 </tr>
             </thead>
             <tbody id="day-list">
-                <tr><td colspan="5" class="loading">请选择任务</td></tr>
+                <tr><td colspan="6" class="loading">请选择任务</td></tr>
             </tbody>
         </table>
+        <div id="recalc-row" style="margin-top: 12px; display: none;">
+            <button class="btn btn-primary" onclick="recalculatePlan()">重新计算</button>
+            <span id="excluded-info" style="margin-left: 12px; color: var(--muted); font-size: 13px;"></span>
+        </div>
     </div>
 </div>
 
@@ -193,20 +198,29 @@ async function loadTaskDetail() {
     
     let dayHtml = '';
     for (const day of dailyPlans) {
+        const isExcluded = day.is_excluded;
+        const rowStyle = isExcluded ? 'opacity: 0.5; background: var(--bg-muted);' : '';
+        const targetDisplay = isExcluded ? '-' : `¥${day.target_amount.toFixed(2)}`;
+        const consumeDisplay = isExcluded ? '-' : `¥${day.consume_amount.toFixed(2)}`;
+        const productCount = isExcluded ? '-' : `${day.consume_plan?.length || 0} 个品`;
+        
         dayHtml += `
-            <tr id="day-row-${day.date}" data-date="${day.date}">
+            <tr id="day-row-${day.date}" data-date="${day.date}" class="day-row" style="${rowStyle}">
+                <td><input type="checkbox" class="day-checkbox" data-date="${day.date}" onchange="updateExcludedInfo()" ${isExcluded ? 'checked' : ''}></td>
                 <td style="font-family: var(--mono);">${day.date}</td>
-                <td style="font-family: var(--mono);">¥${day.target_amount.toFixed(2)}</td>
-                <td style="font-family: var(--mono);">¥${day.consume_amount.toFixed(2)}</td>
-                <td style="font-family: var(--mono);">${day.consume_plan?.length || 0} 个品</td>
+                <td style="font-family: var(--mono);">${targetDisplay}</td>
+                <td style="font-family: var(--mono);">${consumeDisplay}</td>
+                <td style="font-family: var(--mono);">${productCount}</td>
                 <td id="day-status-${day.date}">
-                    <span style="color: var(--muted);">待执行</span>
+                    <span style="color: ${isExcluded ? 'var(--muted)' : 'var(--muted)'};">${isExcluded ? '已排除' : '待执行'}</span>
                 </td>
             </tr>
         `;
     }
     
     document.getElementById('day-list').innerHTML = dayHtml;
+    document.getElementById('recalc-row').style.display = 'flex';
+    updateExcludedInfo();
 }
 
 async function executeAll() {
@@ -304,5 +318,144 @@ function downloadResult() {
     URL.revokeObjectURL(url);
     
     showToast('已下载', 'success');
+}
+
+function toggleAllDays() {
+    const selectAll = document.getElementById('select-all-days').checked;
+    document.querySelectorAll('.day-checkbox').forEach(cb => {
+        cb.checked = selectAll;
+    });
+    updateExcludedInfo();
+}
+
+function updateExcludedInfo() {
+    const excluded = [];
+    document.querySelectorAll('.day-checkbox:checked').forEach(cb => {
+        excluded.push(cb.dataset.date);
+    });
+    
+    const totalDays = document.querySelectorAll('.day-checkbox').length;
+    const excludedCount = excluded.length;
+    const activeCount = totalDays - excludedCount;
+    
+    document.getElementById('excluded-info').textContent = 
+        excludedCount > 0 ? `已排除 ${excludedCount} 天，剩余 ${activeCount} 天` : '';
+    
+    // 标记排除的行（实时更新样式）
+    document.querySelectorAll('.day-row').forEach(row => {
+        const date = row.dataset.date;
+        const checkbox = row.querySelector('.day-checkbox');
+        const isExcluded = checkbox && checkbox.checked;
+        
+        if (isExcluded) {
+            row.style.opacity = '0.5';
+            row.style.textDecoration = 'line-through';
+            row.style.background = 'var(--bg-muted)';
+            // 更新状态列
+            const statusEl = document.getElementById(`day-status-${date}`);
+            if (statusEl) {
+                statusEl.innerHTML = '<span style="color: var(--muted);">已排除</span>';
+            }
+        } else {
+            row.style.opacity = '1';
+            row.style.textDecoration = 'none';
+            row.style.background = '';
+            // 恢复状态列
+            const statusEl = document.getElementById(`day-status-${date}`);
+            if (statusEl && statusEl.textContent.trim() === '已排除') {
+                statusEl.innerHTML = '<span style="color: var(--muted);">待执行</span>';
+            }
+        }
+    });
+}
+
+async function recalculatePlan() {
+    if (!currentTask) {
+        showToast('请先加载任务', 'error');
+        return;
+    }
+    
+    // 获取排除的日期
+    const excludedDates = [];
+    document.querySelectorAll('.day-checkbox:checked').forEach(cb => {
+        excludedDates.push(cb.dataset.date);
+    });
+    
+    // 计算有效天数
+    const startDate = new Date(currentTask.start_date);
+    const endDate = new Date(currentTask.end_date);
+    let totalDays = 0;
+    const allDateStrings = [];
+    
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        allDateStrings.push(dateStr);
+        if (!excludedDates.includes(dateStr)) {
+            totalDays++;
+        }
+    }
+    
+    if (totalDays === 0) {
+        showToast('不能排除所有日期', 'error');
+        return;
+    }
+    
+    showToast('重新计算中...', 'info');
+    
+    // 调用预览 API（保持原日期范围，传递 excluded_dates）
+    const planResult = await fetchAPI('/api/consume-task/preview?store_id=' + currentTask.store_id + 
+        '&start_date=' + currentTask.start_date + 
+        '&end_date=' + currentTask.end_date + 
+        '&total_amount=' + currentTask.total_amount + 
+        '&daily_float_percent=' + (currentTask.daily_float_percent || 0.1) +
+        '&excluded_dates=' + excludedDates.join(','));
+    
+    if (!planResult.success) {
+        showToast('计算失败: ' + planResult.message, 'error');
+        return;
+    }
+    
+    consumePlan = planResult;
+    
+    // 更新汇总
+    document.getElementById('detail-amount').textContent = `¥${planResult.total_amount.toFixed(2)}`;
+    document.getElementById('detail-planned').textContent = `¥${planResult.total_planned.toFixed(2)}`;
+    
+    const diff = planResult.diff || 0;
+    const diffEl = document.getElementById('detail-diff');
+    diffEl.textContent = `¥${diff.toFixed(2)}`;
+    diffEl.style.color = Math.abs(diff) < 0.01 ? 'var(--ok)' : 'var(--danger)';
+    
+    // 更新每日方案
+    const dailyPlans = planResult.daily_plans || [];
+    
+    // 清空并重新渲染
+    let dayHtml = '';
+    for (const day of dailyPlans) {
+        const isExcluded = day.is_excluded;
+        const rowStyle = isExcluded ? 'opacity: 0.5; background: var(--bg-muted);' : '';
+        const targetDisplay = isExcluded ? '-' : `¥${day.target_amount.toFixed(2)}`;
+        const consumeDisplay = isExcluded ? '-' : `¥${day.consume_amount.toFixed(2)}`;
+        const productCount = isExcluded ? '-' : `${day.consume_plan?.length || 0} 个品`;
+        
+        dayHtml += `
+            <tr id="day-row-${day.date}" data-date="${day.date}" class="day-row" style="${rowStyle}">
+                <td><input type="checkbox" class="day-checkbox" data-date="${day.date}" onchange="updateExcludedInfo()" ${isExcluded ? 'checked' : ''}></td>
+                <td style="font-family: var(--mono);">${day.date}</td>
+                <td style="font-family: var(--mono);">${targetDisplay}</td>
+                <td style="font-family: var(--mono);">${consumeDisplay}</td>
+                <td style="font-family: var(--mono);">${productCount}</td>
+                <td id="day-status-${day.date}">
+                    <span style="color: ${isExcluded ? 'var(--muted)' : 'var(--muted)'};">${isExcluded ? '已排除' : '待执行'}</span>
+                </td>
+            </tr>
+        `;
+    }
+    
+    document.getElementById('day-list').innerHTML = dayHtml;
+    document.getElementById('recalc-row').style.display = 'flex';
+    updateExcludedInfo();
+    
+    showToast('重新计算完成', 'success');
 }
 {% endblock %}
