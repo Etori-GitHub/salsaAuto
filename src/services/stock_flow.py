@@ -338,13 +338,15 @@ class StockFlowService:
 
         stock_list = []
         for (s_id, p_id), stock in product_stock.items():
-            # 从商品库获取分类、档口、规格
+            # 从商品库获取分类、档口、规格、单价
             goods = goods_info.get(p_id, {})
+            unit_price = goods.get("unit_price") or goods.get("true_price") or 0
             
             stock_list.append({
                 "store_id": s_id,
                 "product_id": p_id,
                 "product_name": stock["product_name"],
+                "product_code": goods.get("product_code", ""),
                 "store_name": stock["store_name"],
                 "category_name": goods.get("category_name", ""),
                 "cang_sub_category_name": goods.get("cang_sub_category_name", ""),
@@ -352,10 +354,96 @@ class StockFlowService:
                 "unit": stock["unit"],
                 "quantity": stock["quantity"],
                 "amount": stock["amount"],
+                "unit_price": unit_price,
             })
 
         stock_list.sort(key=lambda x: abs(x["amount"]), reverse=True)
 
+        return {
+            "success": True,
+            "stocks": stock_list,
+            "total_quantity": sum(s["quantity"] for s in stock_list),
+            "total_amount": sum(s["amount"] for s in stock_list),
+            "message": "OK"
+        }
+
+    def get_stock_at_date(self, store_id: int, date_str: str) -> Dict:
+        """获取截止某个日期的库存
+        
+        Args:
+            store_id: 门店ID
+            date_str: 截止日期（包含该日期的要货和耗用）
+        
+        Returns:
+            截止该日期的库存余额
+        """
+        logger.info(f"[get_stock_at_date] 查询: store_id={store_id}, date={date_str}")
+        
+        # 查询截止该日期的要货和耗用
+        supply_records = db.get_supply_order_details(
+            store_id=store_id,
+            start_date="2026-01-01",
+            end_date=date_str,
+            limit=100000
+        )
+        
+        consume_records = db.get_consume_records(
+            store_id=store_id,
+            start_time="2026-01-01",
+            end_time=f"{date_str} 23:59:59",
+            limit=100000
+        )
+        
+        # 计算库存余额
+        product_stock = defaultdict(lambda: {"quantity": 0, "amount": 0, "product_name": "", "unit": "", "store_name": ""})
+        
+        # 加要货
+        for r in supply_records:
+            key = (r.get("store_id"), r.get("product_id"))
+            product_stock[key]["product_name"] = r.get("product_name", "")
+            product_stock[key]["unit"] = r.get("unit", "")
+            product_stock[key]["store_name"] = r.get("store_name", "")
+            product_stock[key]["quantity"] += r.get("quantity", 0)
+            product_stock[key]["amount"] += r.get("total_amount", 0)
+        
+        # 减耗用
+        for r in consume_records:
+            key = (r.get("store_id"), r.get("product_id"))
+            product_stock[key]["product_name"] = r.get("product_name", "")
+            product_stock[key]["unit"] = r.get("unit", "")
+            product_stock[key]["store_name"] = r.get("store_name", "")
+            product_stock[key]["quantity"] -= r.get("quantity", 0)
+            product_stock[key]["amount"] -= r.get("total_amount", 0)
+        
+        # 从商品库获取单价等信息
+        all_product_ids = list(set(p_id for (s_id, p_id) in product_stock.keys()))
+        goods_info = db.get_goods_by_ids(all_product_ids)
+        
+        stock_list = []
+        for (s_id, p_id), stock in product_stock.items():
+            if stock["quantity"] <= 0:
+                continue  # 跳过负库存
+            
+            goods = goods_info.get(p_id, {})
+            unit_price = goods.get("unit_price") or goods.get("true_price") or 0
+            
+            stock_list.append({
+                "store_id": s_id,
+                "product_id": p_id,
+                "product_name": stock["product_name"],
+                "product_code": goods.get("product_code", ""),
+                "store_name": stock["store_name"],
+                "category_name": goods.get("category_name", ""),
+                "cang_sub_category_name": goods.get("cang_sub_category_name", ""),
+                "spec_name": goods.get("spec_name", ""),
+                "unit": stock["unit"],
+                "quantity": stock["quantity"],
+                "amount": stock["amount"],
+                "unit_price": unit_price,
+            })
+        
+        stock_list.sort(key=lambda x: abs(x["amount"]), reverse=True)
+        
         return {
             "success": True,
             "stocks": stock_list,

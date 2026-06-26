@@ -3216,9 +3216,95 @@ async def api_consume_task_preview(
         "daily_float_percent": daily_float_percent,
         "excluded_dates": excluded_list
     }
-    return consume_task_service.generate_consume_plan(task)
+    return consume_task_service.generate_consume_plan_preview(task)
 
 @app.post("/api/consume-task/execute-all")
 async def api_consume_task_execute_all(task_id: str):
     """执行完整耗用任务"""
     return consume_task_service.execute_task(task_id)
+
+
+# === 供应链库存 ===
+
+@app.get("/supply-stock", response_class=HTMLResponse)
+async def supply_stock_page(request: Request):
+    """供应链库存页面"""
+    return render_template("supply_stock.html", {"request": request, "page": "supply-stock"})
+
+
+@app.get("/api/supply-stock/categories")
+async def api_supply_stock_categories():
+    """获取分类列表"""
+    try:
+        # 从 API 获取
+        response = api_client.get(
+            "https://shasha.tjxuechuang.com/restful/shasha/supply/orderStock/productSummary",
+            params={"page": 1, "pageSize": 1000}
+        )
+        
+        if response and response.get("code") == 1:
+            records = response.get("data", {}).get("records", [])
+            # 提取分类信息
+            categories = [
+                {"category": r.get("productCategoryName"), "subcategory": r.get("productCategorySubName")}
+                for r in records
+                if r.get("productCategoryName")
+            ]
+            return categories
+        
+        return []
+    except Exception as e:
+        print(f"获取分类失败: {e}")
+        return []
+
+
+@app.get("/api/supply-stock/list")
+async def api_supply_stock_list(
+    page: int = 1,
+    pageSize: int = 20,
+    productCategoryName: str = None,
+    productCategorySubName: str = None,
+    productName: str = None
+):
+    """查询供应链库存列表"""
+    try:
+        params = {"page": page, "pageSize": pageSize}
+        if productCategoryName:
+            params["productCategoryName"] = productCategoryName
+        if productCategorySubName:
+            params["productCategorySubName"] = productCategorySubName
+        if productName:
+            params["productName"] = productName
+        
+        response = api_client.get(
+            "https://shasha.tjxuechuang.com/restful/shasha/supply/orderStock/productSummary",
+            params=params
+        )
+        
+        if response and response.get("code") == 1:
+            return {"success": True, "data": response.get("data")}
+        
+        return {"success": False, "message": response.get("msg", "查询失败")}
+    except Exception as e:
+        print(f"查询供应链库存失败: {e}")
+        return {"success": False, "message": str(e)}
+
+
+@app.post("/api/supply-stock/update")
+async def api_supply_stock_update(request: Request):
+    """更新供应链库存"""
+    try:
+        data = await request.json()
+        
+        response = api_client.post_json(
+            "https://shasha.tjxuechuang.com/restful/shasha/supply/orderStock/productSummaryUpdate",
+            json_data=data
+        )
+        
+        if response and response.get("code") == 1:
+            return {"success": True, "message": "更新成功"}
+        
+        return {"success": False, "message": response.get("msg", "更新失败")}
+    except Exception as e:
+        print(f"更新供应链库存失败: {e}")
+        return {"success": False, "message": str(e)}

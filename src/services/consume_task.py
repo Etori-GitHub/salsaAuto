@@ -2,12 +2,15 @@
 
 管理耗用任务配置和补耗用计算。
 
-新算法：
-1. 一次性获取日期范围内所有要货数据
-2. 计算每日平均耗用金额（带浮动）
-3. 逐日贪心计算耗用方案（优先消耗贵的商品，留便宜的到后面）
-4. 最后一天精确补差
-5. 批量执行耗用，API成功后同步写入本地数据库
+新算法（V2）：
+1. 任务只保存门店、日期范围、目标金额
+2. 执行时逐日处理：
+   - 调用库存查询获取当前库存池
+   - 贪心算法从库存池选商品生成耗用 list
+   - 调用 API 执行耗用
+   - API 成功后立即写入本地数据库
+3. 非最后一天剔除小金额商品（8970/8971/8972/8973）
+4. 最后一天保留小金额商品用于精确补差
 """
 
 import json
@@ -19,6 +22,11 @@ from collections import defaultdict
 
 from src.services.database import db
 from src.services.consume_service import consume_service
+from src.services.stock_flow import stock_flow_service
+
+
+# 小金额商品ID（用于最后一天补差）
+SMALL_AMOUNT_PRODUCTS = [8970, 8971, 8972, 8973]
 
 
 class ConsumeTaskService:
@@ -90,24 +98,23 @@ class ConsumeTaskService:
         with open(task_file, "r", encoding="utf-8") as f:
             return json.load(f)
     
-    def generate_consume_plan(self, task: Dict) -> Dict:
-        """生成耗用方案（新算法）
+    def generate_consume_plan_preview(self, task: Dict) -> Dict:
+        """生成耗用方案预览（只估算金额，不生成具体商品列表）
         
         Args:
             task: 任务配置
-                - excluded_dates: 排除的日期列表（这些日期不耗用，金额均分到其他日期）
+                - excluded_dates: 排除的日期列表
         
         Returns:
-            耗用方案
+            耗用方案预览
         """
-        store_id = task["store_id"]
         start_date = datetime.strptime(task["start_date"], "%Y-%m-%d")
         end_date = datetime.strptime(task["end_date"], "%Y-%m-%d")
         total_amount = task["total_amount"]
         daily_float = task.get("daily_float_percent", 0.1)
         excluded_dates = set(task.get("excluded_dates", []))
         
-        # 生成所有日期列表（包括排除的日期）
+        # 生成所有日期列表
         all_dates = []
         current = start_date
         while current <= end_date:
@@ -117,73 +124,23 @@ class ConsumeTaskService:
         if not all_dates:
             return {"success": False, "message": "日期范围无效"}
         
-        # 计算有效日期（非排除日期）
+        # 计算有效日期
         effective_dates = [d for d in all_dates if d.strftime("%Y-%m-%d") not in excluded_dates]
         effective_days = len(effective_dates)
         
         if effective_days <= 0:
             return {"success": False, "message": "所有日期都被排除，没有有效的执行日期"}
         
-        # 1. 获取日期范围内所有要货数据
-        supply_records = db.get_supply_order_details(
-            store_id=store_id,
-            start_date=task["start_date"],
-            end_date=task["end_date"],
-            limit=100000
-        )
-        
-        if not supply_records:
-            return {"success": False, "message": "未找到要货数据，请先同步"}
-        
-        # 2. 获取商品信息
-        product_ids = list(set(r["product_id"] for r in supply_records))
-        goods_info = db.get_goods_by_ids(product_ids)
-        
-        # 3. 按日期分组要货数据
-        supply_by_date = defaultdict(list)
-        for r in supply_records:
-            date_str = r["create_time"][:10] if r.get("create_time") else ""
-            if date_str:
-                supply_by_date[date_str].append(r)
-        
-        # 4. 初始化库存 dict
-        stock = {}
-        
-        # 5. 计算有效日期的每日平均耗用金额（目标金额均分到有效日期）
+        # 计算每日目标金额（带浮动）
         base_daily_amount = total_amount / effective_days
         
-        # 6. 逐日计算耗用方案（遍历所有日期）
         daily_plans = []
-        accumulated_amount = 0.0
-        effective_date_index = 0  # 有效日期计数器
+        accumulated_target = 0.0
         
-        for date in all_dates:
+        for i, date in enumerate(all_dates):
             date_str = date.strftime("%Y-%m-%d")
             is_excluded = date_str in excluded_dates
             
-            # 加上当天的要货（所有日期都要加库存）
-            day_supply = supply_by_date.get(date_str, [])
-            for item in day_supply:
-                pid = item["product_id"]
-                quantity = item.get("quantity", 0) or 0
-                goods = goods_info.get(pid, {})
-                goods_unit_price = goods.get("unit_price") or goods.get("true_price") or 0
-                
-                if pid not in stock:
-                    stock[pid] = {
-                        "quantity": 0.0,
-                        "unit_price": goods_unit_price,
-                        "product_name": goods.get("product_name", item.get("product_name", "")),
-                        "product_code": goods.get("product_code", item.get("product_code", "")),
-                        "category_name": goods.get("category_name", ""),
-                        "cang_sub_category_name": goods.get("cang_sub_category_name", ""),
-                        "spec_name": goods.get("spec_name", ""),
-                        "unit": goods.get("unit", item.get("unit", "")),
-                    }
-                
-                stock[pid]["quantity"] += quantity
-            
-            # 排除的日期：耗用为 0
             if is_excluded:
                 daily_plans.append({
                     "date": date_str,
@@ -194,217 +151,43 @@ class ConsumeTaskService:
                 })
                 continue
             
-            # 有效日期：计算耗用
-            effective_date_index += 1
-            is_last_effective_day = (effective_date_index == effective_days)
+            # 是否最后一天
+            is_last_day = (i == len(all_dates) - 1) or (
+                i < len(all_dates) - 1 and all_dates[i+1].strftime("%Y-%m-%d") in excluded_dates
+            )
+            # 更精确判断：是否最后一个有效日期
+            remaining_effective = [d for d in all_dates[i:] if d.strftime("%Y-%m-%d") not in excluded_dates]
+            is_last_effective_day = len(remaining_effective) == 1
             
-            # 计算当日目标耗用金额
             if is_last_effective_day:
-                # 最后一个有效日期：精确补差
-                target_amount = round(total_amount - accumulated_amount, 2)
+                # 最后一天：精确补差
+                target_amount = round(total_amount - accumulated_target, 2)
             else:
                 # 带浮动
                 float_factor = 1 + random.uniform(-daily_float, daily_float)
                 target_amount = base_daily_amount * float_factor
-                # 确保不超过剩余目标
-                remaining = total_amount - accumulated_amount
-                target_amount = min(target_amount, remaining * 0.9)  # 留一些给后面
-            
-            # 贪心算法计算当日耗用方案
-            consume_plan, consume_amount = self._greedy_consume(stock, target_amount, is_last_effective_day)
             
             daily_plans.append({
                 "date": date_str,
                 "target_amount": round(target_amount, 2),
-                "consume_plan": consume_plan,
-                "consume_amount": round(consume_amount, 2),
+                "consume_plan": [],  # 执行时才生成
+                "consume_amount": 0,  # 执行时才计算
                 "is_excluded": False,
             })
-            
-            accumulated_amount += consume_amount
-            
-            # 扣减库存
-            for item in consume_plan:
-                pid = item["product_id"]
-                stock[pid]["quantity"] -= item["quantity"]
+            accumulated_target += target_amount
         
-        # 验算（只计算有效日期的金额）
-        total_planned = sum(p["consume_amount"] for p in daily_plans if not p.get("is_excluded"))
-        diff = round(total_amount - total_planned, 2)
+        # 计算总目标
+        total_target = sum(p["target_amount"] for p in daily_plans if not p.get("is_excluded"))
+        diff = round(total_amount - total_target, 2)
         
         return {
             "success": True,
             "days": effective_days,
             "total_amount": total_amount,
-            "total_planned": round(total_planned, 2),
+            "total_planned": round(total_target, 2),
             "diff": diff,
             "daily_plans": daily_plans,
-            "message": "OK" if abs(diff) < 0.01 else f"差额: {diff}"
-        }
-    
-    def _greedy_consume(self, stock: Dict, target_amount: float, is_last_day: bool) -> tuple:
-        """贪心算法：优先消耗便宜的商品
-        
-        Args:
-            stock: 库存 dict
-            target_amount: 目标耗用金额
-            is_last_day: 是否最后一天
-        
-        Returns:
-            (consume_plan, consume_amount)
-        """
-        # 按单价排序（贵 → 便宜），优先消耗贵的，留便宜的到后面
-        products = sorted(
-            [(pid, info) for pid, info in stock.items() if info["quantity"] > 0],
-            key=lambda x: x[1]["unit_price"],
-            reverse=True  # 降序：贵的在前
-        )
-        
-        if not products:
-            return [], 0.0
-        
-        consume_plan = []
-        remaining = target_amount
-        total_consume = 0.0
-        
-        for i, (pid, info) in enumerate(products):
-            quantity = info["quantity"]
-            unit_price = info["unit_price"]
-            
-            if quantity <= 0 or unit_price <= 0:
-                continue
-            
-            # 计算可消耗数量
-            max_by_amount = remaining / unit_price
-            max_consume = min(quantity, max_by_amount)
-            
-            # 每个品至少消耗1单位（最后一天除外）
-            if not is_last_day and i < len(products) - 1:
-                min_consume = min(1.0, quantity)
-                max_consume = max(min_consume, max_consume)
-            
-            # 四舍五入到2位小数
-            consume_quantity = round(max_consume, 2)
-            
-            if consume_quantity <= 0:
-                continue
-            
-            consume_amount = round(consume_quantity * unit_price, 2)
-            
-            consume_plan.append({
-                "product_id": pid,
-                "product_name": info["product_name"],
-                "product_code": info["product_code"],
-                "category_name": info["category_name"],
-                "cang_sub_category_name": info["cang_sub_category_name"],
-                "spec_name": info["spec_name"],
-                "unit": info["unit"],
-                "quantity": consume_quantity,
-                "unit_price": unit_price,
-                "amount": consume_amount,
-            })
-            
-            remaining -= consume_amount
-            total_consume += consume_amount
-            
-            if remaining <= 0.01:
-                break
-        
-        return consume_plan, round(total_consume, 2)
-    
-    def execute_plan(self, store_id: int, store_name: str, daily_plans: List[Dict]) -> Dict:
-        """执行耗用方案
-        
-        Args:
-            store_id: 门店ID
-            store_name: 门店名称
-            daily_plans: 每日耗用方案
-        
-        Returns:
-            执行结果
-        """
-        execution_results = []
-        total_success = 0
-        total_failed = 0
-        total_records = 0
-        
-        for day_plan in daily_plans:
-            date = day_plan["date"]
-            consume_plan = day_plan["consume_plan"]
-            
-            if not consume_plan:
-                execution_results.append({
-                    "date": date,
-                    "status": "skipped",
-                    "message": "无耗用方案"
-                })
-                continue
-            
-            # 生成随机时间（10:00 - 20:00）
-            hour = random.randint(10, 19)
-            minute = random.randint(0, 59)
-            second = random.randint(0, 59)
-            execute_time = f"{date} {hour:02d}:{minute:02d}:{second:02d}"
-            
-            day_success = 0
-            day_failed = 0
-            
-            for item in consume_plan:
-                # 打印调试信息
-                print(f"[DEBUG] 创建耗用记录: store_id={store_id}, product_id={item['product_id']}, quantity={item['quantity']}, time={execute_time}")
-                
-                # 调用 API 创建耗用记录
-                result = consume_service.create_consume_record(
-                    store_id=store_id,
-                    product_id=item["product_id"],
-                    quantity=item["quantity"],
-                    consume_time=execute_time
-                )
-                
-                if result["success"]:
-                    day_success += 1
-                    total_records += 1
-                    
-                    # 写入本地数据库
-                    db.add_consume_record({
-                        "store_id": store_id,
-                        "store_name": store_name,
-                        "product_id": item["product_id"],
-                        "product_code": item["product_code"],
-                        "product_name": item["product_name"],
-                        "category_name": item["category_name"],
-                        "cang_sub_category_name": item["cang_sub_category_name"],
-                        "spec_name": item["spec_name"],
-                        "unit": item["unit"],
-                        "unit_price": item["unit_price"],
-                        "quantity": item["quantity"],
-                        "total_amount": item["amount"],
-                        "used_time": execute_time,
-                        "used_source": "手工补录",
-                        "create_time": execute_time,
-                    })
-                else:
-                    day_failed += 1
-            
-            total_success += day_success
-            total_failed += day_failed
-            
-            execution_results.append({
-                "date": date,
-                "target_amount": day_plan["target_amount"],
-                "consume_amount": day_plan["consume_amount"],
-                "success_count": day_success,
-                "failed_count": day_failed,
-                "status": "success" if day_failed == 0 else "partial",
-            })
-        
-        return {
-            "success": total_failed == 0,
-            "total_success": total_success,
-            "total_failed": total_failed,
-            "total_records": total_records,
-            "execution_results": execution_results,
-            "message": f"执行完成：成功 {total_success} 条，失败 {total_failed} 条"
+            "message": "OK"
         }
     
     def execute_task(self, task_id: str) -> Dict:
@@ -420,45 +203,344 @@ class ConsumeTaskService:
         if not task:
             return {"success": False, "message": "任务不存在"}
         
-        # 生成耗用方案
-        plan_result = self.generate_consume_plan(task)
-        if not plan_result["success"]:
-            return plan_result
-        
         # 执行方案
         exec_result = self.execute_plan(
             store_id=task["store_id"],
             store_name=task.get("store_name", ""),
-            daily_plans=plan_result["daily_plans"]
+            start_date=task["start_date"],
+            end_date=task["end_date"],
+            total_amount=task["total_amount"],
+            daily_float_percent=task.get("daily_float_percent", 0.1),
+            excluded_dates=task.get("excluded_dates", [])
         )
         
         return {
             "success": exec_result["success"],
             "task_id": task_id,
-            "plan": {
-                "total_amount": plan_result["total_amount"],
-                "total_planned": plan_result["total_planned"],
-                "diff": plan_result["diff"],
-                "days": plan_result["days"],
-            },
             "execution": exec_result,
             "message": exec_result["message"]
         }
     
-    def preview_task(self, task_id: str) -> Dict:
-        """预览耗用方案（不执行）
+    def execute_plan(
+        self,
+        store_id: int,
+        store_name: str,
+        start_date: str,
+        end_date: str,
+        total_amount: float,
+        daily_float_percent: float = 0.1,
+        excluded_dates: List[str] = []
+    ) -> Dict:
+        """执行耗用方案（逐日执行）
         
         Args:
-            task_id: 任务ID
+            store_id: 门店ID
+            store_name: 门店名称
+            start_date: 开始日期
+            end_date: 结束日期
+            total_amount: 目标耗用金额
+            daily_float_percent: 每日浮动百分比
+            excluded_dates: 排除的日期列表
         
         Returns:
-            耗用方案预览
+            执行结果
         """
-        task = self.get_task(task_id)
-        if not task:
-            return {"success": False, "message": "任务不存在"}
+        start = datetime.strptime(start_date, "%Y-%m-%d")
+        end = datetime.strptime(end_date, "%Y-%m-%d")
+        excluded_set = set(excluded_dates)
         
-        return self.generate_consume_plan(task)
+        # 生成所有日期列表
+        all_dates = []
+        current = start
+        while current <= end:
+            all_dates.append(current)
+            current += timedelta(days=1)
+        
+        if not all_dates:
+            return {"success": False, "message": "日期范围无效"}
+        
+        # 计算有效日期
+        effective_dates = [d for d in all_dates if d.strftime("%Y-%m-%d") not in excluded_set]
+        effective_days = len(effective_dates)
+        
+        if effective_days <= 0:
+            return {"success": False, "message": "所有日期都被排除"}
+        
+        # 计算每日基础金额
+        base_daily_amount = total_amount / effective_days
+        
+        execution_results = []
+        total_success = 0
+        total_failed = 0
+        total_records = 0
+        accumulated_amount = 0.0
+        
+        for i, date in enumerate(all_dates):
+            date_str = date.strftime("%Y-%m-%d")
+            is_excluded = date_str in excluded_set
+            
+            if is_excluded:
+                execution_results.append({
+                    "date": date_str,
+                    "status": "skipped",
+                    "message": "已排除"
+                })
+                continue
+            
+            # 判断是否最后一个有效日期
+            remaining_effective = [d for d in all_dates[i:] if d.strftime("%Y-%m-%d") not in excluded_set]
+            is_last_effective_day = len(remaining_effective) == 1
+            
+            # 计算当日目标金额
+            if is_last_effective_day:
+                # 最后一天：精确补差
+                target_amount = round(total_amount - accumulated_amount, 2)
+            else:
+                # 带浮动
+                float_factor = 1 + random.uniform(-daily_float_percent, daily_float_percent)
+                target_amount = base_daily_amount * float_factor
+            
+            # 执行单日耗用
+            day_result = self._execute_single_day(
+                store_id=store_id,
+                store_name=store_name,
+                date_str=date_str,
+                target_amount=target_amount,
+                is_last_day=is_last_effective_day,
+                accumulated_amount=accumulated_amount,
+                total_amount=total_amount
+            )
+            
+            execution_results.append(day_result)
+            total_success += day_result.get("success_count", 0)
+            total_failed += day_result.get("failed_count", 0)
+            total_records += day_result.get("record_count", 0)
+            accumulated_amount += day_result.get("actual_amount", 0)
+        
+        return {
+            "success": total_failed == 0,
+            "total_success": total_success,
+            "total_failed": total_failed,
+            "total_records": total_records,
+            "execution_results": execution_results,
+            "message": f"执行完成：成功 {total_success} 条，失败 {total_failed} 条"
+        }
+    
+    def _execute_single_day(
+        self,
+        store_id: int,
+        store_name: str,
+        date_str: str,
+        target_amount: float,
+        is_last_day: bool,
+        accumulated_amount: float,
+        total_amount: float
+    ) -> Dict:
+        """执行单日耗用
+        
+        Args:
+            store_id: 门店ID
+            store_name: 门店名称
+            date_str: 日期字符串
+            target_amount: 目标耗用金额
+            is_last_day: 是否最后一天
+            accumulated_amount: 已累计耗用金额
+            total_amount: 总目标金额
+        
+        Returns:
+            单日执行结果
+        """
+        print(f"[ConsumeTask] 执行日期: {date_str}, 目标金额: {target_amount}, 是否最后一天: {is_last_day}")
+        
+        # 1. 获取截止当日的库存池
+        stock_result = stock_flow_service.get_stock_at_date(store_id=store_id, date_str=date_str)
+        
+        if not stock_result.get("success"):
+            return {
+                "date": date_str,
+                "status": "error",
+                "message": f"获取库存失败: {stock_result.get('message')}",
+                "success_count": 0,
+                "failed_count": 0,
+                "record_count": 0,
+                "actual_amount": 0,
+            }
+        
+        stocks = stock_result.get("stocks", [])
+        
+        # 过滤出有效库存（数量 > 0，单价 > 0）
+        valid_stocks = [s for s in stocks if s.get("quantity", 0) > 0 and s.get("unit_price", 0) > 0]
+        
+        if not valid_stocks:
+            return {
+                "date": date_str,
+                "status": "error",
+                "message": "没有有效库存",
+                "success_count": 0,
+                "failed_count": 0,
+                "record_count": 0,
+                "actual_amount": 0,
+            }
+        
+        # 2. 从库存池生成耗用 list
+        consume_list = self._greedy_consume_from_stock(
+            stocks=valid_stocks,
+            target_amount=target_amount,
+            exclude_small_amount=not is_last_day
+        )
+        
+        if not consume_list:
+            return {
+                "date": date_str,
+                "status": "error",
+                "message": "无法生成耗用方案",
+                "success_count": 0,
+                "failed_count": 0,
+                "record_count": 0,
+                "actual_amount": 0,
+            }
+        
+        # 3. 执行耗用
+        # 生成随机时间（10:00 - 20:00）
+        hour = random.randint(10, 19)
+        minute = random.randint(0, 59)
+        second = random.randint(0, 59)
+        execute_time = f"{date_str} {hour:02d}:{minute:02d}:{second:02d}"
+        
+        day_success = 0
+        day_failed = 0
+        actual_amount = 0.0
+        
+        for item in consume_list:
+            print(f"[DEBUG] 创建耗用记录: store_id={store_id}, product_id={item['product_id']}, quantity={item['quantity']}, time={execute_time}")
+            
+            # 调用 API 创建耗用记录
+            result = consume_service.create_consume_record(
+                store_id=store_id,
+                product_id=item["product_id"],
+                quantity=item["quantity"],
+                consume_time=execute_time
+            )
+            
+            if result["success"]:
+                day_success += 1
+                actual_amount += item["amount"]
+                
+                # API 成功后立即写入本地数据库
+                db.add_consume_record({
+                    "store_id": store_id,
+                    "store_name": store_name,
+                    "product_id": item["product_id"],
+                    "product_code": item["product_code"],
+                    "product_name": item["product_name"],
+                    "category_name": item["category_name"],
+                    "cang_sub_category_name": item["cang_sub_category_name"],
+                    "spec_name": item["spec_name"],
+                    "unit": item["unit"],
+                    "unit_price": item["unit_price"],
+                    "quantity": item["quantity"],
+                    "total_amount": item["amount"],
+                    "used_time": execute_time,
+                    "used_source": "手工补录",
+                    "create_time": execute_time,
+                })
+            else:
+                day_failed += 1
+                print(f"[DEBUG] API 失败: {result.get('message')}")
+        
+        return {
+            "date": date_str,
+            "target_amount": round(target_amount, 2),
+            "consume_plan": consume_list,
+            "success_count": day_success,
+            "failed_count": day_failed,
+            "record_count": day_success,
+            "actual_amount": round(actual_amount, 2),
+            "status": "success" if day_failed == 0 else "partial",
+        }
+    
+    def _greedy_consume_from_stock(
+        self,
+        stocks: List[Dict],
+        target_amount: float,
+        exclude_small_amount: bool = True
+    ) -> List[Dict]:
+        """贪心算法从库存池选商品（均匀分布）
+        
+        策略：
+        1. 按单价排序（贵 → 便宜）
+        2. 每个商品最多消耗目标金额的一定比例（如30%）
+        3. 这样贵的商品不会被一次性耗尽，留一些给后面的日期
+        
+        Args:
+            stocks: 库存列表
+            target_amount: 目标耗用金额
+            exclude_small_amount: 是否剔除小金额商品
+        
+        Returns:
+            耗用方案列表
+        """
+        # 按单价排序（贵 → 便宜）
+        sorted_stocks = sorted(stocks, key=lambda x: x.get("unit_price", 0), reverse=True)
+        
+        # 如果需要剔除小金额商品，先过滤
+        if exclude_small_amount:
+            sorted_stocks = [s for s in sorted_stocks if s.get("product_id") not in SMALL_AMOUNT_PRODUCTS]
+        
+        if not sorted_stocks:
+            return []
+        
+        consume_list = []
+        remaining = target_amount
+        total_consume = 0.0
+        
+        # 每个商品最多消耗目标金额的 30%
+        max_ratio_per_product = 0.3
+        
+        for stock in sorted_stocks:
+            if remaining <= 0.01:
+                break
+            
+            quantity = stock.get("quantity", 0)
+            unit_price = stock.get("unit_price", 0)
+            product_id = stock.get("product_id")
+            
+            if quantity <= 0 or unit_price <= 0:
+                continue
+            
+            # 计算该商品最多可消耗的金额（目标金额的 30%）
+            max_amount_for_this = target_amount * max_ratio_per_product
+            
+            # 计算可消耗数量
+            max_by_amount_limit = max_amount_for_this / unit_price
+            max_by_remaining = remaining / unit_price
+            max_consume = min(quantity, max_by_amount_limit, max_by_remaining)
+            
+            # 四舍五入到2位小数
+            consume_quantity = round(max_consume, 2)
+            
+            if consume_quantity <= 0:
+                continue
+            
+            consume_amount = round(consume_quantity * unit_price, 2)
+            
+            consume_list.append({
+                "product_id": product_id,
+                "product_name": stock.get("product_name", ""),
+                "product_code": stock.get("product_code", ""),
+                "category_name": stock.get("category_name", ""),
+                "cang_sub_category_name": stock.get("cang_sub_category_name", ""),
+                "spec_name": stock.get("spec_name", ""),
+                "unit": stock.get("unit", ""),
+                "quantity": consume_quantity,
+                "unit_price": unit_price,
+                "amount": consume_amount,
+            })
+            
+            remaining -= consume_amount
+            total_consume += consume_amount
+        
+        return consume_list
 
 
 consume_task_service = ConsumeTaskService()

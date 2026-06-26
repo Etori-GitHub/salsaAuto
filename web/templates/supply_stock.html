@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}供应链库存 - salsaAuto{% endblock %}
+{% block header %}供应链库存{% endblock %}
+
+{% block content %}
+<!-- 筛选条件 -->
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">筛选条件</span>
+    </div>
+    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+        <div class="form-group">
+            <label class="form-label">分类</label>
+            <select id="query-category" class="form-select">
+                <option value="">全部分类</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">子类</label>
+            <select id="query-subcategory" class="form-select">
+                <option value="">全部子类</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-label">商品名称</label>
+            <input type="text" id="query-product" class="form-input" placeholder="模糊匹配">
+        </div>
+    </div>
+    <div style="display: flex; gap: 12px;">
+        <button class="btn btn-primary" onclick="queryStock()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            查询库存
+        </button>
+    </div>
+</div>
+
+<!-- 库存结果 -->
+<div class="card" style="margin-top: 24px;">
+    <div class="card-header">
+        <span class="card-title">供应链库存列表</span>
+        <span id="result-count" style="color: var(--muted); font-size: 13px;"></span>
+    </div>
+    <div style="overflow-x: auto;">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>分类</th>
+                    <th>子类</th>
+                    <th>商品名称</th>
+                    <th>当前可用库存</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="stock-list">
+                <tr><td colspan="5" class="loading">点击查询库存</td></tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- 分页 -->
+    <div id="pagination" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+        <button class="btn btn-secondary" onclick="prevPage()" id="btn-prev">上一页</button>
+        <span id="page-info" style="color: var(--muted); font-size: 13px;">第 1 页</span>
+        <button class="btn btn-secondary" onclick="nextPage()" id="btn-next">下一页</button>
+    </div>
+</div>
+
+<!-- 修改库存弹窗 -->
+<div id="edit-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3>修改库存</h3>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div style="margin-bottom: 16px;">
+                <div style="color: var(--muted); font-size: 13px; margin-bottom: 4px;">商品名称</div>
+                <div id="edit-product-name" style="font-weight: 600;"></div>
+            </div>
+            <div style="margin-bottom: 16px;">
+                <div style="color: var(--muted); font-size: 13px; margin-bottom: 4px;">当前库存</div>
+                <div id="edit-current-quantity" style="font-size: 18px; font-weight: 700; color: var(--ok);"></div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">修改为</label>
+                <input type="number" id="edit-new-quantity" class="form-input" placeholder="输入新的库存数量" step="0.01">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeEditModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveEdit()">保存</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+let currentPage = 1;
+let totalPages = 1;
+let currentData = [];
+let editingItem = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    // 加载分类列表
+    loadCategories();
+});
+
+async function loadCategories() {
+    try {
+        const response = await fetch('/api/supply-stock/categories');
+        if (response.ok) {
+            const data = await response.json();
+            const categorySelect = document.getElementById('query-category');
+            const subcategorySelect = document.getElementById('query-subcategory');
+            
+            // 填充分类
+            const categories = [...new Set(data.map(item => item.category))];
+            categories.forEach(cat => {
+                if (cat) {
+                    const option = document.createElement('option');
+                    option.value = cat;
+                    option.textContent = cat;
+                    categorySelect.appendChild(option);
+                }
+            });
+            
+            // 分类变化时更新子类
+            categorySelect.addEventListener('change', () => {
+                const selectedCategory = categorySelect.value;
+                subcategorySelect.innerHTML = '<option value="">全部子类</option>';
+                
+                const subcategories = [...new Set(
+                    data.filter(item => item.category === selectedCategory && item.subcategory)
+                        .map(item => item.subcategory)
+                )];
+                
+                subcategories.forEach(sub => {
+                    const option = document.createElement('option');
+                    option.value = sub;
+                    option.textContent = sub;
+                    subcategorySelect.appendChild(option);
+                });
+            });
+        }
+    } catch (error) {
+        console.error('加载分类失败:', error);
+    }
+}
+
+async function queryStock() {
+    const category = document.getElementById('query-category').value;
+    const subcategory = document.getElementById('query-subcategory').value;
+    const productName = document.getElementById('query-product').value;
+    
+    currentPage = 1;
+    await fetchStock(category, subcategory, productName);
+}
+
+async function fetchStock(category = '', subcategory = '', productName = '') {
+    const tbody = document.getElementById('stock-list');
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">加载中...</td></tr>';
+    
+    try {
+        const params = new URLSearchParams({
+            page: currentPage,
+            pageSize: 20
+        });
+        
+        if (category) params.append('productCategoryName', category);
+        if (subcategory) params.append('productCategorySubName', subcategory);
+        if (productName) params.append('productName', productName);
+        
+        const response = await fetch(`/api/supply-stock/list?${params}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (data.success && data.data && data.data.records) {
+                currentData = data.data.records;
+                totalPages = data.data.pages || 1;
+                
+                renderStockList(currentData);
+                updatePagination();
+                
+                document.getElementById('result-count').textContent = `共 ${data.data.total} 条`;
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">暂无数据</td></tr>';
+            }
+        } else {
+            tbody.innerHTML = '<tr><td colspan="5" class="loading">查询失败</td></tr>';
+        }
+    } catch (error) {
+        console.error('查询失败:', error);
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">查询失败</td></tr>';
+    }
+}
+
+function renderStockList(records) {
+    const tbody = document.getElementById('stock-list');
+    
+    if (records.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="loading">暂无数据</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = records.map((item, index) => `
+        <tr>
+            <td>${item.productCategoryName || '-'}</td>
+            <td>${item.productCategorySubName || '-'}</td>
+            <td>${item.productName || '-'}</td>
+            <td style="font-weight: 600; color: ${item.trueCanUseQuantity > 0 ? 'var(--ok)' : 'var(--muted)'};">
+                ${item.trueCanUseQuantity !== null ? item.trueCanUseQuantity : (item.resultQuantity || 0)}
+            </td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="openEditModal(${index})">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    修改
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function updatePagination() {
+    document.getElementById('page-info').textContent = `第 ${currentPage} / ${totalPages} 页`;
+    document.getElementById('btn-prev').disabled = currentPage <= 1;
+    document.getElementById('btn-next').disabled = currentPage >= totalPages;
+}
+
+async function prevPage() {
+    if (currentPage > 1) {
+        currentPage--;
+        const category = document.getElementById('query-category').value;
+        const subcategory = document.getElementById('query-subcategory').value;
+        const productName = document.getElementById('query-product').value;
+        await fetchStock(category, subcategory, productName);
+    }
+}
+
+async function nextPage() {
+    if (currentPage < totalPages) {
+        currentPage++;
+        const category = document.getElementById('query-category').value;
+        const subcategory = document.getElementById('query-subcategory').value;
+        const productName = document.getElementById('query-product').value;
+        await fetchStock(category, subcategory, productName);
+    }
+}
+
+function openEditModal(index) {
+    editingItem = currentData[index];
+    
+    document.getElementById('edit-product-name').textContent = editingItem.productName;
+    document.getElementById('edit-current-quantity').textContent = 
+        editingItem.trueCanUseQuantity !== null ? editingItem.trueCanUseQuantity : (editingItem.resultQuantity || 0);
+    document.getElementById('edit-new-quantity').value = 
+        editingItem.trueCanUseQuantity !== null ? editingItem.trueCanUseQuantity : (editingItem.resultQuantity || 0);
+    
+    document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+    editingItem = null;
+}
+
+async function saveEdit() {
+    const newQuantity = parseFloat(document.getElementById('edit-new-quantity').value);
+    
+    if (isNaN(newQuantity)) {
+        alert('请输入有效的数量');
+        return;
+    }
+    
+    if (!editingItem) {
+        alert('数据异常，请重试');
+        return;
+    }
+    
+    try {
+        // 构建更新请求体
+        const updateData = {
+            ...editingItem,
+            trueCanUseQuantity: newQuantity.toString()
+        };
+        
+        const response = await fetch('/api/supply-stock/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success || result.code === 1) {
+            alert('修改成功');
+            closeEditModal();
+            
+            // 刷新列表
+            const category = document.getElementById('query-category').value;
+            const subcategory = document.getElementById('query-subcategory').value;
+            const productName = document.getElementById('query-product').value;
+            await fetchStock(category, subcategory, productName);
+        } else {
+            alert('修改失败: ' + (result.msg || '未知错误'));
+        }
+    } catch (error) {
+        console.error('修改失败:', error);
+        alert('修改失败: ' + error.message);
+    }
+}
+{% endblock %}

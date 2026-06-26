@@ -109,6 +109,26 @@ class APIClient:
     def post(self, endpoint: str, data: Optional[dict] = None, params: Optional[dict] = None) -> dict:
         return self._request("POST", endpoint, params=params, data=data)
     
+    def post_json(self, endpoint: str, json_data: Optional[dict] = None, params: Optional[dict] = None) -> dict:
+        """POST 请求，使用 JSON 格式"""
+        # 判断是端点名称还是完整路径
+        if endpoint.startswith("/"):
+            url = f"{config.api_base_url}{endpoint}"
+        elif endpoint.startswith("http"):
+            url = endpoint
+        else:
+            url = config.get_api_url(endpoint)
+        
+        try:
+            response = self.session.request(
+                method="POST", url=url, params=params, json=json_data,
+                timeout=10, verify=False
+            )
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as e:
+            return {"error": True, "message": str(e)}
+    
     def post_form(self, endpoint: str, data: Optional[dict] = None, params: Optional[dict] = None) -> dict:
         """POST 请求，使用 application/x-www-form-urlencoded 格式"""
         # 判断是端点名称还是完整路径

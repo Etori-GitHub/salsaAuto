@@ -1,4 +1,574 @@
 {
+  "9139": {
+    "name": "冷面",
+    "price": 10.5,
+    "unit": "袋",
+    "spec": "5斤",
+    "code": "D001Z018C913",
+    "category": "贸易品",
+    "sub_category": "冻品",
+    "cang_sub_category": "烤肉区"
+  },
+  "9134": {
+    "name": "一次性纸杯（新）",
+    "price": 3.0,
+    "unit": "袋",
+    "spec": "50只",
+    "code": "D001Z001C913",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9133": {
+    "name": "小小满土豆粉(土豆泥饭专用）",
+    "price": 41.16,
+    "unit": "袋",
+    "spec": "2.5kg/袋",
+    "code": "D005Z020C913",
+    "category": "贸易品",
+    "sub_category": "冷冻品",
+    "cang_sub_category": "砂锅区"
+  },
+  "9132": {
+    "name": "小小满香脆裹浆粉",
+    "price": 29.49,
+    "unit": "袋",
+    "spec": "2.5kg/袋",
+    "code": "D005Z020C913",
+    "category": "贸易品",
+    "sub_category": "冷冻品",
+    "cang_sub_category": "炸炉区"
+  },
+  "9131": {
+    "name": "端午粽子",
+    "price": 80.0,
+    "unit": "箱",
+    "spec": "160个",
+    "code": "D001Z018C913",
+    "category": "贸易品",
+    "sub_category": "冻品",
+    "cang_sub_category": "烤肉区"
+  },
+  "9130": {
+    "name": "脆骨香肠",
+    "price": 39.6,
+    "unit": "袋",
+    "spec": "1500g",
+    "code": "D001Z018C913",
+    "category": "贸易品",
+    "sub_category": "冻品",
+    "cang_sub_category": "烤肉区"
+  },
+  "9129": {
+    "name": "燕都鸡汤",
+    "price": 7.0,
+    "unit": "桶",
+    "spec": "9斤",
+    "code": "D001Z018C912",
+    "category": "贸易品",
+    "sub_category": "冻品",
+    "cang_sub_category": "烤肉区"
+  },
+  "9128": {
+    "name": "燕都高汤",
+    "price": 7.0,
+    "unit": "桶",
+    "spec": "9斤",
+    "code": "D001Z018C912",
+    "category": "贸易品",
+    "sub_category": "冻品",
+    "cang_sub_category": "烤肉区"
+  },
+  "9127": {
+    "name": "印台",
+    "price": 10.0,
+    "unit": "个",
+    "spec": "个",
+    "code": "D001Z001C912",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9126": {
+    "name": "黑色皮筋",
+    "price": 10.0,
+    "unit": "件",
+    "spec": "10小袋",
+    "code": "D001Z001C912",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9125": {
+    "name": "磁性展示贴",
+    "price": 30.0,
+    "unit": "袋",
+    "spec": "10个",
+    "code": "D001Z001C912",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9124": {
+    "name": "食品留样盒",
+    "price": 1.5,
+    "unit": "个",
+    "spec": "个",
+    "code": "D001Z001C912",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9123": {
+    "name": "夜光标签贴",
+    "price": 42.0,
+    "unit": "套",
+    "spec": "12个",
+    "code": "D001Z001C912",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9122": {
+    "name": "碘伏棉签",
+    "price": 12.5,
+    "unit": "盒",
+    "spec": "50个",
+    "code": "D001Z001C912",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9121": {
+    "name": "收纳筐（无盖）",
+    "price": 22.0,
+    "unit": "个",
+    "spec": "29.5*22.5*14",
+    "code": "D001Z001C912",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9120": {
+    "name": "凤尾夹19mm",
+    "price": 10.0,
+    "unit": "盒",
+    "spec": "40个",
+    "code": "D001Z001C912",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9119": {
+    "name": "手提整理箱",
+    "price": 33.0,
+    "unit": "个",
+    "spec": "425*295*255",
+    "code": "D001Z001C911",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9118": {
+    "name": "三层文件架",
+    "price": 21.0,
+    "unit": "个",
+    "spec": "个",
+    "code": "D001Z001C911",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9117": {
+    "name": "会议记录本",
+    "price": 7.23,
+    "unit": "个",
+    "spec": "50页",
+    "code": "D001Z001C911",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9116": {
+    "name": "海绵拖把",
+    "price": 29.0,
+    "unit": "个",
+    "spec": "38cm",
+    "code": "D001Z001C911",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9115": {
+    "name": "文件袋（手提款）",
+    "price": 1.5,
+    "unit": "个",
+    "spec": "个",
+    "code": "D001Z001C911",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9114": {
+    "name": "芦笋奶酪鸡腿卷",
+    "price": 8.3,
+    "unit": "袋",
+    "spec": "1kg",
+    "code": "D001Z018C911",
+    "category": "贸易品",
+    "sub_category": "冻品",
+    "cang_sub_category": "烤肉区"
+  },
+  "9113": {
+    "name": "好白糖",
+    "price": 315.0,
+    "unit": "袋",
+    "spec": "",
+    "code": "D001Z029C911",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9112": {
+    "name": "绞肉机",
+    "price": 65.0,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C911",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9111": {
+    "name": "双桥味精",
+    "price": 33.0,
+    "unit": "袋",
+    "spec": "",
+    "code": "D001Z029C911",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9110": {
+    "name": "海天蒸鱼豉油",
+    "price": 120.0,
+    "unit": "件",
+    "spec": "",
+    "code": "D001Z029C911",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9109": {
+    "name": "水龙头堵头",
+    "price": 10.0,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C910",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9108": {
+    "name": "水管套",
+    "price": 20.0,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C910",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9107": {
+    "name": "打印纸",
+    "price": 32.0,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C910",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9106": {
+    "name": "胶带座",
+    "price": 8.17,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C910",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9105": {
+    "name": "菜单夹单器",
+    "price": 20.4,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C910",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9104": {
+    "name": "小葱",
+    "price": 3.5,
+    "unit": "斤",
+    "spec": "",
+    "code": "D001Z029C910",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9103": {
+    "name": "蒸笼纸",
+    "price": 18.0,
+    "unit": "件",
+    "spec": "",
+    "code": "D001Z029C910",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9102": {
+    "name": "肉馅",
+    "price": 7.0,
+    "unit": "斤",
+    "spec": "",
+    "code": "D001Z029C910",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9101": {
+    "name": "大锁子",
+    "price": 27.0,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C910",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9099": {
+    "name": "带皮前腿",
+    "price": 6.5,
+    "unit": "斤",
+    "spec": "",
+    "code": "D001Z029C909",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9098": {
+    "name": "肉馅",
+    "price": 7.0,
+    "unit": "斤",
+    "spec": "",
+    "code": "D001Z029C909",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9096": {
+    "name": "大锁子",
+    "price": 27.0,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C909",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9095": {
+    "name": "圣女果",
+    "price": 12.0,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C909",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9094": {
+    "name": "洋槐蜂蜜糖浆",
+    "price": 9.16,
+    "unit": "瓶",
+    "spec": "",
+    "code": "D001Z029C909",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9093": {
+    "name": "打火枪",
+    "price": 5.0,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C909",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9092": {
+    "name": "龙门米醋",
+    "price": 75.0,
+    "unit": "件",
+    "spec": "",
+    "code": "D001Z029C909",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9091": {
+    "name": "藿香正气水",
+    "price": 4.0,
+    "unit": "盒",
+    "spec": "",
+    "code": "D001Z029C909",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9090": {
+    "name": "板凳",
+    "price": 16.0,
+    "unit": "个",
+    "spec": "",
+    "code": "D001Z029C909",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9089": {
+    "name": "今麦郎冰红茶",
+    "price": 31.0,
+    "unit": "件",
+    "spec": "",
+    "code": "D001Z029C908",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9088": {
+    "name": "排腿300-350",
+    "price": 114.0,
+    "unit": "件",
+    "spec": "",
+    "code": "D001Z029C908",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9087": {
+    "name": "好毛巾",
+    "price": 3.5,
+    "unit": "条",
+    "spec": "",
+    "code": "D001Z029C908",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9086": {
+    "name": "当归",
+    "price": 48.0,
+    "unit": "斤",
+    "spec": "",
+    "code": "D001Z029C908",
+    "category": "贸易品",
+    "sub_category": "石家庄小满同学专用",
+    "cang_sub_category": "石家庄现采入库"
+  },
+  "9085": {
+    "name": "莎莎铺子炒面汁",
+    "price": 12.27,
+    "unit": "袋",
+    "spec": "1kg/袋",
+    "code": "D005Z020C908",
+    "category": "贸易品",
+    "sub_category": "冷冻品",
+    "cang_sub_category": "热菜区"
+  },
+  "9084": {
+    "name": "途达立式打火机",
+    "price": 5.5,
+    "unit": "个",
+    "spec": "个",
+    "code": "D001Z001C908",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "前厅易耗"
+  },
+  "9083": {
+    "name": "小小满香脆裹浆粉",
+    "price": 29.49,
+    "unit": "袋",
+    "spec": "2.5kg/袋",
+    "code": "D005Z019C908",
+    "category": "加工品",
+    "sub_category": "现加工品",
+    "cang_sub_category": "炸炉区"
+  },
+  "9082": {
+    "name": "雨靴",
+    "price": 29.0,
+    "unit": "双",
+    "spec": "双",
+    "code": "D001Z001C908",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "厨房易耗"
+  },
+  "9081": {
+    "name": "悬挂式文件夹",
+    "price": 7.0,
+    "unit": "个",
+    "spec": "个",
+    "code": "D001Z001C908",
+    "category": "贸易品",
+    "sub_category": "包材",
+    "cang_sub_category": "外卖易耗"
+  },
+  "9080": {
+    "name": "莎莎铺子胡萝卜丝",
+    "price": 5.13,
+    "unit": "袋",
+    "spec": "1kg/袋",
+    "code": "D005Z019C908",
+    "category": "加工品",
+    "sub_category": "现加工品",
+    "cang_sub_category": "热菜区"
+  },
+  "9079": {
+    "name": "小小满土豆粉(土豆泥饭专用）",
+    "price": 41.16,
+    "unit": "袋",
+    "spec": "2.5kg/袋",
+    "code": "D005Z020C907",
+    "category": "加工品",
+    "sub_category": "现加工品",
+    "cang_sub_category": "砂锅区"
+  },
+  "9078": {
+    "name": "贴纸*100",
+    "price": 1.0,
+    "unit": "件",
+    "spec": "1*100",
+    "code": "D001Z023C907",
+    "category": "贸易品",
+    "sub_category": "特殊",
+    "cang_sub_category": "其他"
+  },
+  "9077": {
+    "name": "炒面",
+    "price": 9.5,
+    "unit": "袋",
+    "spec": "5斤",
+    "code": "D006Z021C907",
+    "category": "现采",
+    "sub_category": "水果蔬菜",
+    "cang_sub_category": "早餐区"
+  },
   "9076": {
     "name": "壁挂式抽纸盒",
     "price": 33.0,
@@ -741,7 +1311,7 @@
   },
   "9002": {
     "name": "螺丝椒",
-    "price": 4.5,
+    "price": 4.3,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C900",
@@ -801,7 +1371,7 @@
   },
   "8996": {
     "name": "菜心",
-    "price": 3.5,
+    "price": 3.12,
     "unit": "斤",
     "spec": "斤",
     "code": "D006Z021C899",
@@ -861,7 +1431,7 @@
   },
   "8990": {
     "name": "油桃",
-    "price": 1.35,
+    "price": 1.59,
     "unit": "斤",
     "spec": "斤",
     "code": "D006Z021C899",
@@ -900,34 +1470,34 @@
     "cang_sub_category": "其他"
   },
   "8986": {
-    "name": "测试三",
-    "price": 50.38,
-    "unit": "袋",
-    "spec": "g",
+    "name": "(烤肉店)喜达浓香咖喱风味汤面",
+    "price": 7.65,
+    "unit": "包",
+    "spec": "76g*5袋",
     "code": "D001Z023C898",
     "category": "贸易品",
-    "sub_category": "特殊",
-    "cang_sub_category": "其他"
+    "sub_category": "调料",
+    "cang_sub_category": "烤肉区"
   },
   "8985": {
-    "name": "测试二",
-    "price": 91.85,
-    "unit": "箱",
-    "spec": "12*600ml",
+    "name": "(烤肉店)喜达印尼拌面五连包",
+    "price": 7.65,
+    "unit": "包",
+    "spec": "90g*5袋",
     "code": "D001Z023C898",
     "category": "贸易品",
-    "sub_category": "特殊",
-    "cang_sub_category": "其他"
+    "sub_category": "调料",
+    "cang_sub_category": "烤肉区"
   },
   "8984": {
-    "name": "测试一",
-    "price": 19.03,
-    "unit": "袋",
-    "spec": "kg",
+    "name": "(烤肉店)营多捞面香辣拌面五连包",
+    "price": 7.65,
+    "unit": "包",
+    "spec": "76g*5袋",
     "code": "D001Z023C898",
     "category": "贸易品",
-    "sub_category": "特殊",
-    "cang_sub_category": "其他"
+    "sub_category": "调料",
+    "cang_sub_category": "烤肉区"
   },
   "8983": {
     "name": "小小满炝土豆丝料包",
@@ -1181,7 +1751,7 @@
   },
   "8958": {
     "name": "蛋挞皮",
-    "price": 90.0,
+    "price": 62.0,
     "unit": "箱",
     "spec": "300个",
     "code": "D001Z018C895",
@@ -1561,7 +2131,7 @@
   },
   "8920": {
     "name": "西瓜",
-    "price": 1.4,
+    "price": 0.89,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C892",
@@ -1741,8 +2311,8 @@
   },
   "8902": {
     "name": "凉粉",
-    "price": 1.2,
-    "unit": "个",
+    "price": 8.0,
+    "unit": "包",
     "spec": "",
     "code": "D001Z029C890",
     "category": "贸易品",
@@ -1761,7 +2331,7 @@
   },
   "8900": {
     "name": "麻山药",
-    "price": 6.0,
+    "price": 5.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C890",
@@ -1771,7 +2341,7 @@
   },
   "8899": {
     "name": "指天阔烧烤料（五香味）",
-    "price": 202.5,
+    "price": 214.5,
     "unit": "桶",
     "spec": "12.5kg",
     "code": "D001Z015C889",
@@ -1781,7 +2351,7 @@
   },
   "8898": {
     "name": "指天阔烧烤料（香辣味）",
-    "price": 202.5,
+    "price": 214.5,
     "unit": "桶",
     "spec": "12.5kg",
     "code": "D001Z015C889",
@@ -1901,7 +2471,7 @@
   },
   "8886": {
     "name": "绿宝石",
-    "price": 2.5,
+    "price": 2.2,
     "unit": "斤",
     "spec": "斤",
     "code": "D006Z021C888",
@@ -2271,7 +2841,7 @@
   },
   "8849": {
     "name": "下水管",
-    "price": 6.0,
+    "price": 67.0,
     "unit": "个",
     "spec": "",
     "code": "D001Z029C884",
@@ -2481,8 +3051,8 @@
   },
   "8828": {
     "name": "海天草菇老抽",
-    "price": 19.0,
-    "unit": "瓶",
+    "price": 114.0,
+    "unit": "件",
     "spec": "",
     "code": "D001Z029C882",
     "category": "贸易品",
@@ -2491,7 +3061,7 @@
   },
   "8827": {
     "name": "海天上等蚝油",
-    "price": 35.0,
+    "price": 48.0,
     "unit": "桶",
     "spec": "",
     "code": "D001Z029C882",
@@ -2551,8 +3121,8 @@
   },
   "8821": {
     "name": "海天金标生抽",
-    "price": 18.0,
-    "unit": "桶",
+    "price": 60.0,
+    "unit": "件",
     "spec": "",
     "code": "D001Z029C882",
     "category": "贸易品",
@@ -3122,7 +3692,7 @@
   "8764": {
     "name": "海天蒸鱼豉油",
     "price": 55.0,
-    "unit": "件",
+    "unit": "桶",
     "spec": "",
     "code": "D001Z029C876",
     "category": "贸易品",
@@ -3161,7 +3731,7 @@
   },
   "8760": {
     "name": "今麦郎矿泉水",
-    "price": 9.0,
+    "price": 9.5,
     "unit": "件",
     "spec": "",
     "code": "D001Z029C876",
@@ -3311,7 +3881,7 @@
   },
   "8745": {
     "name": "正泽慧小酥肉",
-    "price": 88.0,
+    "price": 81.0,
     "unit": "件",
     "spec": "",
     "code": "D001Z029C874",
@@ -3511,7 +4081,7 @@
   },
   "8725": {
     "name": "绵白糖",
-    "price": 3.2,
+    "price": 2.8,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C872",
@@ -3921,8 +4491,8 @@
   },
   "8684": {
     "name": "永川豆豉",
-    "price": 1.5,
-    "unit": "袋",
+    "price": 75.0,
+    "unit": "件",
     "spec": "",
     "code": "D001Z029C868",
     "category": "贸易品",
@@ -3951,7 +4521,7 @@
   },
   "8681": {
     "name": "大卷帘袋",
-    "price": 10.0,
+    "price": 40.0,
     "unit": "个",
     "spec": "",
     "code": "D001Z029C868",
@@ -4031,7 +4601,7 @@
   },
   "8673": {
     "name": "湘美奇小米辣",
-    "price": 2.5,
+    "price": 9.0,
     "unit": "袋",
     "spec": "",
     "code": "D001Z029C867",
@@ -4281,7 +4851,7 @@
   },
   "8648": {
     "name": "一倍半红烧牛肉五连包",
-    "price": 9.52,
+    "price": 11.17,
     "unit": "包",
     "spec": "110g*5袋",
     "code": "D001Z015C864",
@@ -4301,7 +4871,7 @@
   },
   "8646": {
     "name": "大娃娃菜",
-    "price": 1.1,
+    "price": 1.4,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C864",
@@ -4771,7 +5341,7 @@
   },
   "8599": {
     "name": "紫叶生菜",
-    "price": 6.0,
+    "price": 6.5,
     "unit": "斤",
     "spec": "5.00",
     "code": "D006Z021C859",
@@ -4781,7 +5351,7 @@
   },
   "8598": {
     "name": "苦菊",
-    "price": 4.0,
+    "price": 4.5,
     "unit": "斤",
     "spec": "斤",
     "code": "D006Z021C859",
@@ -4886,7 +5456,7 @@
     "spec": "80g*1.5kg*8袋/箱",
     "code": "D001Z018C858",
     "category": "贸易品",
-    "sub_category": "冻品",
+    "sub_category": "面食",
     "cang_sub_category": "河北石家庄（待分档口）"
   },
   "8587": {
@@ -5051,8 +5621,8 @@
   },
   "8570": {
     "name": "海天老抽王",
-    "price": 35.0,
-    "unit": "桶",
+    "price": 70.0,
+    "unit": "件",
     "spec": "",
     "code": "D001Z029C857",
     "category": "贸易品",
@@ -5171,7 +5741,7 @@
   },
   "8558": {
     "name": "罗马生菜",
-    "price": 70.0,
+    "price": 65.0,
     "unit": "件",
     "spec": "",
     "code": "D001Z029C855",
@@ -5181,7 +5751,7 @@
   },
   "8557": {
     "name": "白菜",
-    "price": 0.6,
+    "price": 0.7,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C855",
@@ -5361,7 +5931,7 @@
   },
   "8537": {
     "name": "香菇",
-    "price": 5.5,
+    "price": 6.5,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C853",
@@ -6331,7 +6901,7 @@
   },
   "8437": {
     "name": "山药",
-    "price": 3.0,
+    "price": 2.8,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C843",
@@ -6381,7 +6951,7 @@
   },
   "8432": {
     "name": "白萝卜",
-    "price": 0.7,
+    "price": 0.6,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C843",
@@ -6451,7 +7021,7 @@
   },
   "8425": {
     "name": "大金针菇",
-    "price": 11.0,
+    "price": 10.0,
     "unit": "包",
     "spec": "",
     "code": "D001Z029C842",
@@ -6461,7 +7031,7 @@
   },
   "8424": {
     "name": "长茄子",
-    "price": 2.0,
+    "price": 2.5,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C842",
@@ -6491,7 +7061,7 @@
   },
   "8421": {
     "name": "香葱",
-    "price": 2.5,
+    "price": 4.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C842",
@@ -6511,7 +7081,7 @@
   },
   "8419": {
     "name": "散花",
-    "price": 2.3,
+    "price": 2.2,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C841",
@@ -6541,7 +7111,7 @@
   },
   "8415": {
     "name": "小葱",
-    "price": 3.0,
+    "price": 3.5,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C841",
@@ -6551,7 +7121,7 @@
   },
   "8414": {
     "name": "韭菜",
-    "price": 1.5,
+    "price": 1.8,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C841",
@@ -6601,7 +7171,7 @@
   },
   "8409": {
     "name": "豆王",
-    "price": 3.0,
+    "price": 4.5,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C840",
@@ -6621,7 +7191,7 @@
   },
   "8407": {
     "name": "香菜",
-    "price": 3.0,
+    "price": 4.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C840",
@@ -6671,7 +7241,7 @@
   },
   "8402": {
     "name": "蒜米",
-    "price": 12.0,
+    "price": 11.0,
     "unit": "袋",
     "spec": "",
     "code": "D001Z029C840",
@@ -6701,7 +7271,7 @@
   },
   "8399": {
     "name": "小米椒",
-    "price": 9.0,
+    "price": 8.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C839",
@@ -6721,7 +7291,7 @@
   },
   "8397": {
     "name": "白洋葱",
-    "price": 0.9,
+    "price": 1.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C839",
@@ -6761,7 +7331,7 @@
   },
   "8393": {
     "name": "鸡胸肉",
-    "price": 6.0,
+    "price": 7.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C839",
@@ -6781,7 +7351,7 @@
   },
   "8391": {
     "name": "排骨",
-    "price": 10.0,
+    "price": 11.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C839",
@@ -7081,7 +7651,7 @@
   },
   "8361": {
     "name": "茄子",
-    "price": 1.8,
+    "price": 1.2,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C836",
@@ -7091,7 +7661,7 @@
   },
   "8360": {
     "name": "黄瓜",
-    "price": 1.2,
+    "price": 0.6,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C836",
@@ -7101,7 +7671,7 @@
   },
   "8359": {
     "name": "鸡蛋",
-    "price": 5.3,
+    "price": 5.0,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C835",
@@ -7111,7 +7681,7 @@
   },
   "8358": {
     "name": "油菜",
-    "price": 1.7,
+    "price": 1.4,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C835",
@@ -7131,7 +7701,7 @@
   },
   "8356": {
     "name": "尖椒",
-    "price": 2.2,
+    "price": 2.4,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C835",
@@ -7171,7 +7741,7 @@
   },
   "8352": {
     "name": "土豆",
-    "price": 1.1,
+    "price": 0.9,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C835",
@@ -7201,7 +7771,7 @@
   },
   "8349": {
     "name": "大蒜",
-    "price": 4.5,
+    "price": 4.6,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C834",
@@ -7211,7 +7781,7 @@
   },
   "8348": {
     "name": "芹菜",
-    "price": 0.9,
+    "price": 1.4,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C834",
@@ -7221,7 +7791,7 @@
   },
   "8347": {
     "name": "大葱",
-    "price": 2.3,
+    "price": 1.8,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C834",
@@ -7231,7 +7801,7 @@
   },
   "8346": {
     "name": "西红柿",
-    "price": 1.2,
+    "price": 1.3,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C834",
@@ -7251,7 +7821,7 @@
   },
   "8344": {
     "name": "甘蓝",
-    "price": 0.4,
+    "price": 0.65,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C834",
@@ -7381,7 +7951,7 @@
   },
   "8330": {
     "name": "平菇",
-    "price": 4.5,
+    "price": 5.8,
     "unit": "斤",
     "spec": "",
     "code": "D001Z029C833",
@@ -7631,7 +8201,7 @@
   },
   "8305": {
     "name": "金翼咸蛋黄蓉",
-    "price": 37.4,
+    "price": 32.67,
     "unit": "袋",
     "spec": "500g",
     "code": "D001Z018C830",
@@ -8001,7 +8571,7 @@
   },
   "8267": {
     "name": "留样标签",
-    "price": 4.0,
+    "price": 10.0,
     "unit": "张",
     "spec": "张",
     "code": "D001Z001C826",
@@ -9341,7 +9911,7 @@
   },
   "8128": {
     "name": "（烤肉店）红心火龙果",
-    "price": 8.42,
+    "price": 7.83,
     "unit": "斤",
     "spec": "斤",
     "code": "D006Z021C812",
@@ -10361,7 +10931,7 @@
   },
   "8025": {
     "name": "（烤肉店）三叔公麻薯心",
-    "price": 18.0,
+    "price": 12.5,
     "unit": "袋",
     "spec": "500g",
     "code": "D001Z015C802",
@@ -11051,7 +11621,7 @@
   },
   "7955": {
     "name": "（烤肉店）西瓜果味酱",
-    "price": 24.83,
+    "price": 25.27,
     "unit": "桶",
     "spec": "2.5kg",
     "code": "D001Z015C795",
@@ -11061,7 +11631,7 @@
   },
   "7954": {
     "name": "（烤肉店）水蜜桃果味酱",
-    "price": 24.8,
+    "price": 25.27,
     "unit": "桶",
     "spec": "2.5kg",
     "code": "D001Z015C795",
@@ -11111,7 +11681,7 @@
   },
   "7949": {
     "name": "（烤肉店）凤梨果味酱",
-    "price": 24.8,
+    "price": 25.27,
     "unit": "桶",
     "spec": "2.5kg",
     "code": "D001Z015C794",
@@ -12031,7 +12601,7 @@
   },
   "7853": {
     "name": "（烤肉店）1250圆盒（玉米淀粉盒）",
-    "price": 154.0,
+    "price": 150.0,
     "unit": "箱",
     "spec": "19*8，200套",
     "code": "D001Z001C785",
@@ -12361,7 +12931,7 @@
   },
   "7815": {
     "name": "（烤肉店）伊利奶粉",
-    "price": 90.0,
+    "price": 70.5,
     "unit": "袋",
     "spec": "2.5kg",
     "code": "D001Z015C781",
@@ -13111,7 +13681,7 @@
   },
   "7739": {
     "name": "（烤肉店）枪头",
-    "price": 10.0,
+    "price": 7.58,
     "unit": "把",
     "spec": "把",
     "code": "D001Z001C773",
@@ -14141,7 +14711,7 @@
   },
   "7636": {
     "name": "烤肉店凤梨",
-    "price": 3.0,
+    "price": 3.5,
     "unit": "斤",
     "spec": "斤",
     "code": "C266",
@@ -14481,7 +15051,7 @@
   },
   "7602": {
     "name": "大娃娃菜",
-    "price": 0.81,
+    "price": 1.0,
     "unit": "斤",
     "spec": "散",
     "code": "C259",
@@ -14491,7 +15061,7 @@
   },
   "7601": {
     "name": "（烤肉店）巧克力豆",
-    "price": 11.7,
+    "price": 10.0,
     "unit": "袋",
     "spec": "500g",
     "code": "C259",
@@ -14531,7 +15101,7 @@
   },
   "7597": {
     "name": "（烤肉店）心里美",
-    "price": 2.2,
+    "price": 2.0,
     "unit": "斤",
     "spec": "斤",
     "code": "C258",
@@ -15271,7 +15841,7 @@
   },
   "7523": {
     "name": "（烤肉店）速冻藤椒鸡肉串L",
-    "price": 27.61,
+    "price": 30.2,
     "unit": "袋",
     "spec": "600g",
     "code": "C244",
@@ -15461,7 +16031,7 @@
   },
   "7504": {
     "name": "（汉堡店）苦菊",
-    "price": 5.0,
+    "price": 4.5,
     "unit": "斤",
     "spec": "斤",
     "code": "C240",
@@ -15481,7 +16051,7 @@
   },
   "7502": {
     "name": "（汉堡店）红圣女果",
-    "price": 5.0,
+    "price": 4.5,
     "unit": "斤",
     "spec": "斤",
     "code": "C239",
@@ -15681,7 +16251,7 @@
   },
   "7482": {
     "name": "香蕉",
-    "price": 5.97,
+    "price": 5.79,
     "unit": "斤",
     "spec": "斤",
     "code": "C235",
@@ -15761,7 +16331,7 @@
   },
   "7474": {
     "name": "（二婶卤货）青尖椒",
-    "price": 1.79,
+    "price": 1.7,
     "unit": "斤",
     "spec": "斤",
     "code": "C234",
@@ -15771,7 +16341,7 @@
   },
   "7473": {
     "name": "（二婶卤货）西红柿",
-    "price": 1.24,
+    "price": 1.21,
     "unit": "斤",
     "spec": "斤",
     "code": "C234",
@@ -16011,7 +16581,7 @@
   },
   "7449": {
     "name": "（汉堡店）香蕉",
-    "price": 5.97,
+    "price": 10.52,
     "unit": "斤",
     "spec": "斤",
     "code": "C229",
@@ -16131,7 +16701,7 @@
   },
   "7436": {
     "name": "（汉堡店）绿豆芽",
-    "price": 1.0,
+    "price": 1.33,
     "unit": "斤",
     "spec": "斤",
     "code": "C226",
@@ -16161,7 +16731,7 @@
   },
   "7433": {
     "name": "（烤肉店）白象香菜面五连包",
-    "price": 18.36,
+    "price": 20.0,
     "unit": "包",
     "spec": "115克*5袋",
     "code": "C226",
@@ -16171,7 +16741,7 @@
   },
   "7432": {
     "name": "（烤肉店）农心辛拉面辣白菜五合一",
-    "price": 18.87,
+    "price": 20.0,
     "unit": "包",
     "spec": "5袋",
     "code": "C225",
@@ -16181,7 +16751,7 @@
   },
   "7431": {
     "name": "（烤肉店）农心辛拉面香菇牛肉五合一",
-    "price": 18.87,
+    "price": 20.0,
     "unit": "包",
     "spec": "5袋",
     "code": "C225",
@@ -16661,7 +17231,7 @@
   },
   "7383": {
     "name": "（汉堡店）蒜米",
-    "price": 4.17,
+    "price": 3.7,
     "unit": "斤",
     "spec": "斤",
     "code": "C216",
@@ -17241,7 +17811,7 @@
   },
   "7325": {
     "name": "（烤肉店）青柠",
-    "price": 9.0,
+    "price": 7.54,
     "unit": "斤",
     "spec": "斤",
     "code": "C204",
@@ -17551,7 +18121,7 @@
   },
   "7294": {
     "name": "笨虎鲜生酸菜",
-    "price": 1.75,
+    "price": 2.35,
     "unit": "袋",
     "spec": "500g/袋",
     "code": "C198",
@@ -17731,7 +18301,7 @@
   },
   "7276": {
     "name": "哈密瓜",
-    "price": 2.03,
+    "price": 2.3,
     "unit": "斤",
     "spec": "斤",
     "code": "C194",
@@ -17781,7 +18351,7 @@
   },
   "7271": {
     "name": "锡纸38宽",
-    "price": 60.0,
+    "price": 45.0,
     "unit": "卷",
     "spec": "卷",
     "code": "C193",
@@ -18011,7 +18581,7 @@
   },
   "7248": {
     "name": "蒜米",
-    "price": 4.17,
+    "price": 3.5,
     "unit": "斤",
     "spec": "斤",
     "code": "C189",
@@ -18021,7 +18591,7 @@
   },
   "7247": {
     "name": "金针菇",
-    "price": 16.0,
+    "price": 14.0,
     "unit": "袋",
     "spec": "5斤/袋",
     "code": "C188",
@@ -18981,7 +19551,7 @@
   },
   "7151": {
     "name": "小米辣",
-    "price": 8.0,
+    "price": 7.5,
     "unit": "斤",
     "spec": "1斤",
     "code": "C169",
@@ -19241,7 +19811,7 @@
   },
   "7125": {
     "name": "橙子",
-    "price": 2.0,
+    "price": 1.9,
     "unit": "斤",
     "spec": "1斤",
     "code": "C164",
@@ -20341,7 +20911,7 @@
   },
   "7015": {
     "name": "(汉堡店)青尖椒",
-    "price": 1.79,
+    "price": 1.7,
     "unit": "斤",
     "spec": "1斤",
     "code": "C142",
@@ -20661,7 +21231,7 @@
   },
   "6983": {
     "name": "莎莎铺子蒸面",
-    "price": 17.23,
+    "price": 16.85,
     "unit": "袋",
     "spec": "2.25kg/袋",
     "code": "C136",
@@ -21751,7 +22321,7 @@
   },
   "6874": {
     "name": "（汉堡店）黄瓜",
-    "price": 1.27,
+    "price": 0.9,
     "unit": "斤",
     "spec": "斤",
     "code": "C114",
@@ -21761,7 +22331,7 @@
   },
   "6873": {
     "name": "（汉堡店）西红柿",
-    "price": 1.24,
+    "price": 1.21,
     "unit": "斤",
     "spec": "斤",
     "code": "C114",
@@ -22811,7 +23381,7 @@
   },
   "6768": {
     "name": "圣女果",
-    "price": 5.0,
+    "price": 4.5,
     "unit": "斤",
     "spec": "1斤",
     "code": "C930",
@@ -23101,7 +23671,7 @@
   },
   "6739": {
     "name": "小油菜",
-    "price": 1.0,
+    "price": 1.45,
     "unit": "斤",
     "spec": "1斤",
     "code": "C872",
@@ -23451,7 +24021,7 @@
   },
   "6704": {
     "name": "青尖椒",
-    "price": 1.79,
+    "price": 1.7,
     "unit": "斤",
     "spec": "1斤",
     "code": "C802",
@@ -23471,9 +24041,9 @@
   },
   "6702": {
     "name": "拉丝棉",
-    "price": 40.0,
+    "price": 29.0,
     "unit": "卷",
-    "spec": "卷",
+    "spec": "6米长",
     "code": "C798",
     "category": "贸易品",
     "sub_category": "低值易耗",
@@ -24031,7 +24601,7 @@
   },
   "6646": {
     "name": "西瓜",
-    "price": 1.11,
+    "price": 1.0,
     "unit": "斤",
     "spec": "1斤",
     "code": "C686",
@@ -24291,7 +24861,7 @@
   },
   "6620": {
     "name": "圆切面",
-    "price": 2.0,
+    "price": 2.29,
     "unit": "斤",
     "spec": "1斤",
     "code": "C634",
@@ -26251,7 +26821,7 @@
   },
   "6422": {
     "name": "25透明食品袋",
-    "price": 12.4,
+    "price": 12.0,
     "unit": "件",
     "spec": "Kg",
     "code": "C238",
@@ -26451,7 +27021,7 @@
   },
   "6402": {
     "name": "墩布",
-    "price": 12.0,
+    "price": 8.5,
     "unit": "把",
     "spec": "把",
     "code": "C198",
@@ -26911,7 +27481,7 @@
   },
   "6356": {
     "name": "椰树白胡椒粉",
-    "price": 17.0,
+    "price": 16.5,
     "unit": "袋",
     "spec": "500g/袋",
     "code": "C106",
@@ -27221,7 +27791,7 @@
   },
   "6325": {
     "name": "大豆油",
-    "price": 171.0,
+    "price": 167.0,
     "unit": "桶",
     "spec": "桶",
     "code": "C044",
@@ -27281,7 +27851,7 @@
   },
   "6319": {
     "name": "鸡蛋",
-    "price": 172.0,
+    "price": 197.0,
     "unit": "件",
     "spec": "件",
     "code": "C032",
@@ -27301,7 +27871,7 @@
   },
   "6317": {
     "name": "黄瓜",
-    "price": 1.27,
+    "price": 0.9,
     "unit": "斤",
     "spec": "1斤",
     "code": "C028",
@@ -27311,7 +27881,7 @@
   },
   "6316": {
     "name": "生姜",
-    "price": 4.0,
+    "price": 4.5,
     "unit": "斤",
     "spec": "1斤",
     "code": "C026",
@@ -27321,7 +27891,7 @@
   },
   "6315": {
     "name": "香菜",
-    "price": 4.0,
+    "price": 4.5,
     "unit": "斤",
     "spec": "斤",
     "code": "C024",
@@ -27341,7 +27911,7 @@
   },
   "6313": {
     "name": "小葱",
-    "price": 4.82,
+    "price": 4.8,
     "unit": "斤",
     "spec": "斤",
     "code": "C020",
@@ -27401,7 +27971,7 @@
   },
   "6307": {
     "name": "西红柿",
-    "price": 1.24,
+    "price": 1.21,
     "unit": "斤",
     "spec": "1斤",
     "code": "C008",
